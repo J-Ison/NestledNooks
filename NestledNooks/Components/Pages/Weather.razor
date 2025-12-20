@@ -1,0 +1,351 @@
+﻿@page "/weather"
+@using System.Net.Http.Json
+@using MudBlazor
+@inject IHttpClientFactory HttpClientFactory
+
+<PageTitle>Weather</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-1">Rapid City, SD Weather</MudText>
+
+<MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-3">
+    Forecast for the next 16 days. Beyond that, this shows “Typical Weather (1991–2020 average)”.
+</MudText>
+
+<MudPaper Class="pa-4 mb-4" Elevation="1" Rounded="true">
+    <MudGrid Spacing="2" AlignItems="AlignItems.Center">
+        <MudItem xs="12" md="8">
+            <MudDateRangePicker Label="Date range"
+                                DateRange="_range"
+                                DateRangeChanged="OnRangeChanged"
+                                PickerVariant="PickerVariant.Dialog"
+                                Clearable="false"
+                                Disabled="@_loading"
+                                DateFormat="MMM dd, yyyy"
+                                MinDate="@MinSelectableDate"
+                                MaxDate="@MaxSelectableDate" />
+            <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-2">
+                Range allowed: today → 2 years out.
+            </MudText>
+        </MudItem>
+
+        <MudItem xs="12" md="4" Class="d-flex justify-end">
+            <MudChip T="string" Color="@ChipColor"
+         Variant="Variant.Filled"
+         Class="mr-2">
+    @ChipLabel
+</MudChip>
+
+
+
+            <MudButton Variant="Variant.Filled"
+                       Color="Color.Primary"
+                       OnClick="Reload"
+                       Disabled="@_loading">
+                Refresh
+            </MudButton>
+        </MudItem>
+    </MudGrid>
+</MudPaper>
+
+@if (_loading)
+{
+    <MudProgressLinear Indeterminate="true" Class="mb-3" />
+    <MudText>Loading…</MudText>
+}
+else if (!string.IsNullOrWhiteSpace(_error))
+{
+    <MudAlert Severity="Severity.Error" Variant="Variant.Filled">
+        @_error
+    </MudAlert>
+}
+else if (_rows.Count == 0)
+{
+    <MudAlert Severity="Severity.Info" Variant="Variant.Outlined">
+        No rows for that date range.
+    </MudAlert>
+}
+else
+{
+    @if (!IsForecastMode)
+    {
+        <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="mb-3">
+            Showing “Typical Weather” (30-year average for each calendar day). This is not an actual day-by-day forecast.
+        </MudAlert>
+    }
+
+    <MudTable Items="_rows" Dense="true" Hover="true" Elevation="1">
+        <HeaderContent>
+            <MudTh>Date</MudTh>
+            <MudTh>High</MudTh>
+            <MudTh>Low</MudTh>
+            <MudTh>Precip</MudTh>
+            <MudTh>Wind</MudTh>
+            <MudTh>Type</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Date">@context.Date.ToString("MMM dd, yyyy")</MudTd>
+            <MudTd DataLabel="High">@($"{context.MaxF:0}°F")</MudTd>
+            <MudTd DataLabel="Low">@($"{context.MinF:0}°F")</MudTd>
+            <MudTd DataLabel="Precip">@($"{context.PrecipIn:0.00} in")</MudTd>
+            <MudTd DataLabel="Wind">@($"{context.WindMph:0} mph")</MudTd>
+            <MudTd DataLabel="Type">@context.Source</MudTd>
+        </RowTemplate>
+    </MudTable>
+}
+
+@code {
+    // Rapid City, SD (approx)
+    private const double Lat = 44.0805;
+    private const double Lon = -103.2310;
+
+    // Forecast cutoff
+    private const int ForecastDays = 16;
+
+    // Date picker constraints (you asked earlier to block past dates)
+    private DateTime MinSelectableDate => DateTime.Today;
+    private DateTime MaxSelectableDate => DateTime.Today.AddYears(2);
+
+    private DateRange _range = new(DateTime.Today, DateTime.Today.AddDays(6));
+
+    private bool _loading;
+    private string? _error;
+
+    private readonly List<Row> _rows = new();
+
+    // Cache of typical weather by MM-dd (computed from 1991–2020 historical daily data)
+    private static Dictionary<string, TypicalDay>? _typicalByMonthDay;
+	private Color ChipColor => IsForecastMode ? Color.Success : Color.Info;
+
+	private string ChipLabel => IsForecastMode
+		? "Forecast"
+		: "Typical (1991–2020)";
+
+
+    private bool IsForecastMode
+    {
+        get
+        {
+            var end = (_range.End ?? _range.Start ?? DateTime.Today).Date;
+            var cutoff = DateTime.Today.AddDays(ForecastDays).Date;
+            return end <= cutoff;
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Reload();
+    }
+
+    private async Task Reload()
+    {
+        _loading = true;
+        _error = null;
+
+        try
+        {
+            if (IsForecastMode)
+            {
+                await LoadForecastRows();
+            }
+            else
+            {
+                await EnsureTypicalCache();
+                BuildTypicalRowsForRange();
+            }
+        }
+        catch (Exception ex)
+        {
+            _error = $"Weather load failed: {ex.Message}";
+        }
+        finally
+        {
+            _loading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task OnRangeChanged(DateRange range)
+    {
+        _range = range;
+        await Reload();
+    }
+
+    private async Task LoadForecastRows()
+    {
+        _rows.Clear();
+
+        var http = HttpClientFactory.CreateClient();
+
+        // Open-Meteo daily forecast
+        var url =
+            $"https://api.open-meteo.com/v1/forecast" +
+            $"?latitude={Lat}&longitude={Lon}" +
+            $"&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,windspeed_10m_max" +
+            $"&temperature_unit=fahrenheit&wind_speed_unit=mph&precipitation_unit=inch" +
+            $"&timezone=America%2FDenver";
+
+        var resp = await http.GetFromJsonAsync<OpenMeteoDailyResponse>(url);
+
+        var d = resp?.daily;
+        if (d?.time is null)
+            throw new InvalidOperationException("Forecast service returned an unexpected response.");
+
+        // Filter to selected range
+        var start = (_range.Start ?? DateTime.Today).Date;
+        var end = (_range.End ?? start).Date;
+
+        for (var i = 0; i < d.time.Length; i++)
+        {
+            var dt = DateTime.Parse(d.time[i]).Date;
+            if (dt < start || dt > end)
+                continue;
+
+            _rows.Add(new Row
+            {
+                Date = dt,
+                MaxF = SafeGet(d.temperature_2m_max, i),
+                MinF = SafeGet(d.temperature_2m_min, i),
+                PrecipIn = SafeGet(d.precipitation_sum, i),
+                WindMph = SafeGet(d.windspeed_10m_max, i),
+                Source = "Forecast"
+            });
+        }
+
+        _rows.Sort((a, b) => a.Date.CompareTo(b.Date));
+    }
+
+    private async Task EnsureTypicalCache()
+    {
+        if (_typicalByMonthDay is not null)
+            return;
+
+        var http = HttpClientFactory.CreateClient();
+
+        // Pull daily historical data for 1991–2020, then average by MM-dd
+        var url =
+            $"https://archive-api.open-meteo.com/v1/archive" +
+            $"?latitude={Lat}&longitude={Lon}" +
+            $"&start_date=1991-01-01&end_date=2020-12-31" +
+            $"&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,windspeed_10m_max" +
+            $"&temperature_unit=fahrenheit&wind_speed_unit=mph&precipitation_unit=inch" +
+            $"&timezone=America%2FDenver";
+
+        var resp = await http.GetFromJsonAsync<OpenMeteoDailyResponse>(url);
+        var d = resp?.daily;
+
+        if (d?.time is null)
+            throw new InvalidOperationException("Typical-weather service returned an unexpected response.");
+
+        // Aggregate sums/count per MM-dd
+        var sums = new Dictionary<string, TypicalAgg>();
+
+        for (var i = 0; i < d.time.Length; i++)
+        {
+            var dt = DateTime.Parse(d.time[i]);
+            var key = $"{dt:MM-dd}";
+
+            if (!sums.TryGetValue(key, out var agg))
+            {
+                agg = new TypicalAgg();
+                sums[key] = agg;
+            }
+
+            agg.Count++;
+            agg.SumMax += SafeGet(d.temperature_2m_max, i);
+            agg.SumMin += SafeGet(d.temperature_2m_min, i);
+            agg.SumPrecip += SafeGet(d.precipitation_sum, i);
+            agg.SumWind += SafeGet(d.windspeed_10m_max, i);
+        }
+
+        _typicalByMonthDay = sums.ToDictionary(
+            kvp => kvp.Key,
+            kvp => kvp.Value.ToTypicalDay()
+        );
+    }
+
+    private void BuildTypicalRowsForRange()
+    {
+        _rows.Clear();
+
+        if (_typicalByMonthDay is null)
+            return;
+
+        var start = (_range.Start ?? DateTime.Today).Date;
+        var end = (_range.End ?? start).Date;
+
+        // Build one row per date in the selected range
+        for (var dt = start; dt <= end; dt = dt.AddDays(1))
+        {
+            var key = $"{dt:MM-dd}";
+
+            if (_typicalByMonthDay.TryGetValue(key, out var t))
+            {
+                _rows.Add(new Row
+                {
+                    Date = dt,
+                    MaxF = t.MaxF,
+                    MinF = t.MinF,
+                    PrecipIn = t.PrecipIn,
+                    WindMph = t.WindMph,
+                    Source = "Typical"
+                });
+            }
+        }
+    }
+
+    private static double SafeGet(double[]? arr, int i) =>
+        (arr is not null && i >= 0 && i < arr.Length) ? arr[i] : 0;
+
+    private sealed class Row
+    {
+        public DateTime Date { get; set; }
+        public double MaxF { get; set; }
+        public double MinF { get; set; }
+        public double PrecipIn { get; set; }
+        public double WindMph { get; set; }
+        public string Source { get; set; } = "";
+    }
+
+    private sealed class TypicalDay
+    {
+        public double MaxF { get; init; }
+        public double MinF { get; init; }
+        public double PrecipIn { get; init; }
+        public double WindMph { get; init; }
+    }
+
+    private sealed class TypicalAgg
+    {
+        public int Count;
+        public double SumMax;
+        public double SumMin;
+        public double SumPrecip;
+        public double SumWind;
+
+        public TypicalDay ToTypicalDay()
+        {
+            var c = Math.Max(Count, 1);
+            return new TypicalDay
+            {
+                MaxF = SumMax / c,
+                MinF = SumMin / c,
+                PrecipIn = SumPrecip / c,
+                WindMph = SumWind / c
+            };
+        }
+    }
+
+    private sealed class OpenMeteoDailyResponse
+    {
+        public Daily? daily { get; set; }
+    }
+
+    private sealed class Daily
+    {
+        public string[]? time { get; set; }
+        public double[]? temperature_2m_max { get; set; }
+        public double[]? temperature_2m_min { get; set; }
+        public double[]? precipitation_sum { get; set; }
+        public double[]? windspeed_10m_max { get; set; }
+    }
+}

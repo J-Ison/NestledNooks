@@ -1,0 +1,916 @@
+﻿/* =========================
+   Global
+   ========================= */
+
+html, body {
+    font-family: 'Roboto', system-ui, -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Helvetica, Arial, sans-serif;
+}
+
+a, .btn-link {
+    color: #006bb7;
+}
+
+/* Validation / error styles (keep for EditForm + Blazor validation) */
+.valid.modified:not([type=checkbox]) {
+    outline: 1px solid #26b050;
+}
+
+.invalid {
+    outline: 1px solid #e50000;
+}
+
+.validation-message {
+    color: #e50000;
+}
+
+/* Blazor error boundary */
+.blazor-error-boundary {
+    background: url(data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTYiIGhlaWdodD0iNDkiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgeG1sbnM6eGxpbms9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkveGxpbmsiIG92ZXJmbG93PSJoaWRkZW4iPjxkZWZzPjxjbGlwUGF0aCBpZD0iY2xpcDAiPjxyZWN0IHg9IjIzNSIgeT0iNTEiIHdpZHRoPSI1NiIgaGVpZ2h0PSI0OSIvPjwvY2xpcFBhdGg+PC9kZWZzPjxnIGNsaXAtcGF0aD0idXJsKCNjbGlwMCkiIHRyYW5zZm9ybT0idHJhbnNsYXRlKC0yMzUgLTUxKSI+PHBhdGggZD0iTTI2My41MDYgNTFDMjY0LjcxNyA1MSAyNjUuODEzIDUxLjQ4MzcgMjY2LjYwNiA1Mi4yNjU4TDI2Ny4wNTIgNTIuNzk4NyAyNjcuNTM5IDUzLjYyODMgMjkwLjE4NSA5Mi4xODMxIDI5MC41NDUgOTIuNzk1IDI5MC42NTYgOTIuOTk2QzI5MC44NzcgOTMuNTEzIDI5MSA5NC4wODE1IDI5MSA5NC42NzgyIDI5MSA5Ny4wNjUxIDI4OS4wMzggOTkgMjg2LjYxNyA5OUwyNDAuMzgzIDk5QzIzNy45NjMgOTkgMjM2IDk3LjA2NTEgMjM2IDk0LjY3ODIgMjM2IDk0LjM3OTkgMjM2LjAzMSA5NC4wODg2IDIzNi4wODkgOTMuODA3MkwyMzYuMzM4IDkzLjAxNjIgMjM2Ljg1OCA5Mi4xMzE0IDI1OS40NzMgNTMuNjI5NCAyNTkuOTYxIDUyLjc5ODUgMjYwLjQwNyA1Mi4yNjU4QzI2MS4yIDUxLjQ4MzcgMjYyLjI5NiA1MSAyNjMuNTA2IDUxWk0yNjMuNTg2IDY2LjAxODNDMjYwLjczNyA2Ni4wMTgzIDI1OS4zMTMgNjcuMTI0NSAyNTkuMzEzIDY5LjMzNyAyNTkuMzEzIDY5LjYxMDIgMjU5LjMzMiA2OS44NjA4IDI1OS4zNzEgNzAuMDg4N0wyNjEuNzk1IDg0LjAxNjEgMjY1LjM4IDg0LjAxNjEgMjY3LjgyMSA2OS43NDc1QzI2Ny44NiA2OS43MzA5IDI2Ny44NzkgNjkuNTg3NyAyNjcuODc5IDY5LjMxNzkgMjY3Ljg3OSA2Ny4xMTgyIDI2Ni40NDggNjYuMDE4MyAyNjMuNTg2IDY2LjAxODNaTTI2My41NzYgODYuMDU0N0MyNjEuMDQ5IDg2LjA1NDcgMjU5Ljc4NiA4Ny4zMDA1IDI1OS43ODYgODkuNzkyMSAyNTkuNzg2IDkyLjI4MzcgMjYxLjA0OSA5My41Mjk1IDI2My41NzYgOTMuNTI5NSAyNjYuMTE2IDkzLjUyOTUgMjY3LjM4NyA5Mi4yODM3IDI2Ny4zODcgODkuNzkyMSAyNjcuMzg3IDg3LjMwMDUgMjY2LjExNiA4Ni4wNTQ3IDI2My41NzYgODYuMDU0N1oiIGZpbGw9IiNGRkU1MDAiIGZpbGwtcnVsZT0iZXZlbm9kZCIvPjwvZz48L3N2Zz4=) no-repeat 1rem/1.8rem, #b32121;
+    padding: 1rem 1rem 1rem 3.7rem;
+    color: white;
+}
+
+    .blazor-error-boundary::after {
+        content: "An error has occurred.";
+    }
+
+.darker-border-checkbox.form-check-input {
+    border-color: #929292;
+}
+
+/* =========================
+   Login page
+   ========================= */
+
+.login-wrapper {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 80vh;
+    background: #f5f7f2;
+}
+
+.login-card {
+    background: #ffffff;
+    padding: 2.5rem;
+    width: 100%;
+    max-width: 400px;
+    border-radius: 16px;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.08);
+    text-align: center;
+}
+
+.login-title {
+    font-size: 1.75rem;
+    margin-bottom: 0.25rem;
+    font-weight: 600;
+    color: #2f3b2f;
+}
+
+.login-subtitle {
+    font-size: 0.95rem;
+    margin-bottom: 1.75rem;
+    color: #6b7a6b;
+}
+
+.form-group {
+    margin-bottom: 1.25rem;
+    text-align: left;
+}
+
+.form-control {
+    width: 100%;
+    padding: 0.65rem;
+    border: 1px solid #cfd8cf;
+    border-radius: 8px;
+    font-size: 1rem;
+}
+
+    .form-control:focus {
+        outline: none;
+        border-color: #6b8e6b;
+        box-shadow: 0 0 3px rgba(107, 142, 107, 0.4);
+    }
+
+.btn-login {
+    width: 100%;
+    padding: 0.75rem;
+    background-color: #6b8e6b;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s ease;
+}
+
+    .btn-login:hover {
+        background-color: #587a58;
+    }
+
+.login-register {
+    margin-top: 1.5rem;
+    color: #4f5d4f;
+}
+
+    .login-register a {
+        color: #6b8e6b;
+        font-weight: 600;
+        text-decoration: none;
+    }
+
+        .login-register a:hover {
+            text-decoration: underline;
+        }
+
+/* =========================
+   Layout / Shell
+   ========================= */
+
+footer {
+    margin-top: 1rem;
+}
+
+/* Keep this lightweight so it doesn't break the listing page */
+.content {
+    margin-top: 20px;
+    padding: 20px;
+}
+
+/* =========================
+   Nestled Nooks AppBar + Drawer (MudBlazor)
+   ========================= */
+
+/
+.nn-brand {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+}
+
+.nn-logo-circle {
+    width: 32px;
+    height: 32px;
+    border-radius: 999px;
+    background: linear-gradient(135deg, #14532d, #0f766e);
+    color: #f9fafb;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 0.95rem;
+}
+
+.nn-brand-text {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.2;
+}
+
+.nn-brand-title {
+    font-weight: 600;
+    font-size: 1.05rem;
+    color: #0f172a !important;
+}
+
+.nn-brand-subtitle {
+    font-size: 0.75rem;
+    color: #1f2937 !important;
+}
+
+.nn-nav-link {
+    text-transform: none;
+    margin-inline: 0.25rem;
+}
+
+.nn-nav-cta {
+    text-transform: none;
+    margin-left: 0.5rem;
+    border-radius: 999px;
+}
+
+.nn-drawer-white {
+    background-color: #ffffff !important;
+    color: #0f172a !important;
+}
+
+    .nn-drawer-white .mud-nav-link {
+        color: #1e293b !important;
+    }
+
+    .nn-drawer-white .mud-nav-link-active {
+        background-color: #93c5fd33 !important;
+        color: #0f172a !important;
+        border-radius: 6px;
+    }
+
+    .nn-drawer-white .mud-icon-root {
+        color: #64748b !important;
+    }
+
+.nn-drawer-title {
+    color: #475569 !important;
+    border-bottom: 1px solid #e2e8f0 !important;
+}
+
+.nn-appbar-sky {
+    background-color: #93c5fd !important;
+    color: #0f172a !important;
+    border-bottom: 1px solid #dbeafe;
+}
+
+    .nn-appbar-sky .mud-icon-button,
+    .nn-appbar-sky .mud-button {
+        color: #0f172a !important;
+    }
+
+.nn-logo-img {
+    height: 32px;
+    width: auto;
+    border-radius: 6px;
+}
+
+/* =========================
+   Deerfield Retreat Listing (Airbnb-style)
+   ========================= */
+
+:root {
+    --ink: #111;
+    --muted: #6b7280;
+    --line: #e5e7eb;
+    --card: #fff;
+    --shadow: 0 10px 25px rgba(0,0,0,.08);
+    --radius: 16px;
+    --airbnb: #ff385c;
+    --vrbo: #1f4fff;
+}
+
+.listing-page {
+    background: #fff;
+    color: var(--ink);
+}
+
+.wrap {
+    max-width: 1120px;
+    margin: 0 auto;
+    padding: 18px 18px 60px;
+}
+
+.topbar {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    background: rgba(255,255,255,.92);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--line);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 18px;
+}
+
+.brand {
+    font-weight: 900;
+    letter-spacing: .2px;
+    cursor: pointer;
+}
+
+.topbar-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.pill-btn {
+    border: 1px solid var(--line);
+    background: #fff;
+    padding: 8px 12px;
+    border-radius: 999px;
+    font-weight: 800;
+    cursor: pointer;
+    text-decoration: none;
+    color: var(--ink);
+}
+
+    .pill-btn.airbnb {
+        border-color: rgba(255,56,92,.35);
+    }
+
+    .pill-btn.vrbo {
+        border-color: rgba(31,79,255,.35);
+    }
+
+.title-row {
+    margin: 14px 0 10px;
+}
+
+.eyebrow {
+    margin: 0 0 6px;
+    color: var(--muted);
+    font-weight: 800;
+}
+
+.title {
+    font-size: 28px;
+    line-height: 1.15;
+    margin: 0 0 8px;
+}
+
+.subtitle {
+    max-width: 760px;
+    margin: 0;
+    color: #1f2937;
+}
+
+/* Hero photo grid (fixed sizing) */
+.media-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 10px;
+    border-radius: var(--radius);
+    overflow: hidden;
+    margin-top: 14px;
+    max-height: 520px;
+}
+
+.media-main {
+    height: 520px;
+}
+
+.media-side {
+    height: 520px;
+}
+
+.media-grid img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.media-side {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-auto-rows: 1fr;
+    gap: 10px;
+}
+
+.media-last {
+    position: relative;
+    grid-column: 1 / -1;
+}
+
+.show-photos {
+    position: absolute;
+    right: 12px;
+    bottom: 12px;
+    background: #fff;
+    border: 1px solid var(--line);
+    padding: 10px 12px;
+    border-radius: 10px;
+    font-weight: 900;
+    cursor: pointer;
+    box-shadow: var(--shadow);
+}
+
+.content-grid {
+    display: grid;
+    grid-template-columns: 1fr 360px;
+    gap: 48px;
+    margin-top: 18px;
+    align-items: start;
+}
+
+.subhead .line-1 {
+    font-weight: 900;
+    margin-top: 6px;
+}
+
+.subhead .line-2 {
+    color: var(--muted);
+    margin-top: 4px;
+    font-weight: 700;
+}
+
+.badges {
+    display: flex;
+    gap: 10px;
+    margin: 14px 0 10px;
+    flex-wrap: wrap;
+}
+
+.badge {
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 10px 12px;
+    min-width: 210px;
+    background: #fff;
+}
+
+.badge-title {
+    font-weight: 900;
+}
+
+.badge-sub {
+    color: var(--muted);
+    margin-top: 2px;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.divider {
+    border: 0;
+    border-top: 1px solid var(--line);
+    margin: 18px 0;
+}
+
+.section h2 {
+    font-size: 20px;
+    margin: 0 0 10px;
+}
+
+.desc {
+    color: #1f2937;
+    margin: 0;
+}
+
+.bullets {
+    margin: 0 0 0 18px;
+    color: #1f2937;
+}
+
+    .bullets li {
+        margin: 7px 0;
+    }
+
+.booking-card {
+    position: sticky;
+    top: 86px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--card);
+    padding: 16px;
+    box-shadow: var(--shadow);
+}
+
+.booking-head {
+    margin-bottom: 12px;
+}
+
+.booking-title {
+    font-weight: 900;
+}
+
+.booking-sub {
+    color: var(--muted);
+    font-weight: 700;
+    margin-top: 4px;
+    font-size: 13px;
+}
+
+.cta-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.primary-btn {
+    width: 100%;
+    border: none;
+    padding: 12px 14px;
+    border-radius: 12px;
+    font-weight: 900;
+    cursor: pointer;
+    text-decoration: none;
+    text-align: center;
+    color: #fff;
+    display: block;
+}
+
+    .primary-btn.airbnb {
+        background: var(--airbnb);
+    }
+
+    .primary-btn.vrbo {
+        background: var(--vrbo);
+    }
+
+.fineprint {
+    margin-top: 12px;
+    color: var(--muted);
+    font-weight: 700;
+    font-size: 12.5px;
+    line-height: 1.35;
+}
+
+@media (max-width: 980px) {
+    .content-grid {
+        grid-template-columns: 1fr;
+        gap: 22px;
+    }
+
+    .booking-card {
+        position: static;
+    }
+
+    .media-grid {
+        grid-template-columns: 1fr;
+        max-height: none;
+    }
+
+    .media-main {
+        height: 280px;
+    }
+
+    .media-side {
+        height: auto;
+        grid-template-columns: 1fr 1fr;
+    }
+
+        /* Right-side grid behavior */
+        .media-side.no-wide {
+            /* If no wide image, make a clean 2x2 grid */
+            grid-template-columns: 1fr 1fr;
+            grid-auto-rows: 1fr;
+        }
+
+            .media-side.no-wide .media-last.no-photo {
+                /* If we don’t have a wide photo, don’t reserve a giant blank tile */
+                grid-column: auto;
+                min-height: 0;
+                background: transparent;
+                position: relative;
+            }
+
+        /* If we DO have a wide image, use the spanning layout */
+        .media-side.has-wide .media-last {
+            grid-column: 1 / -1;
+        }
+}
+
+@media (max-width: 520px) {
+    .media-side {
+        grid-template-columns: 1fr;
+    }
+
+        /* Right-side grid behavior (mobile) */
+        .media-side.no-wide {
+            grid-template-columns: 1fr;
+        }
+
+    .badge {
+        min-width: 0;
+        width: 100%;
+    }
+
+    .title {
+        font-size: 24px;
+    }
+
+    .media-main {
+        height: 240px;
+    }
+}
+
+/* =========================
+   Full-screen Gallery
+   ========================= */
+
+.gallery-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.72);
+    z-index: 9999;
+    padding: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.gallery-modal {
+    width: min(1200px, 100%);
+    max-height: 92vh;
+    background: #0b0b0b;
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 18px 60px rgba(0,0,0,.45);
+    display: flex;
+    flex-direction: column;
+}
+
+.gallery-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 14px;
+    color: #fff;
+    border-bottom: 1px solid rgba(255,255,255,.08);
+}
+
+.gallery-close {
+    border: 1px solid rgba(255,255,255,.18);
+    background: rgba(255,255,255,.06);
+    color: #fff;
+    width: 38px;
+    height: 38px;
+    border-radius: 999px;
+    font-weight: 900;
+    cursor: pointer;
+}
+
+.gallery-count {
+    font-weight: 800;
+    color: rgba(255,255,255,.85);
+}
+
+.gallery-body {
+    display: grid;
+    grid-template-columns: 60px 1fr 60px;
+    align-items: center;
+    gap: 10px;
+    padding: 14px;
+    flex: 1;
+    min-height: 0;
+}
+
+.gallery-main {
+    min-height: 0;
+    display: grid;
+    place-items: center;
+    gap: 10px;
+}
+
+    .gallery-main img {
+        max-width: 100%;
+        max-height: 62vh;
+        object-fit: contain;
+        border-radius: 12px;
+        background: #111;
+    }
+
+.gallery-caption {
+    color: rgba(255,255,255,.78);
+    font-weight: 700;
+    font-size: 13px;
+    text-align: center;
+    padding: 0 10px;
+}
+
+.gallery-nav {
+    border: 1px solid rgba(255,255,255,.18);
+    background: rgba(255,255,255,.06);
+    color: #fff;
+    width: 48px;
+    height: 48px;
+    border-radius: 999px;
+    font-size: 26px;
+    font-weight: 900;
+    cursor: pointer;
+}
+
+    .gallery-nav:disabled {
+        opacity: .35;
+        cursor: default;
+    }
+
+.gallery-thumbs {
+    display: flex;
+    gap: 10px;
+    padding: 12px 14px 14px;
+    overflow-x: auto;
+    border-top: 1px solid rgba(255,255,255,.08);
+    background: #0b0b0b;
+}
+
+.thumb {
+    border: 2px solid transparent;
+    padding: 0;
+    background: transparent;
+    border-radius: 12px;
+    cursor: pointer;
+    flex: 0 0 auto;
+}
+
+    .thumb img {
+        width: 110px;
+        height: 74px;
+        object-fit: cover;
+        border-radius: 10px;
+        display: block;
+    }
+
+    .thumb.active {
+        border-color: rgba(255,255,255,.85);
+    }
+
+@media (max-width: 720px) {
+    .gallery-body {
+        grid-template-columns: 46px 1fr 46px;
+    }
+
+    .thumb img {
+        width: 92px;
+        height: 62px;
+    }
+
+    .gallery-main img {
+        max-height: 56vh;
+    }
+}
+
+/* Ensure the tile is the positioning context */
+.media-last {
+    position: relative;
+}
+
+    /* Put the image "behind" the button in stacking order */
+    .media-last img {
+        position: relative;
+        z-index: 1;
+    }
+
+/* Force the button to sit above and receive clicks */
+.show-photos {
+    position: absolute;
+    right: 12px;
+    bottom: 12px;
+    z-index: 10;
+    pointer-events: auto;
+}
+
+/* If any container accidentally disables pointer events, override it */
+.media-last,
+.media-last * {
+    pointer-events: auto;
+}
+
+/* ---- MudBlazor icon size safety (prevents giant SVG icons) ---- */
+.mud-icon-root,
+.mud-icon-root svg,
+.mud-nav-link .mud-icon-root,
+.mud-icon-button .mud-icon-root {
+    width: 24px !important;
+    height: 24px !important;
+    min-width: 24px !important;
+    min-height: 24px !important;
+    max-width: 24px !important;
+    max-height: 24px !important;
+    flex: 0 0 24px !important;
+}
+
+.mud-nav-link {
+    align-items: center;
+}
+
+/* ---- FORCE AppBar to be a single horizontal row ---- */
+.nn-appbar {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    flex-wrap: nowrap !important;
+    min-height: 56px;
+    padding: 0 12px !important;
+}
+
+/* Hamburger button: fixed size, centered */
+.nn-menu-btn {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 40px;
+    height: 40px;
+    margin: 0 10px 0 0 !important;
+}
+
+/* Brand block should sit to the right of hamburger (NOT stack under it) */
+.nn-brand-inline {
+    display: inline-flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    gap: 10px;
+    min-width: 0; /* allows text to shrink */
+}
+
+/* Logo: don’t let it stretch header */
+.nn-logo-img {
+    height: 28px;
+    width: 28px;
+    object-fit: contain;
+    display: block;
+    flex: 0 0 auto;
+}
+
+/* Title + subtitle stay as a compact 2-line block */
+.nn-brand-text {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.1;
+    min-width: 0;
+}
+
+/* Prevent giant text / wrapping issues */
+.nn-brand-title {
+    font-size: 16px;
+    font-weight: 700;
+    margin: 0;
+    white-space: nowrap;
+}
+
+.nn-brand-subtitle {
+    font-size: 12px;
+    margin: 0;
+    white-space: nowrap;
+    opacity: .9;
+}
+.mud-drawer {
+    z-index: 1300 !important;
+}
+
+.mud-overlay {
+    z-index: 1299 !important;
+}
+
+/* Drawer must sit on top of the page */
+.mud-drawer {
+    z-index: 1400 !important;
+}
+
+.mud-overlay {
+    z-index: 1399 !important;
+}
+
+/* Drawer content padding */
+.nn-drawer-inner {
+    padding: 14px;
+}
+
+.nn-drawer-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding-bottom: 8px;
+}
+
+/* === Header (matches your screenshot) === */
+.nn-appbar-sky {
+    background-color: #93c5fd !important;
+    color: #0f172a !important;
+}
+
+.nn-menu-btn {
+    margin-right: 10px;
+}
+
+.nn-brand-inline {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+}
+
+.nn-logo-img {
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    object-fit: cover;
+}
+
+.nn-brand-text {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.05;
+}
+
+.nn-brand-title {
+    font-weight: 800;
+    font-size: 18px;
+    color: #0f172a;
+}
+
+.nn-brand-subtitle {
+    font-weight: 600;
+    font-size: 12px;
+    color: #1f2937;
+}
+
+/* === Drawer look === */
+.nn-drawer-white {
+    background: #fff !important;
+    color: #0f172a !important;
+}
+
+.nn-drawer-title {
+    font-weight: 800;
+    color: #0f172a;
+}
+
+/* Keep page content from being shoved down by extra wrappers */
+.nn-main {
+    padding: 0;
+}
+.mud-drawer {
+    position: fixed !important;
+}

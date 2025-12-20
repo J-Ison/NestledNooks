@@ -1,0 +1,156 @@
+﻿@page "/booking"
+@using Microsoft.AspNetCore.Components
+@using Microsoft.AspNetCore.WebUtilities
+@inject NavigationManager Navigation
+
+@code {
+	private string SelectedProperty { get; set; } = "";
+
+	protected override void OnInitialized()
+	{
+		var uri = Navigation.ToAbsoluteUri(Navigation.Uri);
+		if (QueryHelpers.ParseQuery(uri.Query).TryGetValue("property", out var propertyName))
+		{
+			SelectedProperty = propertyName;
+		}
+	}
+}
+
+<div class="booking-page">
+	<h1 class="page-title">Booking</h1>
+
+	<form class="booking-form">
+		<div class="form-group">
+			<label for="property">Select Property</label>
+			<select id="property" class="form-control" @bind="SelectedProperty" aria-required="true">
+				<option value="Deerfield Retreat">Deerfield Retreat</option>
+				<!-- Add other properties here -->
+			</select>
+		</div>
+
+		<div class="form-group">
+			<label for="name">Full Name</label>
+			<input type="text" id="name" class="form-control" placeholder="Enter your full name" required aria-describedby="nameHelp" />
+			<small id="nameHelp" class="form-text text-muted">Please provide your full name for the reservation.</small>
+		</div>
+
+		<div class="form-group">
+			<label for="email">Email Address</label>
+			<input type="email" id="email" class="form-control" placeholder="Enter your email" required aria-describedby="emailHelp" />
+			<small id="emailHelp" class="form-text text-muted">We'll send you a confirmation email.</small>
+		</div>
+
+		<div class="form-group">
+			<label for="checkin">Check-In Date</label>
+			<input type="date" id="checkin" class="form-control" required aria-required="true" />
+		</div>
+
+		<div class="form-group">
+			<label for="checkout">Check-Out Date</label>
+			<input type="date" id="checkout" class="form-control" required aria-required="true" />
+		</div>
+
+		<div class="form-group">
+			<label for="guests">Number of Guests</label>
+			<input type="number" id="guests" class="form-control" min="1" max="10" required aria-describedby="guestsHelp" />
+			<small id="guestsHelp" class="form-text text-muted">Specify the number of guests staying.</small>
+		</div>
+
+		<div class="form-group">
+			<label for="pets">Number of Pets</label>
+			<input type="number" id="pets" class="form-control" min="0" max="4" required aria-describedby="petsHelp" />
+			<small id="petsHelp" class="form-text text-muted">Please specify the number of pets (if any).</small>
+		</div>
+
+		<div class="form-actions">
+			<button type="submit" class="btn-submit">Submit</button>
+			<button type="reset" class="btn-reset">Reset</button>
+		</div>
+	</form>
+</div>
+
+<style>
+	.booking-page {
+		max-width: 800px;
+		margin: 30px auto;
+		padding: 20px;
+		background-color: #f8f9fa;
+		border-radius: 8px;
+		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+	}
+
+	.page-title {
+		text-align: center;
+		font-size: 2rem;
+		margin-bottom: 20px;
+		font-weight: 600;
+		color: #333;
+	}
+
+	.booking-form {
+		display: flex;
+		flex-direction: column;
+	}
+
+	.form-group {
+		margin-bottom: 20px;
+	}
+
+		.form-group label {
+			font-size: 1.1rem;
+			font-weight: 500;
+			color: #444;
+		}
+
+	.form-control {
+		width: 100%;
+		padding: 10px;
+		font-size: 1rem;
+		border-radius: 5px;
+		border: 1px solid #ccc;
+		box-sizing: border-box;
+	}
+
+		.form-control:focus {
+			border-color: #27ae60;
+			outline: none;
+		}
+
+	.form-actions {
+		display: flex;
+		justify-content: space-between;
+		margin-top: 20px;
+	}
+
+	.btn-submit, .btn-reset {
+		padding: 12px 20px;
+		font-size: 1rem;
+		border-radius: 5px;
+		cursor: pointer;
+		border: none;
+		width: 48%;
+	}
+
+	.btn-submit {
+		background-color: #27ae60;
+		color: white;
+	}
+
+		.btn-submit:hover {
+			background-color: #2ecc71;
+		}
+
+	.btn-reset {
+		background-color: #e74c3c;
+		color: white;
+	}
+
+		.btn-reset:hover {
+			background-color: #c0392b;
+		}
+
+	.form-text {
+		font-size: 0.9rem;
+		color: #777;
+	}
+</style>

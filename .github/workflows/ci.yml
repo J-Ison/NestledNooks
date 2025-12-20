@@ -1,0 +1,38 @@
+name: Build and Test - NestledNooks
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore
+        run: dotnet restore ./NestledNooks/NestledNooks.csproj
+
+      - name: Build
+        run: dotnet build ./NestledNooks/NestledNooks.csproj --configuration Release --no-restore
+
+      - name: Run Tests
+        run: dotnet test ./NestledNooks.Tests/NestledNooks.Tests.csproj --configuration Release --no-build
+
+      - name: Publish
+        run: dotnet publish ./NestledNooks/NestledNooks.csproj --configuration Release --output ./publish
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: NestledNooks-drop
+          path: ./publish

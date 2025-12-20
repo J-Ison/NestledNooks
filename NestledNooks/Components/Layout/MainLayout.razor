@@ -1,0 +1,100 @@
+﻿@inherits LayoutComponentBase
+@using MudBlazor
+@using Microsoft.AspNetCore.Components.Routing
+
+<MudThemeProvider />
+<MudPopoverProvider />
+<MudDialogProvider />
+<MudSnackbarProvider />
+
+<MudLayout>
+	<MudAppBar Elevation="4" Dense="true" Class="nn-appbar nn-appbar-sky">
+		<MudIconButton Icon="@Icons.Material.Filled.Menu"
+					   Color="Color.Inherit"
+					   Edge="Edge.Start"
+					   OnClick="ToggleDrawer" />
+
+		<div class="nn-brand nn-brand-inline">
+			<img src="/images/apple5_blue.png" alt="Logo" class="nn-logo-img" />
+			<div class="nn-brand-text">
+				<div class="nn-brand-title">Nestled Nooks</div>
+				<div class="nn-brand-subtitle">Relax • Recharge • Reset</div>
+			</div>
+		</div>
+
+		<MudSpacer />
+	</MudAppBar>
+
+	<MudDrawer Open="@_drawerOpen"
+			   OpenChanged="OnDrawerOpenChanged"
+			   Variant="DrawerVariant.Temporary"
+			   Anchor="Anchor.Left"
+			   Elevation="8"
+			   Overlay="true"
+			   ClipMode="DrawerClipMode.Never"
+			   Width="280px"
+			   Class="nn-drawer-white">
+
+		<div class="nn-drawer-inner">
+
+			<div class="nn-drawer-header">
+				<MudText Typo="Typo.h6">Menu</MudText>
+				<MudIconButton Icon="@Icons.Material.Filled.Close"
+							   Color="Color.Inherit"
+							   OnClick="@CloseDrawer" />
+			</div>
+
+			<MudDivider />
+
+			<MudNavMenu>
+
+				<MudNavLink Href="/"
+							Match="NavLinkMatch.All"
+							Icon="@Icons.Material.Filled.Home"
+							OnClick="@CloseDrawer">
+					Home
+				</MudNavLink>
+
+				<MudNavLink Href="/weather"
+							Icon="@Icons.Material.Filled.Cloud"
+							OnClick="@CloseDrawer">
+					Weather
+				</MudNavLink>
+
+				<MudNavLink Href="/contact"
+							Icon="@Icons.Material.Filled.Email"
+							OnClick="@CloseDrawer">
+					Contact Us
+				</MudNavLink>
+
+				<MudDivider Class="my-2" />
+
+				<MudNavLink Href="/login"
+							Icon="@Icons.Material.Filled.Lock"
+							OnClick="@CloseDrawer">
+					Login
+				</MudNavLink>
+
+				<MudNavLink Href="/register"
+							Icon="@Icons.Material.Filled.PersonAdd"
+							OnClick="@CloseDrawer">
+					Register
+				</MudNavLink>
+
+			</MudNavMenu>
+		</div>
+	</MudDrawer>
+
+	<MudMainContent>
+		@Body
+	</MudMainContent>
+
+</MudLayout>
+
+@code {
+	private bool _drawerOpen;
+	private void CloseDrawer() => _drawerOpen = false;
+	private void ToggleDrawer() => _drawerOpen = !_drawerOpen;
+
+	private void OnDrawerOpenChanged(bool open) => _drawerOpen = open;
+}

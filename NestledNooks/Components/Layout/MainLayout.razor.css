@@ -1,0 +1,47 @@
+﻿.nn-appbar-sky {
+    background-color: #93c5fd;
+    color: #0f172a;
+}
+
+.nn-menu-btn {
+    margin-right: 10px;
+}
+
+.nn-brand-row {
+    min-width: 0;
+}
+
+.nn-logo-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+    .nn-logo-avatar img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+.nn-brand-title {
+    font-weight: 800;
+    line-height: 1.1;
+}
+
+.nn-brand-subtitle {
+    font-weight: 600;
+    opacity: 0.9;
+    line-height: 1.1;
+}
+
+.nn-drawer-inner {
+    padding: 10px 0;
+}
+
+.nn-drawer-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 16px;
+}

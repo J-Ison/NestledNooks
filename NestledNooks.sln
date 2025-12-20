@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.14.36811.4 d17.14
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NestledNooks", "NestledNooks\NestledNooks.csproj", "{94760D89-E91E-4D7C-8C47-39ED5853C372}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NestledNooks.Tests", "NestledNooks.Tests\NestledNooks.Tests.csproj", "{FB16EDC2-A52C-4846-94C8-48ED86B5C45D}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{94760D89-E91E-4D7C-8C47-39ED5853C372}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{94760D89-E91E-4D7C-8C47-39ED5853C372}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{94760D89-E91E-4D7C-8C47-39ED5853C372}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{94760D89-E91E-4D7C-8C47-39ED5853C372}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FB16EDC2-A52C-4846-94C8-48ED86B5C45D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FB16EDC2-A52C-4846-94C8-48ED86B5C45D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FB16EDC2-A52C-4846-94C8-48ED86B5C45D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FB16EDC2-A52C-4846-94C8-48ED86B5C45D}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {7FDEB2A9-FDC0-47FC-A1A1-1FA0283CB1A4}
+	EndGlobalSection
+EndGlobal
