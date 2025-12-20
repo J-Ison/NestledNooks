@@ -18,11 +18,11 @@ jobs:
       with:
         dotnet-version: '8.0.x'
 
-    - name: Restore dependencies
-      run: dotnet restore
+    - name: Restore web project
+      run: dotnet restore ./NestledNooks/NestledNooks.csproj
 
-    - name: Build solution
-      run: dotnet build --configuration Release --no-restore
+    - name: Build web project
+      run: dotnet build ./NestledNooks/NestledNooks.csproj --configuration Release --no-restore
 
     - name: Publish web project
       run: dotnet publish ./NestledNooks/NestledNooks.csproj -c Release -o ./publish
