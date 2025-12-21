@@ -1,6 +1,8 @@
 ﻿@inherits LayoutComponentBase
 @using MudBlazor
 @using Microsoft.AspNetCore.Components.Routing
+@inject NavigationManager Nav
+@implements IDisposable
 
 <MudThemeProvider />
 <MudPopoverProvider />
@@ -41,7 +43,7 @@
 				<MudText Typo="Typo.h6">Menu</MudText>
 				<MudIconButton Icon="@Icons.Material.Filled.Close"
 							   Color="Color.Inherit"
-							   OnClick="@CloseDrawer" />
+							   OnClick="@CloseDrawerLocal" />
 			</div>
 
 			<MudDivider />
@@ -51,19 +53,19 @@
 				<MudNavLink Href="/"
 							Match="NavLinkMatch.All"
 							Icon="@Icons.Material.Filled.Home"
-							OnClick="@CloseDrawer">
+							OnClick="@CloseDrawerLocal">
 					Home
 				</MudNavLink>
 
 				<MudNavLink Href="/weather"
 							Icon="@Icons.Material.Filled.Cloud"
-							OnClick="@CloseDrawer">
+							OnClick="@CloseDrawerLocal">
 					Weather
 				</MudNavLink>
 
 				<MudNavLink Href="/contact"
 							Icon="@Icons.Material.Filled.Email"
-							OnClick="@CloseDrawer">
+							OnClick="@CloseDrawerLocal">
 					Contact Us
 				</MudNavLink>
 
@@ -71,13 +73,13 @@
 
 				<MudNavLink Href="/login"
 							Icon="@Icons.Material.Filled.Lock"
-							OnClick="@CloseDrawer">
+							OnClick="@CloseDrawerLocal">
 					Login
 				</MudNavLink>
 
 				<MudNavLink Href="/register"
 							Icon="@Icons.Material.Filled.PersonAdd"
-							OnClick="@CloseDrawer">
+							OnClick="@CloseDrawerLocal">
 					Register
 				</MudNavLink>
 
@@ -93,8 +95,42 @@
 
 @code {
 	private bool _drawerOpen;
-	private void CloseDrawer() => _drawerOpen = false;
-	private void ToggleDrawer() => _drawerOpen = !_drawerOpen;
 
+	private void ToggleDrawer() => _drawerOpen = !_drawerOpen;
 	private void OnDrawerOpenChanged(bool open) => _drawerOpen = open;
+
+	[Parameter] public EventCallback OnNavigate { get; set; }
+
+	[Parameter] public Action? CloseDrawer { get; set; }
+
+
+	// Local helper that ensures the drawer state is updated and the optional external CloseDrawer action is invoked.
+	private void CloseDrawerLocal()
+	{
+		_drawerOpen = false;
+		CloseDrawer?.Invoke();
+	}
+
+	// Subscribe to navigation events so the drawer closes automatically on any navigation.
+	protected override void OnInitialized()
+	{
+		base.OnInitialized();
+		Nav.LocationChanged += OnLocationChanged;
+	}
+
+	private void OnLocationChanged(object? sender, LocationChangedEventArgs args)
+	{
+		// Ensure UI update on the renderer thread
+		InvokeAsync(() =>
+		{
+			_drawerOpen = false;
+			StateHasChanged();
+		});
+	}
+
+	// Unsubscribe when disposed to avoid memory leaks.
+	public void Dispose()
+	{
+		Nav.LocationChanged -= OnLocationChanged;
+	}
 }
