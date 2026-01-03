@@ -5,6 +5,7 @@ using MudBlazor.Services;
 using NestledNooks.Components;
 using NestledNooks.Components.Account;
 using NestledNooks.Data;
+using NestledNooks.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -34,7 +35,12 @@ builder.Services.AddIdentityCore<ApplicationUser>(options => options.SignIn.Requ
     .AddSignInManager()
     .AddDefaultTokenProviders();
 
+// Identity email sender (used by account pages)
 builder.Services.AddSingleton<IEmailSender<ApplicationUser>, IdentityNoOpEmailSender>();
+
+// Smtp email sender for site contact form
+builder.Services.Configure<SmtpOptions>(builder.Configuration.GetSection("Smtp"));
+builder.Services.AddSingleton<IEmailService, SmtpEmailService>();
 
 builder.Services.AddMudServices();
 
