@@ -70,8 +70,12 @@
 				</MudNavLink>
 
 				<MudDivider Class="my-2" />
+				<span class="text-muted">
+					Guest booking coming soon
+				</span>
 
-				<MudNavLink Href="/login"
+				@* TEMP: Auth disabled until Azure DB is live *@
+				@* <MudNavLink Href="/login"
 							Icon="@Icons.Material.Filled.Lock"
 							OnClick="@CloseDrawerLocal">
 					Login
@@ -81,7 +85,7 @@
 							Icon="@Icons.Material.Filled.PersonAdd"
 							OnClick="@CloseDrawerLocal">
 					Register
-				</MudNavLink>
+				</MudNavLink> *@
 
 			</MudNavMenu>
 		</div>

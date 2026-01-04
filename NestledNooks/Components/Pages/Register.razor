@@ -1,78 +1,185 @@
 ﻿@page "/register"
+@using System.ComponentModel.DataAnnotations
 @using Microsoft.AspNetCore.Components
+@using Microsoft.AspNetCore.Identity
+@using NestledNooks.Data
+@inject UserManager<ApplicationUser> UserManager
+@inject IEmailSender<ApplicationUser> EmailSender
+@inject NavigationManager NavigationManager
+@inject ILogger<Register> Logger
 
-<div class="login-wrapper">
-    <div class="login-card">
-        @if (!isSubmitted)
-        {
-            <h2 class="login-title">Create an Account</h2>
-            <p class="login-subtitle">Enter your details to get started</p>
+<EditForm Model="model" OnValidSubmit="HandleRegistrationAsync">
+	<DataAnnotationsValidator />
+	<ValidationSummary />
 
-            <div class="form-group">
-                <label for="username">Username</label>
-                <input id="username"
-                       class="form-control"
-                       @bind="username" />
-            </div>
+	<div class="login-wrapper">
+		<div class="login-card">
+			@if (!isSubmitted)
+			{
+				<h2 class="login-title">Create an Account</h2>
+				<p class="login-subtitle">Enter your details to get started</p>
 
-            <div class="form-group">
-                <label for="email">Email</label>
-                <input id="email"
-                       type="email"
-                       class="form-control"
-                       @bind="email" />
-            </div>
+				<div class="form-group">
+					<label for="username">Username</label>
+					<InputText id="username" class="form-control" @bind-Value="model.Username" />
+				</div>
 
-            <div class="form-group">
-                <label for="password">Password</label>
-                <input id="password"
-                       type="password"
-                       class="form-control"
-                       @bind="password" />
-            </div>
+				<div class="form-group">
+					<label for="email">Email</label>
+					<InputText id="email" type="email" class="form-control" @bind-Value="model.Email" />
+				</div>
 
-            <div class="form-group">
-                <label for="confirm">Confirm Password</label>
-                <input id="confirm"
-                       type="password"
-                       class="form-control"
-                       @bind="confirmPassword" />
-            </div>
+				<div class="form-group">
+					<label for="phone">Phone Number</label>
+					<InputText id="phone"
+							   type="tel"
+							   class="form-control"
+							   @bind-Value="model.PhoneNumber" />
+				</div>
 
-            <!-- NOTE: type="button" and @onclick -->
-            <button type="button"
-                    class="btn btn-login"
-                    @onclick="HandleRegistration">
-                Create Account
-            </button>
+				<div class="form-group">
+					<label for="password">Password</label>
+					<InputText id="password" type="password" class="form-control" @bind-Value="model.Password" />
+				</div>
 
-            <p class="login-register">
-                Already have an account? <a href="/login">Login</a>
-            </p>
-        }
-        else
-        {
-            <h2 class="login-title">Account Created</h2>
-            <p class="login-subtitle">You can now log in with your new account.</p>
+				<div class="form-group">
+					<label for="confirm">Confirm Password</label>
+					<InputText id="confirm" type="password" class="form-control" @bind-Value="model.ConfirmPassword" />
+				</div>
 
-            <a href="/login" class="btn btn-login">Go to Login</a>
-        }
-    </div>
-</div>
+				<div class="mb-3">
+					@if (!string.IsNullOrEmpty(statusMessage))
+					{
+						<div class="@statusClass">@statusMessage</div>
+					}
+				</div>
+
+				<button class="btn btn-login" type="submit" disabled="@isSending">
+					@(isSending ? "Creating..." : "Create Account")
+				</button>
+
+				<p class="login-register">
+					Already have an account? <a href="/login">Login</a>
+				</p>
+			}
+			else
+			{
+				<h2 class="login-title">Account Created</h2>
+				<p class="login-subtitle">
+					You can now log in with your new account (after confirming your email if required).
+				</p>
+
+				<a href="/login" class="btn btn-login">Go to Login</a>
+			}
+		</div>
+	</div>
+</EditForm>
 
 @code {
-    private bool isSubmitted = false;
+	private bool isSubmitted = false;
+	private bool isSending = false;
+	private string statusMessage = "";
+	private string statusClass = "text-danger";
 
-    private string? username;
-    private string? email;
-    private string? password;
-    private string? confirmPassword;
+	private RegisterModel model = new();
 
-    private void HandleRegistration()
-    {
-        // For now: just flip the flag so the UI changes
-        isSubmitted = true;
+	private sealed class RegisterModel
+	{
+		[Required]
+		public string? Username { get; set; }
 
-        Console.WriteLine($"Registered: {username}, {email}");
-    }
+		[Required, EmailAddress]
+		public string? Email { get; set; }
+
+		[Required, Phone]
+		public string? PhoneNumber { get; set; }
+
+		[Required, MinLength(6)]
+		public string? Password { get; set; }
+
+		[Required, Compare(nameof(Password), ErrorMessage = "Passwords do not match.")]
+		public string? ConfirmPassword { get; set; }
+	}
+
+	private async Task HandleRegistrationAsync()
+	{
+		statusMessage = string.Empty;
+		statusClass = "text-danger";
+		if (isSending) return;
+
+		isSending = true;
+
+		try
+		{
+			// email duplicate
+			if (await UserManager.FindByEmailAsync(model.Email!) != null)
+			{
+				statusMessage = "An account with that email already exists.";
+				return;
+			}
+
+			// username duplicate
+			var usernameToUse = string.IsNullOrWhiteSpace(model.Username)
+				? model.Email!
+				: model.Username;
+
+			if (await UserManager.FindByNameAsync(usernameToUse) != null)
+			{
+				statusMessage = "That username is already taken.";
+				return;
+			}
+
+			// phone duplicate (recommended for rentals)
+			var phoneExists = UserManager.Users.Any(u => u.PhoneNumber == model.PhoneNumber);
+			if (phoneExists)
+			{
+				statusMessage = "An account with that phone number already exists.";
+				return;
+			}
+
+			var user = new ApplicationUser
+			{
+				UserName = usernameToUse,
+				Email = model.Email,
+				PhoneNumber = model.PhoneNumber
+			};
+
+			var createResult = await UserManager.CreateAsync(user, model.Password!);
+			if (!createResult.Succeeded)
+			{
+				statusMessage = string.Join(" ", createResult.Errors.Select(e => e.Description));
+				return;
+			}
+
+			// email confirmation (best practice)
+			var token = await UserManager.GenerateEmailConfirmationTokenAsync(user);
+			var encodedToken = Uri.EscapeDataString(token);
+			var callbackUrl =
+				NavigationManager.BaseUri.TrimEnd('/') +
+				$"/identity/account/confirmemail?userId={Uri.EscapeDataString(user.Id)}&code={encodedToken}";
+
+			try
+			{
+				await EmailSender.SendConfirmationLinkAsync(user, user.Email!, callbackUrl);
+			}
+			catch
+			{
+				// registration succeeded even if email fails
+			}
+
+			isSubmitted = true;
+			statusClass = "text-success";
+			statusMessage = "Account created. Check your email for a confirmation link if required.";
+		}
+		catch (Exception ex)
+		{
+			Logger.LogError(ex, "Registration failed");
+			statusMessage = ex.Message;
+		}
+		finally
+		{
+			isSending = false;
+			StateHasChanged();
+		}
+	}
 }

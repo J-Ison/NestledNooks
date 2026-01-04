@@ -1,10 +1,10 @@
-using Microsoft.AspNetCore.Identity;
+﻿using Microsoft.AspNetCore.Identity;
+using System.ComponentModel.DataAnnotations;
 
-namespace NestledNooks.Data
+public class ApplicationUser : IdentityUser
 {
-    // Add profile data for application users by adding properties to the ApplicationUser class
-    public class ApplicationUser : IdentityUser
-    {
-    }
-
+    [Required]
+    [Phone]
+    [MaxLength(20)]
+    public override string? PhoneNumber { get; set; }
 }
