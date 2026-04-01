@@ -918,3 +918,25 @@ footer {
 .nn-brand-inline {
     flex: 0 0 auto;
 }
+.auth-status {
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: rgba(0,0,0,0.05);
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.status-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+}
+
+    .status-dot.green {
+        background-color: #28a745;
+    }
+
+    .status-dot.gray {
+        background-color: #6c757d;
+    }

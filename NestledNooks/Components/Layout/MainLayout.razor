@@ -33,23 +33,31 @@
 
         <MudSpacer />
         <!-- AUTH SECTION -->
-		<AuthorizeView>
-			<Authorized Context="authState">
-				<div class="d-flex align-items-center gap-2">
-					<span>Welcome, @authState.User.Identity?.Name</span>
-					<button class="btn btn-sm btn-outline-light" @onclick="Logout">
-						Logout
-					</button>
-				</div>
+		@if (!allowLogin)
+		{
+			// If login is not allowed, show nothing or a placeholder
+		}
+		else
+		{
+			<AuthorizeView>
+				<Authorized Context="authState">
+					<MudMenuItem>
+						<form method="post" action="/api/account/logout" style="margin:0;">
+							<button type="submit" style="all:unset; cursor:pointer; width:100%;">
+								Logout
+							</button>
+						</form>
+					</MudMenuItem>
 			</Authorized>
 
 			<NotAuthorized>
 				<a href="/login" class="btn btn-sm btn-outline-light">Login</a>
 				<a href="/register" class="btn btn-sm btn-light ms-2">Register</a>
 			</NotAuthorized>
-		</AuthorizeView>
+			</AuthorizeView>
+		}
     </MudAppBar>
-
+	
     <MudDrawer Open="@_drawerOpen"
                OpenChanged="OnDrawerOpenChanged"
                Variant="DrawerVariant.Temporary"
@@ -114,16 +122,34 @@
                         Register
                     </MudNavLink>
                 }
+                <MudDivider Class="my-2" />
 				<AuthorizeView>
 					<Authorized>
-						<p style="color:green">Authenticated</p>
+						<div class="auth-status">
+							<span class="status-dot green"></span>
+							<span>Logged In</span>
+						</div>
 					</Authorized>
+
 					<NotAuthorized>
-						<p style="color:red">Not Authenticated</p>
+						<div class="auth-status">
+							<span class="status-dot gray"></span>
+							<span>Not signed in</span>
+						</div>
 					</NotAuthorized>
 				</AuthorizeView>
-
-                <MudDivider Class="my-2" />
+				<MudDivider Class="my-2" />
+				<AuthorizeView>
+					<Authorized Context="authState">
+						<MudMenuItem>
+							<form method="post" action="/api/account/logout" style="margin:0;">
+								<button type="submit" style="all:unset; cursor:pointer; width:100%;">
+									Logout
+								</button>
+							</form>
+						</MudMenuItem>
+					</Authorized>
+				</AuthorizeView>
             </MudNavMenu>
         </div>
     </MudDrawer>
@@ -135,7 +161,7 @@
 </MudLayout>
 
 @code {
-    private bool allowLogin = true;
+    private bool allowLogin = false;
     private bool _drawerOpen;
 
     private void ToggleDrawer() => _drawerOpen = !_drawerOpen;
@@ -160,11 +186,7 @@
         });
     }
 
-    private async Task Logout()
-    {
-        await SignInManager.SignOutAsync();
-        Nav.NavigateTo("/", true);
-    }
+    
 
     private string GetInitial(ClaimsPrincipal user)
     {
