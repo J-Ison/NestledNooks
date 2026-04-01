@@ -914,3 +914,7 @@ footer {
 .mud-drawer {
     position: fixed !important;
 }
+
+.nn-brand-inline {
+    flex: 0 0 auto;
+}

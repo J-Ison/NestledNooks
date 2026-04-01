@@ -1,8 +1,197 @@
 ﻿@inherits LayoutComponentBase
 @using MudBlazor
 @using Microsoft.AspNetCore.Components.Routing
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Identity
+@using NestledNooks.Data
+@using System.Security.Claims
+
+@inject NavigationManager Nav
+@inject SignInManager<ApplicationUser> SignInManager
+
+@implements IDisposable
+
+<MudThemeProvider />
+<MudPopoverProvider />
+<MudDialogProvider />
+<MudSnackbarProvider />
+
+<MudLayout>
+    <MudAppBar Elevation="4" Dense="true" Class="nn-appbar nn-appbar-sky">
+        <MudIconButton Icon="@Icons.Material.Filled.Menu"
+                       Color="Color.Inherit"
+                       Edge="Edge.Start"
+                       OnClick="ToggleDrawer" />
+
+		<div class="nn-brand nn-brand-inline" style="display:flex; align-items:center;">
+            <img src="/images/apple5_blue.png" alt="Logo" class="nn-logo-img" />
+            <div class="nn-brand-text">
+                <div class="nn-brand-title">Nestled Nooks</div>
+                <div class="nn-brand-subtitle">Relax • Recharge • Reset</div>
+            </div>
+        </div>
+
+        <MudSpacer />
+        <!-- AUTH SECTION -->
+		<AuthorizeView>
+			<Authorized Context="authState">
+				<div class="d-flex align-items-center gap-2">
+					<span>Welcome, @authState.User.Identity?.Name</span>
+					<button class="btn btn-sm btn-outline-light" @onclick="Logout">
+						Logout
+					</button>
+				</div>
+			</Authorized>
+
+			<NotAuthorized>
+				<a href="/login" class="btn btn-sm btn-outline-light">Login</a>
+				<a href="/register" class="btn btn-sm btn-light ms-2">Register</a>
+			</NotAuthorized>
+		</AuthorizeView>
+    </MudAppBar>
+
+    <MudDrawer Open="@_drawerOpen"
+               OpenChanged="OnDrawerOpenChanged"
+               Variant="DrawerVariant.Temporary"
+               Anchor="Anchor.Left"
+               Elevation="8"
+               Overlay="true"
+               ClipMode="DrawerClipMode.Never"
+               Width="280px"
+               Class="nn-drawer-white">
+
+        <div class="nn-drawer-inner">
+
+            <div class="nn-drawer-header">
+                <MudText Typo="Typo.h6">Menu</MudText>
+                <MudIconButton Icon="@Icons.Material.Filled.Close"
+                               Color="Color.Inherit"
+                               OnClick="@CloseDrawerLocal" />
+            </div>
+
+            <MudDivider />
+
+            <MudNavMenu>
+
+                <MudNavLink Href="/"
+                            Match="NavLinkMatch.All"
+                            Icon="@Icons.Material.Filled.Home"
+                            OnClick="@CloseDrawerLocal">
+                    Home
+                </MudNavLink>
+
+                <MudNavLink Href="/weather"
+                            Icon="@Icons.Material.Filled.Cloud"
+                            OnClick="@CloseDrawerLocal">
+                    Weather
+                </MudNavLink>
+
+                <MudNavLink Href="/contact"
+                            Icon="@Icons.Material.Filled.Email"
+                            OnClick="@CloseDrawerLocal">
+                    Contact Us
+                </MudNavLink>
+
+                <MudDivider Class="my-2" />
+
+                @if (!allowLogin)
+                {
+                    <span class="text-muted">
+                        Guest booking coming soon
+                    </span>
+                }
+                else
+                {
+                    <MudNavLink Href="/login"
+                                Icon="@Icons.Material.Filled.Lock"
+                                OnClick="@CloseDrawerLocal">
+                        Login
+                    </MudNavLink>
+
+                    <MudNavLink Href="/register"
+                                Icon="@Icons.Material.Filled.PersonAdd"
+                                OnClick="@CloseDrawerLocal">
+                        Register
+                    </MudNavLink>
+                }
+				<AuthorizeView>
+					<Authorized>
+						<p style="color:green">Authenticated</p>
+					</Authorized>
+					<NotAuthorized>
+						<p style="color:red">Not Authenticated</p>
+					</NotAuthorized>
+				</AuthorizeView>
+
+                <MudDivider Class="my-2" />
+            </MudNavMenu>
+        </div>
+    </MudDrawer>
+
+    <MudMainContent>
+        @Body
+    </MudMainContent>
+
+</MudLayout>
+
+@code {
+    private bool allowLogin = true;
+    private bool _drawerOpen;
+
+    private void ToggleDrawer() => _drawerOpen = !_drawerOpen;
+    private void OnDrawerOpenChanged(bool open) => _drawerOpen = open;
+
+    private void CloseDrawerLocal()
+    {
+        _drawerOpen = false;
+    }
+
+    protected override void OnInitialized()
+    {
+        Nav.LocationChanged += OnLocationChanged;
+    }
+
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs args)
+    {
+        InvokeAsync(() =>
+        {
+            _drawerOpen = false;
+            StateHasChanged();
+        });
+    }
+
+    private async Task Logout()
+    {
+        await SignInManager.SignOutAsync();
+        Nav.NavigateTo("/", true);
+    }
+
+    private string GetInitial(ClaimsPrincipal user)
+    {
+        var name = user.Identity?.Name;
+
+        if (string.IsNullOrWhiteSpace(name))
+            return "?";
+
+        return name.Substring(0, 1).ToUpper();
+    }
+
+    public void Dispose()
+    {
+        Nav.LocationChanged -= OnLocationChanged;
+    }
+}
+
+
+
+@* @inherits LayoutComponentBase
+@using MudBlazor
+@using Microsoft.AspNetCore.Components.Routing
 @inject NavigationManager Nav
 @implements IDisposable
+@using Microsoft.AspNetCore.Components.Authorization
+@using System.Security.Claims
+@inject AuthenticationStateProvider AuthStateProvider
 
 <MudThemeProvider />
 <MudPopoverProvider />
@@ -25,6 +214,7 @@
 		</div>
 
 		<MudSpacer />
+
 	</MudAppBar>
 
 	<MudDrawer Open="@_drawerOpen"
@@ -70,22 +260,27 @@
 				</MudNavLink>
 
 				<MudDivider Class="my-2" />
-				<span class="text-muted">
-					Guest booking coming soon
-				</span>
+				@if (!allowLogin)
+				{
+					<span class="text-muted">
+						Guest booking coming soon
+					</span>
+				}
+				else
+				{
+					<MudNavLink Href="/login"
+								Icon="@Icons.Material.Filled.Lock"
+								OnClick="@CloseDrawerLocal">
+						Login
+					</MudNavLink>
 
-				@* TEMP: Auth disabled until Azure DB is live *@
-				@* <MudNavLink Href="/login"
-							Icon="@Icons.Material.Filled.Lock"
-							OnClick="@CloseDrawerLocal">
-					Login
-				</MudNavLink>
-
-				<MudNavLink Href="/register"
-							Icon="@Icons.Material.Filled.PersonAdd"
-							OnClick="@CloseDrawerLocal">
-					Register
-				</MudNavLink> *@
+					<MudNavLink Href="/register"
+								Icon="@Icons.Material.Filled.PersonAdd"
+								OnClick="@CloseDrawerLocal">
+						Register
+					</MudNavLink>
+				}
+				<MudDivider Class="my-2" />
 
 			</MudNavMenu>
 		</div>
@@ -98,6 +293,7 @@
 </MudLayout>
 
 @code {
+	private bool allowLogin = true;
 	private bool _drawerOpen;
 
 	private void ToggleDrawer() => _drawerOpen = !_drawerOpen;
@@ -137,4 +333,4 @@
 	{
 		Nav.LocationChanged -= OnLocationChanged;
 	}
-}
+} *@
