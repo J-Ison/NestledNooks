@@ -29,6 +29,8 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             e.Property(x => x.Notes).HasMaxLength(2000);
             e.Property(x => x.Status).HasMaxLength(40).IsRequired();
             e.Property(x => x.StatusNote).HasMaxLength(500);
+            e.Property(x => x.PaymentStatus).HasMaxLength(40).IsRequired();
+            e.Property(x => x.AmountPaid).HasPrecision(18, 2);
 
             e.Property(x => x.NightlyRate).HasPrecision(18, 2);
             e.Property(x => x.CleaningFee).HasPrecision(18, 2);

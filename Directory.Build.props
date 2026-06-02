@@ -1,0 +1,6 @@
+<Project>
+  <!-- NestledNooks targets net8.0. Microsoft.AspNetCore.* / EF Core 10.x require net10.0. -->
+  <PropertyGroup>
+    <MicrosoftAspNetCorePackageVersion>8.0.22</MicrosoftAspNetCorePackageVersion>
+  </PropertyGroup>
+</Project>

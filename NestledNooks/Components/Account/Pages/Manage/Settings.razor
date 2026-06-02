@@ -164,6 +164,7 @@
                             <MudTh>Check-out</MudTh>
                             <MudTh>Total</MudTh>
                             <MudTh>Status</MudTh>
+                            <MudTh>Payment</MudTh>
                         </HeaderContent>
                         <RowTemplate>
                             <MudTd DataLabel="Booking #">@context.BookingNumber</MudTd>
@@ -174,6 +175,7 @@
                             <MudTd DataLabel="Status">
                                 <MudChip T="string" Size="Size.Small" Color="@GetStatusColor(context.Status)">@context.Status</MudChip>
                             </MudTd>
+                            <MudTd DataLabel="Payment">@context.PaymentStatus</MudTd>
                         </RowTemplate>
                     </MudTable>
                 }
@@ -215,7 +217,7 @@
         _bookings = rows.Select(b =>
         {
             var name = PricingService.GetProperty(b.PropertySlug)?.DisplayName ?? b.PropertySlug;
-            return new BookingRow(b.BookingNumber, name, b.CheckIn, b.CheckOut, b.TotalAmount, b.Status);
+            return new BookingRow(b.BookingNumber, name, b.CheckIn, b.CheckOut, b.TotalAmount, b.Status, b.PaymentStatus);
         }).ToList();
     }
 
@@ -382,5 +384,6 @@
         DateOnly CheckIn,
         DateOnly CheckOut,
         decimal TotalAmount,
-        string Status);
+        string Status,
+        string PaymentStatus);
 }

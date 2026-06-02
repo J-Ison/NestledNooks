@@ -43,7 +43,14 @@
                     <MudText Typo="Typo.body2">
                         @b.CheckIn:yyyy-MM-dd → @b.CheckOut:yyyy-MM-dd · @b.NightCount night(s) · @b.GuestCount guests · @b.PetCount pets
                     </MudText>
-                    <MudText Typo="Typo.body1" Class="my-2"><strong>@b.TotalAmount.ToString("C2")</strong></MudText>
+                    <MudText Typo="Typo.body1" Class="my-2">
+                        <strong>@b.TotalAmount.ToString("C2")</strong>
+                        · Payment: @b.PaymentStatus
+                        @if (b.AmountPaid > 0)
+                        {
+                            <span> (paid @b.AmountPaid.ToString("C2"))</span>
+                        }
+                    </MudText>
                     @if (!string.IsNullOrWhiteSpace(b.Notes))
                     {
                         <MudText Typo="Typo.body2" Class="mb-2">Notes: @b.Notes</MudText>

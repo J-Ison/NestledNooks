@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using NestledNooks.Data;
 using NestledNooks.Models;
 
@@ -10,22 +11,25 @@ public sealed class BookingRequestService : IBookingRequestService
     private readonly IEmailService _email;
     private readonly IBookingAvailabilityService _availability;
     private readonly BookingPricingService _pricing;
+    private readonly ILogger<BookingRequestService> _logger;
 
     public BookingRequestService(
         ApplicationDbContext db,
         IEmailService email,
         IBookingAvailabilityService availability,
-        BookingPricingService pricing)
+        BookingPricingService pricing,
+        ILogger<BookingRequestService> logger)
     {
         _db = db;
         _email = email;
         _availability = availability;
         _pricing = pricing;
+        _logger = logger;
     }
 
     public async Task<BookingSubmitResult> SubmitAsync(
         BookingFormModel model,
-        string userId,
+        string? userId,
         CancellationToken cancellationToken = default)
     {
         var slug = model.PropertySlug.Trim();
@@ -81,40 +85,62 @@ public sealed class BookingRequestService : IBookingRequestService
             TotalAmount = quote.TotalAmount,
             Notes = string.IsNullOrWhiteSpace(model.Notes) ? null : model.Notes.Trim(),
             Status = BookingStatuses.Pending,
+            PaymentStatus = PaymentStatuses.Unpaid,
+            AmountPaid = 0,
+            PaymentReceivedAtUtc = null,
             CreatedAtUtc = DateTime.UtcNow,
             StatusUpdatedAtUtc = DateTime.UtcNow,
-            BookingNumber = "PENDING"
+            // Unique index on BookingNumber; final value assigned after Id is generated.
+            BookingNumber = Guid.NewGuid().ToString("N")
         };
 
         _db.BookingRequests.Add(entity);
-        await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-
-        entity.BookingNumber = $"NN-{DateTime.UtcNow:yyyyMMdd}-{entity.Id:D5}";
-        await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-
         try
         {
-            await _email.SendBookingRequestEmail(new BookingRequestEmailPayload(
-                entity.Id,
-                entity.BookingNumber,
-                property.DisplayName,
-                entity.GuestFullName,
-                entity.GuestEmail,
-                entity.GuestPhone,
-                entity.CheckIn,
-                entity.CheckOut,
-                entity.GuestCount,
-                entity.PetCount,
-                entity.NightCount,
-                entity.TotalAmount,
-                entity.Notes)).ConfigureAwait(false);
+            await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+            entity.BookingNumber = $"NN-{DateTime.UtcNow:yyyyMMdd}-{entity.Id:D5}";
+            await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         }
-        catch
+        catch (DbUpdateException ex)
         {
-            // Request is saved even if email fails
+            var detail = ex.InnerException?.Message ?? ex.Message;
+            return new BookingSubmitResult(false, null, null, $"Could not save booking: {detail}");
         }
 
-        return new BookingSubmitResult(true, entity.Id, entity.BookingNumber, null);
+        var emailPayload = new BookingRequestEmailPayload(
+            entity.Id,
+            entity.BookingNumber,
+            property.DisplayName,
+            entity.GuestFullName,
+            entity.GuestEmail,
+            entity.GuestPhone,
+            entity.CheckIn,
+            entity.CheckOut,
+            entity.GuestCount,
+            entity.PetCount,
+            entity.NightCount,
+            entity.TotalAmount,
+            entity.Notes);
+
+        string? emailWarning = null;
+        try
+        {
+            await _email.SendBookingRequestEmail(emailPayload).ConfigureAwait(false);
+            await _email.SendBookingRequestGuestConfirmationEmail(emailPayload).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(
+                ex,
+                "Booking {BookingNumber} saved but confirmation emails were not sent",
+                entity.BookingNumber);
+            emailWarning =
+                "Your request was saved, but we could not send email (check SMTP settings). " +
+                "We will still review your booking.";
+        }
+
+        return new BookingSubmitResult(true, entity.Id, entity.BookingNumber, null, emailWarning);
     }
 
     public Task<BookingQuote?> GetQuoteAsync(string propertySlug, DateOnly checkIn, DateOnly checkOut, int petCount)

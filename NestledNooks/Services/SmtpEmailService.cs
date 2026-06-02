@@ -71,6 +71,33 @@ public sealed class SmtpEmailService : IEmailService
         return SendMimeAsync(mime, "booking request email");
     }
 
+    public Task SendBookingRequestGuestConfirmationEmail(BookingRequestEmailPayload payload)
+    {
+        var mime = new MimeMessage();
+        mime.From.Add(new MailboxAddress(_options.FromName, _options.FromEmail));
+        mime.To.Add(MailboxAddress.Parse(payload.GuestEmail));
+        mime.Subject = $"We received your booking request {payload.BookingNumber}";
+
+        var bodyBuilder = new BodyBuilder
+        {
+            TextBody =
+                $"Hello {payload.GuestFullName},\r\n\r\n" +
+                $"Thank you for your request at {payload.PropertyDisplayName}.\r\n\r\n" +
+                $"Reference: {payload.BookingNumber}\r\n" +
+                $"Check-in: {payload.CheckIn:yyyy-MM-dd}\r\n" +
+                $"Check-out: {payload.CheckOut:yyyy-MM-dd}\r\n" +
+                $"Nights: {payload.NightCount}\r\n" +
+                $"Estimated total: {payload.TotalAmount:C2}\r\n" +
+                $"Guests: {payload.GuestCount} · Pets: {payload.PetCount}\r\n\r\n" +
+                (string.IsNullOrWhiteSpace(payload.Notes) ? "" : $"Your notes:\r\n{payload.Notes}\r\n\r\n") +
+                "Status: Pending review. We will email you when your request is approved or declined.\r\n\r\n" +
+                "— Nestled Nooks"
+        };
+
+        mime.Body = bodyBuilder.ToMessageBody();
+        return SendMimeAsync(mime, "booking request confirmation (guest)");
+    }
+
     public async Task SendBookingStatusChangedEmailsAsync(BookingStatusEmailPayload payload)
     {
         var ownerBody =
@@ -106,6 +133,13 @@ public sealed class SmtpEmailService : IEmailService
 
     private async Task SendMimeAsync(MimeMessage mime, string contextLabel)
     {
+        if (!string.IsNullOrEmpty(_options.Username) && string.IsNullOrEmpty(_options.Password))
+        {
+            throw new InvalidOperationException(
+                "SMTP password is not configured. Set Smtp:Password in user secrets (local development) " +
+                "or application settings in Azure.");
+        }
+
         using var client = new MailKit.Net.Smtp.SmtpClient();
         try
         {

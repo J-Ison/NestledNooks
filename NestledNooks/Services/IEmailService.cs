@@ -6,5 +6,7 @@ public interface IEmailService
 
     Task SendBookingRequestEmail(BookingRequestEmailPayload payload);
 
+    Task SendBookingRequestGuestConfirmationEmail(BookingRequestEmailPayload payload);
+
     Task SendBookingStatusChangedEmailsAsync(BookingStatusEmailPayload payload);
 }

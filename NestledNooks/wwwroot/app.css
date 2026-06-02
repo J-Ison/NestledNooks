@@ -497,6 +497,14 @@ footer {
         background: var(--vrbo);
     }
 
+    .primary-btn.site-book {
+        background: #27ae60;
+    }
+
+    .primary-btn.site-book:hover {
+        background: #2ecc71;
+    }
+
 .fineprint {
     margin-top: 12px;
     color: var(--muted);

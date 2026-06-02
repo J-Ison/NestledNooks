@@ -35,6 +35,13 @@ public sealed class BookingRequest
 
     public string? StatusNote { get; set; }
 
+    /// <summary>Unpaid until you record payment (e.g. after Stripe or manual deposit).</summary>
+    public string PaymentStatus { get; set; } = PaymentStatuses.Unpaid;
+
+    public decimal AmountPaid { get; set; }
+
+    public DateTime? PaymentReceivedAtUtc { get; set; }
+
     public DateTime CreatedAtUtc { get; set; }
     public DateTime? StatusUpdatedAtUtc { get; set; }
 }

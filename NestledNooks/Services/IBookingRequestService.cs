@@ -7,7 +7,7 @@ public interface IBookingRequestService
 {
     Task<BookingSubmitResult> SubmitAsync(
         BookingFormModel model,
-        string userId,
+        string? userId,
         CancellationToken cancellationToken = default);
 
     Task<BookingQuote?> GetQuoteAsync(
@@ -29,6 +29,11 @@ public interface IBookingRequestService
         CancellationToken cancellationToken = default);
 }
 
-public sealed record BookingSubmitResult(bool Succeeded, int? BookingId, string? BookingNumber, string? ErrorMessage);
+public sealed record BookingSubmitResult(
+    bool Succeeded,
+    int? BookingId,
+    string? BookingNumber,
+    string? ErrorMessage,
+    string? EmailWarning = null);
 
 public sealed record BookingStatusUpdateResult(bool Succeeded, string? ErrorMessage);

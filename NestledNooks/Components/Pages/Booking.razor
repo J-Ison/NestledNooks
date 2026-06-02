@@ -3,7 +3,6 @@
 
 @using System.ComponentModel.DataAnnotations
 @using System.Security.Claims
-@using Microsoft.AspNetCore.Authorization
 @using Microsoft.AspNetCore.Components.Authorization
 @using Microsoft.AspNetCore.Identity
 @using Microsoft.AspNetCore.WebUtilities
@@ -11,8 +10,6 @@
 @using NestledNooks.Data
 @using NestledNooks.Models
 @using NestledNooks.Services
-
-@attribute [Authorize]
 
 @inject NavigationManager Navigation
 @inject IBookingRequestService BookingService
@@ -84,28 +81,36 @@
                                   Class="mb-3"
                                   Disabled="_submitting" />
 
+                    <MudText Typo="Typo.subtitle2" Class="mb-2">Dates</MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-3">
+                        Grayed-out days are already booked. Select check-in, then check-out.
+                    </MudText>
                     <MudGrid Class="mb-3">
-                        <MudItem xs="12" sm="6">
-                            <MudDatePicker Date="_checkInDate"
-                                           DateChanged="OnCheckInChanged"
-                                           Label="Check-in"
-                                           Variant="Variant.Outlined"
-                                           MinDate="_minSelectable"
-                                           MaxDate="_maxSelectable"
-                                           IsDateDisabledFunc="IsDateUnavailable"
-                                           Disabled="_submitting"
-                                           Required="true" />
+                        <MudItem xs="12" md="6">
+                            <MudPaper Class="pa-2" Elevation="0" Outlined="true">
+                                <MudText Typo="Typo.caption" Class="mb-2 px-2">Check-in</MudText>
+                                <MudDatePicker @bind-Date="_checkInDate"
+                                               @bind-Date:after="OnDatesUpdated"
+                                               PickerVariant="PickerVariant.Static"
+                                               MinDate="_minSelectable"
+                                               MaxDate="_maxSelectable"
+                                               DateDisabledFunc="IsDateUnavailable"
+                                               Disabled="_submitting"
+                                               ShowToolbar="false" />
+                            </MudPaper>
                         </MudItem>
-                        <MudItem xs="12" sm="6">
-                            <MudDatePicker Date="_checkOutDate"
-                                           DateChanged="OnCheckOutChanged"
-                                           Label="Check-out"
-                                           Variant="Variant.Outlined"
-                                           MinDate="_checkInDate ?? _minSelectable"
-                                           MaxDate="_maxSelectable"
-                                           IsDateDisabledFunc="IsDateUnavailable"
-                                           Disabled="_submitting"
-                                           Required="true" />
+                        <MudItem xs="12" md="6">
+                            <MudPaper Class="pa-2" Elevation="0" Outlined="true">
+                                <MudText Typo="Typo.caption" Class="mb-2 px-2">Check-out</MudText>
+                                <MudDatePicker @bind-Date="_checkOutDate"
+                                               @bind-Date:after="OnDatesUpdated"
+                                               PickerVariant="PickerVariant.Static"
+                                               MinDate="_checkOutMinDate"
+                                               MaxDate="_maxSelectable"
+                                               DateDisabledFunc="IsDateUnavailable"
+                                               Disabled="_submitting"
+                                               ShowToolbar="false" />
+                            </MudPaper>
                         </MudItem>
                     </MudGrid>
 
@@ -164,7 +169,7 @@
                                Variant="Variant.Filled"
                                Color="Color.Primary"
                                Disabled="_submitting">
-                        @(_submitting ? "Submitting…" : "Submit booking request")
+                        @(_submitting ? "Submitting…" : "Request booking")
                     </MudButton>
                 </EditForm>
             </MudCardContent>
@@ -183,6 +188,8 @@
     private DateTime? _checkOutDate;
     private DateTime _minSelectable = DateTime.Today;
     private DateTime _maxSelectable = DateTime.Today.AddMonths(18);
+
+    private DateTime _checkOutMinDate => _checkInDate?.Date.AddDays(1) ?? _minSelectable;
 
     private bool _loading = true;
     private bool _submitting;
@@ -243,38 +250,30 @@
     private bool IsDateUnavailable(DateTime date) =>
         _unavailableDates.Contains(DateOnly.FromDateTime(date.Date));
 
-    private async Task OnCheckInChanged(DateTime? value)
+    private void OnDatesUpdated()
     {
-        _checkInDate = value;
-        _model.CheckIn = value.HasValue ? DateOnly.FromDateTime(value.Value) : null;
-        await UpdateQuoteAsync();
+        _model.CheckIn = _checkInDate.HasValue ? DateOnly.FromDateTime(_checkInDate.Value.Date) : null;
+        _model.CheckOut = _checkOutDate.HasValue ? DateOnly.FromDateTime(_checkOutDate.Value.Date) : null;
+
+        if (_model.CheckIn is { } ci && _model.CheckOut is { } co && co <= ci)
+            _checkOutDate = null;
+
+        _ = RefreshQuoteAsync();
     }
 
-    private async Task OnCheckOutChanged(DateTime? value)
+    private async Task RefreshQuoteAsync()
     {
-        _checkOutDate = value;
-        _model.CheckOut = value.HasValue ? DateOnly.FromDateTime(value.Value) : null;
-        await UpdateQuoteAsync();
-    }
-
-    private async Task UpdateQuoteAsync()
-    {
-        _quote = null;
         if (_model.CheckIn is not { } ci || _model.CheckOut is not { } co || co <= ci)
+        {
+            _quote = null;
             return;
+        }
 
         _quote = await BookingService.GetQuoteAsync(_model.PropertySlug, ci, co, _model.PetCount);
-        await InvokeAsync(StateHasChanged);
     }
 
     private async Task SubmitAsync()
     {
-        if (_userId is null)
-        {
-            Navigation.NavigateTo($"/login?returnUrl={Uri.EscapeDataString(Navigation.Uri)}", forceLoad: true);
-            return;
-        }
-
         _model.CheckIn = _checkInDate.HasValue ? DateOnly.FromDateTime(_checkInDate.Value) : null;
         _model.CheckOut = _checkOutDate.HasValue ? DateOnly.FromDateTime(_checkOutDate.Value) : null;
 
@@ -291,8 +290,15 @@
                 return;
             }
 
-            _success = $"Request {result.BookingNumber} submitted. We'll email you when it's reviewed.";
+            _success = string.IsNullOrEmpty(result.EmailWarning)
+                ? $"Booking request {result.BookingNumber} was saved. " +
+                  "We emailed you a confirmation and will notify you when your stay is approved or declined."
+                : $"Booking request {result.BookingNumber} was saved. {result.EmailWarning}";
             await RefreshUnavailableDatesAsync();
+        }
+        catch (Exception ex)
+        {
+            _error = $"Could not submit: {ex.Message}";
         }
         finally
         {
