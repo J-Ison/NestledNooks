@@ -3,6 +3,7 @@
 @using Microsoft.AspNetCore.Components
 @using Microsoft.AspNetCore.Identity
 @using NestledNooks.Data
+@using static NestledNooks.Data.AppRoles
 @inject UserManager<ApplicationUser> UserManager
 @inject IEmailSender<ApplicationUser> EmailSender
 @inject NavigationManager NavigationManager
@@ -149,6 +150,14 @@
 			{
 				statusMessage = string.Join(" ", createResult.Errors.Select(e => e.Description));
 				return;
+			}
+
+			var roleResult = await UserManager.AddToRoleAsync(user, Client);
+			if (!roleResult.Succeeded)
+			{
+				Logger.LogWarning(
+					"User registered but Client role was not assigned: {Errors}",
+					string.Join("; ", roleResult.Errors.Select(e => e.Description)));
 			}
 
 			// email confirmation (best practice)

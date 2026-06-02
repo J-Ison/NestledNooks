@@ -1,161 +1,302 @@
 ﻿@page "/booking"
-@using Microsoft.AspNetCore.Components
+@rendermode InteractiveServer
+
+@using System.ComponentModel.DataAnnotations
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Identity
 @using Microsoft.AspNetCore.WebUtilities
+@using MudBlazor
+@using NestledNooks.Data
+@using NestledNooks.Models
+@using NestledNooks.Services
+
+@attribute [Authorize]
+
 @inject NavigationManager Navigation
+@inject IBookingRequestService BookingService
+@inject IBookingAvailabilityService AvailabilityService
+@inject BookingPricingService PricingService
+@inject UserManager<ApplicationUser> UserManager
+@inject AuthenticationStateProvider AuthStateProvider
 
 <PageTitle>Book your stay · Nestled Nooks</PageTitle>
 <HeadContent>
-	<meta name="description" content="Request a reservation at Nestled Nooks. Choose your property, dates, and party size — we’ll confirm details with you directly." />
+    <meta name="description" content="Request a reservation at Nestled Nooks. Only available dates can be selected — synced with Airbnb and Vrbo." />
 </HeadContent>
 
+<MudContainer MaxWidth="MaxWidth.Medium" Class="py-4">
+    <MudText Typo="Typo.h4" Class="mb-2">Request a stay</MudText>
+    <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4">
+        Choose available dates below. Pending requests hold dates until we approve or decline.
+        @if (_property is not null)
+        {
+            <span> Minimum @_property.MinimumNights nights.</span>
+        }
+    </MudText>
+
+    @if (_loading)
+    {
+        <MudProgressLinear Indeterminate="true" Class="mb-4" />
+    }
+    else
+    {
+        <MudAlert Severity="Severity.Info" Class="mb-4" Dense="true">
+            Calendar blocks include Airbnb/Vrbo bookings (when iCal URLs are configured) and pending site requests.
+        </MudAlert>
+
+        <MudCard Class="mb-4">
+            <MudCardContent>
+                <EditForm Model="@_model" OnValidSubmit="SubmitAsync">
+                    <DataAnnotationsValidator />
+
+                    <MudSelect T="string" @bind-Value="_model.PropertySlug"
+                               Label="Property"
+                               Variant="Variant.Outlined"
+                               Class="mb-3"
+                               Disabled="_submitting">
+                        @foreach (var p in _properties)
+                        {
+                            <MudSelectItem Value="@p.Slug">@p.DisplayName</MudSelectItem>
+                        }
+                    </MudSelect>
+
+                    <MudTextField @bind-Value="_model.GuestFullName"
+                                  For="@(() => _model.GuestFullName)"
+                                  Label="Full name"
+                                  Variant="Variant.Outlined"
+                                  Class="mb-3"
+                                  Disabled="_submitting" />
+
+                    <MudTextField @bind-Value="_model.GuestEmail"
+                                  For="@(() => _model.GuestEmail)"
+                                  Label="Email"
+                                  Variant="Variant.Outlined"
+                                  Class="mb-3"
+                                  InputType="InputType.Email"
+                                  Disabled="_submitting" />
+
+                    <MudTextField @bind-Value="_model.GuestPhone"
+                                  For="@(() => _model.GuestPhone)"
+                                  Label="Phone"
+                                  Variant="Variant.Outlined"
+                                  Class="mb-3"
+                                  Disabled="_submitting" />
+
+                    <MudGrid Class="mb-3">
+                        <MudItem xs="12" sm="6">
+                            <MudDatePicker Date="_checkInDate"
+                                           DateChanged="OnCheckInChanged"
+                                           Label="Check-in"
+                                           Variant="Variant.Outlined"
+                                           MinDate="_minSelectable"
+                                           MaxDate="_maxSelectable"
+                                           IsDateDisabledFunc="IsDateUnavailable"
+                                           Disabled="_submitting"
+                                           Required="true" />
+                        </MudItem>
+                        <MudItem xs="12" sm="6">
+                            <MudDatePicker Date="_checkOutDate"
+                                           DateChanged="OnCheckOutChanged"
+                                           Label="Check-out"
+                                           Variant="Variant.Outlined"
+                                           MinDate="_checkInDate ?? _minSelectable"
+                                           MaxDate="_maxSelectable"
+                                           IsDateDisabledFunc="IsDateUnavailable"
+                                           Disabled="_submitting"
+                                           Required="true" />
+                        </MudItem>
+                    </MudGrid>
+
+                    <MudNumericField @bind-Value="_model.GuestCount"
+                                     For="@(() => _model.GuestCount)"
+                                     Label="Guests"
+                                     Variant="Variant.Outlined"
+                                     Min="1"
+                                     Max="@(_property?.MaxGuests ?? 12)"
+                                     Class="mb-3"
+                                     Disabled="_submitting" />
+
+                    <MudNumericField @bind-Value="_model.PetCount"
+                                     For="@(() => _model.PetCount)"
+                                     Label="Pets"
+                                     Variant="Variant.Outlined"
+                                     Min="0"
+                                     Max="@(_property?.MaxPets ?? 4)"
+                                     Class="mb-3"
+                                     Disabled="_submitting" />
+
+                    <MudTextField @bind-Value="_model.Notes"
+                                  For="@(() => _model.Notes)"
+                                  Label="Special requests (optional)"
+                                  Variant="Variant.Outlined"
+                                  Lines="4"
+                                  Class="mb-3"
+                                  Disabled="_submitting" />
+
+                    @if (_quote is not null)
+                    {
+                        <MudPaper Class="pa-4 mb-3" Elevation="0" Outlined="true">
+                            <MudText Typo="Typo.subtitle2">Estimated total</MudText>
+                            <MudText Typo="Typo.body2">@_quote.Nights night(s) × @_quote.NightlyRate.ToString("C0") = @_quote.Subtotal.ToString("C2")</MudText>
+                            <MudText Typo="Typo.body2">Cleaning: @_quote.CleaningFee.ToString("C2")</MudText>
+                            @if (_quote.PetFee > 0)
+                            {
+                                <MudText Typo="Typo.body2">Pet fee: @_quote.PetFee.ToString("C2")</MudText>
+                            }
+                            <MudText Typo="Typo.h6" Class="mt-2">@_quote.TotalAmount.ToString("C2")</MudText>
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">Taxes/fees may apply. Final amount confirmed on approval.</MudText>
+                        </MudPaper>
+                    }
+
+                    @if (!string.IsNullOrEmpty(_error))
+                    {
+                        <MudAlert Severity="Severity.Error" Class="mb-3">@_error</MudAlert>
+                    }
+
+                    @if (!string.IsNullOrEmpty(_success))
+                    {
+                        <MudAlert Severity="Severity.Success" Class="mb-3">@_success</MudAlert>
+                    }
+
+                    <MudButton ButtonType="ButtonType.Submit"
+                               Variant="Variant.Filled"
+                               Color="Color.Primary"
+                               Disabled="_submitting">
+                        @(_submitting ? "Submitting…" : "Submit booking request")
+                    </MudButton>
+                </EditForm>
+            </MudCardContent>
+        </MudCard>
+    }
+</MudContainer>
+
 @code {
-	private string SelectedProperty { get; set; } = "";
+    private readonly BookingFormModel _model = new();
+    private List<PropertyBookingOptions> _properties = [];
+    private PropertyBookingOptions? _property;
+    private HashSet<DateOnly> _unavailableDates = [];
+    private BookingQuote? _quote;
 
-	protected override void OnInitialized()
-	{
-		var uri = Navigation.ToAbsoluteUri(Navigation.Uri);
-		if (QueryHelpers.ParseQuery(uri.Query).TryGetValue("property", out var propertyName))
-		{
-			SelectedProperty = propertyName;
-		}
-	}
+    private DateTime? _checkInDate;
+    private DateTime? _checkOutDate;
+    private DateTime _minSelectable = DateTime.Today;
+    private DateTime _maxSelectable = DateTime.Today.AddMonths(18);
+
+    private bool _loading = true;
+    private bool _submitting;
+    private string? _error;
+    private string? _success;
+    private string? _userId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var auth = await AuthStateProvider.GetAuthenticationStateAsync();
+        _userId = UserManager.GetUserId(auth.User);
+
+        var user = _userId is not null
+            ? await UserManager.GetUserAsync(auth.User)
+            : null;
+
+        if (user is not null)
+        {
+            _model.GuestFullName = user.UserName ?? "";
+            _model.GuestEmail = user.Email ?? "";
+            _model.GuestPhone = user.PhoneNumber;
+        }
+
+        var uri = Navigation.ToAbsoluteUri(Navigation.Uri);
+        if (QueryHelpers.ParseQuery(uri.Query).TryGetValue("property", out var slug) && !string.IsNullOrWhiteSpace(slug))
+            _model.PropertySlug = slug.ToString();
+
+        _properties = PricingService.GetAllProperties().ToList();
+        if (_properties.Count == 0)
+            _model.PropertySlug = BookingFormModel.DeerfieldSlug;
+
+        _property = PricingService.GetProperty(_model.PropertySlug)
+            ?? _properties.FirstOrDefault();
+        if (_property is not null)
+            _model.PropertySlug = _property.Slug;
+
+        try
+        {
+            await AvailabilityService.SyncExternalCalendarsAsync();
+        }
+        catch
+        {
+            // Continue with local holds only
+        }
+
+        await RefreshUnavailableDatesAsync();
+        _loading = false;
+    }
+
+    private async Task RefreshUnavailableDatesAsync()
+    {
+        var from = DateOnly.FromDateTime(_minSelectable);
+        var to = DateOnly.FromDateTime(_maxSelectable);
+        var list = await AvailabilityService.GetUnavailableDatesAsync(_model.PropertySlug, from, to);
+        _unavailableDates = list.ToHashSet();
+    }
+
+    private bool IsDateUnavailable(DateTime date) =>
+        _unavailableDates.Contains(DateOnly.FromDateTime(date.Date));
+
+    private async Task OnCheckInChanged(DateTime? value)
+    {
+        _checkInDate = value;
+        _model.CheckIn = value.HasValue ? DateOnly.FromDateTime(value.Value) : null;
+        await UpdateQuoteAsync();
+    }
+
+    private async Task OnCheckOutChanged(DateTime? value)
+    {
+        _checkOutDate = value;
+        _model.CheckOut = value.HasValue ? DateOnly.FromDateTime(value.Value) : null;
+        await UpdateQuoteAsync();
+    }
+
+    private async Task UpdateQuoteAsync()
+    {
+        _quote = null;
+        if (_model.CheckIn is not { } ci || _model.CheckOut is not { } co || co <= ci)
+            return;
+
+        _quote = await BookingService.GetQuoteAsync(_model.PropertySlug, ci, co, _model.PetCount);
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task SubmitAsync()
+    {
+        if (_userId is null)
+        {
+            Navigation.NavigateTo($"/login?returnUrl={Uri.EscapeDataString(Navigation.Uri)}", forceLoad: true);
+            return;
+        }
+
+        _model.CheckIn = _checkInDate.HasValue ? DateOnly.FromDateTime(_checkInDate.Value) : null;
+        _model.CheckOut = _checkOutDate.HasValue ? DateOnly.FromDateTime(_checkOutDate.Value) : null;
+
+        _submitting = true;
+        _error = null;
+        _success = null;
+
+        try
+        {
+            var result = await BookingService.SubmitAsync(_model, _userId);
+            if (!result.Succeeded)
+            {
+                _error = result.ErrorMessage ?? "Could not submit request.";
+                return;
+            }
+
+            _success = $"Request {result.BookingNumber} submitted. We'll email you when it's reviewed.";
+            await RefreshUnavailableDatesAsync();
+        }
+        finally
+        {
+            _submitting = false;
+        }
+    }
 }
-
-<div class="booking-page">
-	<h1 class="page-title">Booking</h1>
-
-	<form class="booking-form">
-		<div class="form-group">
-			<label for="property">Select Property</label>
-			<select id="property" class="form-control" @bind="SelectedProperty" aria-required="true">
-				<option value="Deerfield Retreat">Deerfield Retreat</option>
-				<!-- Add other properties here -->
-			</select>
-		</div>
-
-		<div class="form-group">
-			<label for="name">Full Name</label>
-			<input type="text" id="name" class="form-control" placeholder="Enter your full name" required aria-describedby="nameHelp" />
-			<small id="nameHelp" class="form-text text-muted">Please provide your full name for the reservation.</small>
-		</div>
-
-		<div class="form-group">
-			<label for="email">Email Address</label>
-			<input type="email" id="email" class="form-control" placeholder="Enter your email" required aria-describedby="emailHelp" />
-			<small id="emailHelp" class="form-text text-muted">We'll send you a confirmation email.</small>
-		</div>
-
-		<div class="form-group">
-			<label for="checkin">Check-In Date</label>
-			<input type="date" id="checkin" class="form-control" required aria-required="true" />
-		</div>
-
-		<div class="form-group">
-			<label for="checkout">Check-Out Date</label>
-			<input type="date" id="checkout" class="form-control" required aria-required="true" />
-		</div>
-
-		<div class="form-group">
-			<label for="guests">Number of Guests</label>
-			<input type="number" id="guests" class="form-control" min="1" max="10" required aria-describedby="guestsHelp" />
-			<small id="guestsHelp" class="form-text text-muted">Specify the number of guests staying.</small>
-		</div>
-
-		<div class="form-group">
-			<label for="pets">Number of Pets</label>
-			<input type="number" id="pets" class="form-control" min="0" max="4" required aria-describedby="petsHelp" />
-			<small id="petsHelp" class="form-text text-muted">Please specify the number of pets (if any).</small>
-		</div>
-
-		<div class="form-actions">
-			<button type="submit" class="btn-submit">Submit</button>
-			<button type="reset" class="btn-reset">Reset</button>
-		</div>
-	</form>
-</div>
-
-<style>
-	.booking-page {
-		max-width: 800px;
-		margin: 30px auto;
-		padding: 20px;
-		background-color: #f8f9fa;
-		border-radius: 8px;
-		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-	}
-
-	.page-title {
-		text-align: center;
-		font-size: 2rem;
-		margin-bottom: 20px;
-		font-weight: 600;
-		color: #333;
-	}
-
-	.booking-form {
-		display: flex;
-		flex-direction: column;
-	}
-
-	.form-group {
-		margin-bottom: 20px;
-	}
-
-		.form-group label {
-			font-size: 1.1rem;
-			font-weight: 500;
-			color: #444;
-		}
-
-	.form-control {
-		width: 100%;
-		padding: 10px;
-		font-size: 1rem;
-		border-radius: 5px;
-		border: 1px solid #ccc;
-		box-sizing: border-box;
-	}
-
-		.form-control:focus {
-			border-color: #27ae60;
-			outline: none;
-		}
-
-	.form-actions {
-		display: flex;
-		justify-content: space-between;
-		margin-top: 20px;
-	}
-
-	.btn-submit, .btn-reset {
-		padding: 12px 20px;
-		font-size: 1rem;
-		border-radius: 5px;
-		cursor: pointer;
-		border: none;
-		width: 48%;
-	}
-
-	.btn-submit {
-		background-color: #27ae60;
-		color: white;
-	}
-
-		.btn-submit:hover {
-			background-color: #2ecc71;
-		}
-
-	.btn-reset {
-		background-color: #e74c3c;
-		color: white;
-	}
-
-		.btn-reset:hover {
-			background-color: #c0392b;
-		}
-
-	.form-text {
-		font-size: 0.9rem;
-		color: #777;
-	}
-</style>

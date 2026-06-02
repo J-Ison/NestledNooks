@@ -1,0 +1,82 @@
+@page "/role-authorization-example"
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Identity
+@using MudBlazor
+@using NestledNooks.Data
+
+@* Any signed-in user can open this page. For a whole page limited to Owner or Manager, use:
+   @attribute [Authorize(Roles = "Owner,Manager")]
+   (Users without those roles get the normal NotAuthorized / login redirect from your router.) *@
+@attribute [Authorize]
+
+@inject UserManager<ApplicationUser> UserManager
+
+<PageTitle>Role examples</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Medium" Class="py-4">
+    <MudText Typo="Typo.h5" Class="mb-3">Role authorization examples</MudText>
+
+    <MudCard Class="mb-4">
+        <MudCardContent>
+            <MudText Typo="Typo.subtitle1" Class="mb-2">Page-level (comment pattern)</MudText>
+            <MudText Typo="Typo.body2" Class="mb-2">
+                Restrict an entire page with:
+                <code>[Authorize(Roles = "Owner,Manager")]</code>
+            </MudText>
+        </MudCardContent>
+    </MudCard>
+
+    <MudCard Class="mb-4">
+        <MudCardContent>
+            <MudText Typo="Typo.subtitle1" Class="mb-2">Conditional UI — Owner only</MudText>
+            <AuthorizeView Roles="Owner">
+                <Authorized>
+                    <MudText Typo="Typo.body1" Color="Color.Success">You are in the Owner role.</MudText>
+                </Authorized>
+                <NotAuthorized>
+                    <MudText Typo="Typo.body2">You are not in the Owner role.</MudText>
+                </NotAuthorized>
+            </AuthorizeView>
+        </MudCardContent>
+    </MudCard>
+
+    <MudCard>
+        <MudCardContent>
+            <MudText Typo="Typo.subtitle1" Class="mb-2">Programmatic check</MudText>
+            <MudText Typo="Typo.body2" Class="mb-2">
+                <code>await UserManager.IsInRoleAsync(user, AppRoles.Manager)</code>
+                → <strong>@(_checkedRoles ? (_isManager ? "true" : "false") : "…")</strong>
+            </MudText>
+            <MudText Typo="Typo.caption" Color="Color.Secondary">
+                Add a role once (admin / seed / console): <code>await UserManager.AddToRoleAsync(user, AppRoles.Manager);</code>
+            </MudText>
+        </MudCardContent>
+    </MudCard>
+</MudContainer>
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState>? AuthenticationStateTask { get; set; }
+
+    private bool _checkedRoles;
+    private bool _isManager;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (AuthenticationStateTask is null)
+            return;
+
+        var authState = await AuthenticationStateTask;
+        var principal = authState.User;
+        if (principal.Identity?.IsAuthenticated != true)
+            return;
+
+        var user = await UserManager.GetUserAsync(principal);
+        if (user is null)
+            return;
+
+        _isManager = await UserManager.IsInRoleAsync(user, AppRoles.Manager);
+        _checkedRoles = true;
+    }
+}

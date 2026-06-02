@@ -121,6 +121,16 @@
                                 OnClick="@CloseDrawerLocal">
                         Register
                     </MudNavLink>
+
+                    <AuthorizeView>
+                        <Authorized>
+                            <MudNavLink Href="/account/manage/settings"
+                                        Icon="@Icons.Material.Filled.Settings"
+                                        OnClick="@CloseDrawerLocal">
+                                Settings
+                            </MudNavLink>
+                        </Authorized>
+                    </AuthorizeView>
                 }
                 <MudDivider Class="my-2" />
 				<AuthorizeView>
@@ -161,7 +171,7 @@
 </MudLayout>
 
 @code {
-    private bool allowLogin = false;
+    private bool allowLogin = true;
     private bool _drawerOpen;
 
     private void ToggleDrawer() => _drawerOpen = !_drawerOpen;

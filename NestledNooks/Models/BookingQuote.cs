@@ -1,0 +1,9 @@
+namespace NestledNooks.Models;
+
+public sealed record BookingQuote(
+    int Nights,
+    decimal NightlyRate,
+    decimal Subtotal,
+    decimal CleaningFee,
+    decimal PetFee,
+    decimal TotalAmount);

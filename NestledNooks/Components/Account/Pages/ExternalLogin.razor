@@ -139,6 +139,14 @@
             result = await UserManager.AddLoginAsync(user, externalLoginInfo);
             if (result.Succeeded)
             {
+                var roleResult = await UserManager.AddToRoleAsync(user, AppRoles.Client);
+                if (!roleResult.Succeeded)
+                {
+                    Logger.LogWarning(
+                        "External login user registered but Client role was not assigned: {Errors}",
+                        string.Join("; ", roleResult.Errors.Select(e => e.Description)));
+                }
+
                 Logger.LogInformation("User created an account using {Name} provider.", externalLoginInfo.LoginProvider);
 
                 var userId = await UserManager.GetUserIdAsync(user);

@@ -1,9 +1,10 @@
-﻿using System.Threading.Tasks;
+﻿namespace NestledNooks.Services;
 
-namespace NestledNooks.Services
+public interface IEmailService
 {
-    public interface IEmailService
-    {
-        Task SendContactEmail(string name, string fromEmail, string message);
-    }
+    Task SendContactEmail(string name, string fromEmail, string message);
+
+    Task SendBookingRequestEmail(BookingRequestEmailPayload payload);
+
+    Task SendBookingStatusChangedEmailsAsync(BookingStatusEmailPayload payload);
 }

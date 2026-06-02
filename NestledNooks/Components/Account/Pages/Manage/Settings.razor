@@ -1,0 +1,386 @@
+﻿@page "/account/manage/settings"
+@layout NestledNooks.Components.Layout.MainLayout
+@rendermode InteractiveServer
+
+@using System.ComponentModel.DataAnnotations
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Identity
+@using MudBlazor
+@using NestledNooks.Data
+@using NestledNooks.Services
+
+@attribute [Authorize]
+
+@inject UserManager<ApplicationUser> UserManager
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject NavigationManager Navigation
+@inject IBookingRequestService BookingService
+@inject BookingPricingService PricingService
+
+<PageTitle>Settings</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Medium" Class="py-4">
+    @if (_loadError)
+    {
+        <MudCard Class="mb-4">
+            <MudCardContent>
+                <MudText Typo="Typo.body1" Color="Color.Error">We could not load your account. Please sign in again.</MudText>
+            </MudCardContent>
+        </MudCard>
+    }
+    else if (_loading || _user is null)
+    {
+        <MudCard>
+            <MudCardContent>
+                <MudText Typo="Typo.body1">Loading…</MudText>
+            </MudCardContent>
+        </MudCard>
+    }
+    else
+    {
+        <MudText Typo="Typo.h4" Class="mb-4">Settings</MudText>
+
+        <MudCard Class="mb-4">
+            <MudCardContent>
+                <MudText Typo="Typo.h6" Class="mb-3">Profile</MudText>
+
+                <EditForm Model="@_profile" OnValidSubmit="SaveProfileAsync">
+                    <DataAnnotationsValidator />
+                    <MudTextField @bind-Value="_profile.Email"
+                                  For="@(() => _profile.Email)"
+                                  Label="Email"
+                                  Variant="Variant.Outlined"
+                                  Class="mb-3"
+                                  InputType="InputType.Email"
+                                  Required="true"
+                                  Disabled="_savingProfile" />
+
+                    <MudTextField @bind-Value="_profile.PhoneNumber"
+                                  For="@(() => _profile.PhoneNumber)"
+                                  Label="Phone number"
+                                  Variant="Variant.Outlined"
+                                  Class="mb-3"
+                                  Disabled="_savingProfile" />
+
+                    @if (_profileErrors.Count > 0)
+                    {
+                        @foreach (var err in _profileErrors)
+                        {
+                            <MudText Typo="Typo.body2" Color="Color.Error" Class="mb-2">@err</MudText>
+                        }
+                    }
+
+                    @if (!string.IsNullOrEmpty(_profileSuccess))
+                    {
+                        <MudText Typo="Typo.body2" Color="Color.Success" Class="mb-2">@_profileSuccess</MudText>
+                    }
+
+                    <MudButton ButtonType="ButtonType.Submit"
+                               Variant="Variant.Filled"
+                               Color="Color.Primary"
+                               Disabled="_savingProfile">
+                        @(_savingProfile ? "Saving…" : "Save profile")
+                    </MudButton>
+                </EditForm>
+            </MudCardContent>
+        </MudCard>
+
+        <MudCard Class="mb-4">
+            <MudCardContent>
+                <MudText Typo="Typo.h6" Class="mb-3">Password</MudText>
+
+                <EditForm Model="@_passwords" OnValidSubmit="ChangePasswordAsync">
+                    <DataAnnotationsValidator />
+
+                    <MudTextField @bind-Value="_passwords.CurrentPassword"
+                                  For="@(() => _passwords.CurrentPassword)"
+                                  Label="Current password"
+                                  Variant="Variant.Outlined"
+                                  Class="mb-3"
+                                  InputType="InputType.Password"
+                                  Required="true"
+                                  Disabled="_changingPassword" />
+
+                    <MudTextField @bind-Value="_passwords.NewPassword"
+                                  For="@(() => _passwords.NewPassword)"
+                                  Label="New password"
+                                  Variant="Variant.Outlined"
+                                  Class="mb-3"
+                                  InputType="InputType.Password"
+                                  Required="true"
+                                  Disabled="_changingPassword" />
+
+                    <MudTextField @bind-Value="_passwords.ConfirmNewPassword"
+                                  For="@(() => _passwords.ConfirmNewPassword)"
+                                  Label="Confirm new password"
+                                  Variant="Variant.Outlined"
+                                  Class="mb-3"
+                                  InputType="InputType.Password"
+                                  Required="true"
+                                  Disabled="_changingPassword" />
+
+                    @if (_passwordErrors.Count > 0)
+                    {
+                        @foreach (var err in _passwordErrors)
+                        {
+                            <MudText Typo="Typo.body2" Color="Color.Error" Class="mb-2">@err</MudText>
+                        }
+                    }
+
+                    @if (!string.IsNullOrEmpty(_passwordSuccess))
+                    {
+                        <MudText Typo="Typo.body2" Color="Color.Success" Class="mb-2">@_passwordSuccess</MudText>
+                    }
+
+                    <MudButton ButtonType="ButtonType.Submit"
+                               Variant="Variant.Filled"
+                               Color="Color.Primary"
+                               Disabled="_changingPassword">
+                        @(_changingPassword ? "Updating…" : "Change password")
+                    </MudButton>
+                </EditForm>
+            </MudCardContent>
+        </MudCard>
+
+        <MudCard>
+            <MudCardContent>
+                <MudText Typo="Typo.h6" Class="mb-3">Bookings</MudText>
+
+                @if (_bookings.Count == 0)
+                {
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">No booking requests yet.</MudText>
+                    <MudButton Href="/booking?property=deerfield-retreat" Variant="Variant.Text" Color="Color.Primary" Class="mt-2">
+                        Request a stay
+                    </MudButton>
+                }
+                else
+                {
+                    <MudTable Items="@_bookings" Hover="true" Dense="true" Breakpoint="Breakpoint.Sm">
+                        <HeaderContent>
+                            <MudTh>Booking #</MudTh>
+                            <MudTh>Property</MudTh>
+                            <MudTh>Check-in</MudTh>
+                            <MudTh>Check-out</MudTh>
+                            <MudTh>Total</MudTh>
+                            <MudTh>Status</MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd DataLabel="Booking #">@context.BookingNumber</MudTd>
+                            <MudTd DataLabel="Property">@context.PropertyName</MudTd>
+                            <MudTd DataLabel="Check-in">@context.CheckIn.ToString("yyyy-MM-dd")</MudTd>
+                            <MudTd DataLabel="Check-out">@context.CheckOut.ToString("yyyy-MM-dd")</MudTd>
+                            <MudTd DataLabel="Total">@context.TotalAmount.ToString("C2")</MudTd>
+                            <MudTd DataLabel="Status">
+                                <MudChip T="string" Size="Size.Small" Color="@GetStatusColor(context.Status)">@context.Status</MudChip>
+                            </MudTd>
+                        </RowTemplate>
+                    </MudTable>
+                }
+            </MudCardContent>
+        </MudCard>
+    }
+</MudContainer>
+
+@code {
+    private const string SettingsPath = "/account/manage/settings";
+
+    private ApplicationUser? _user;
+    private bool _loading = true;
+    private bool _loadError;
+    private bool _savingProfile;
+    private bool _changingPassword;
+
+    private readonly ProfileModel _profile = new();
+    private readonly PasswordChangeModel _passwords = new();
+    private readonly List<string> _profileErrors = new();
+    private readonly List<string> _passwordErrors = new();
+    private string _profileSuccess = string.Empty;
+    private string _passwordSuccess = string.Empty;
+
+    private List<BookingRow> _bookings = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadUserAsync();
+        await LoadBookingsAsync();
+    }
+
+    private async Task LoadBookingsAsync()
+    {
+        if (_user?.Id is null)
+            return;
+
+        var rows = await BookingService.GetForUserAsync(_user.Id);
+        _bookings = rows.Select(b =>
+        {
+            var name = PricingService.GetProperty(b.PropertySlug)?.DisplayName ?? b.PropertySlug;
+            return new BookingRow(b.BookingNumber, name, b.CheckIn, b.CheckOut, b.TotalAmount, b.Status);
+        }).ToList();
+    }
+
+    private async Task LoadUserAsync()
+    {
+        _loading = true;
+        _loadError = false;
+
+        try
+        {
+            var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            var userId = UserManager.GetUserId(authState.User);
+            if (string.IsNullOrEmpty(userId))
+            {
+                _loadError = true;
+                return;
+            }
+
+            _user = await UserManager.FindByIdAsync(userId);
+            if (_user is null)
+            {
+                _loadError = true;
+                return;
+            }
+
+            _profile.Email = _user.Email ?? string.Empty;
+            _profile.PhoneNumber = _user.PhoneNumber ?? string.Empty;
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task SaveProfileAsync()
+    {
+        if (_user is null || _savingProfile)
+            return;
+
+        _profileErrors.Clear();
+        _profileSuccess = string.Empty;
+        _savingProfile = true;
+        await InvokeAsync(StateHasChanged);
+
+        try
+        {
+            var email = _profile.Email.Trim();
+            var phone = string.IsNullOrWhiteSpace(_profile.PhoneNumber)
+                ? string.Empty
+                : _profile.PhoneNumber.Trim();
+
+            var emailResult = await UserManager.SetEmailAsync(_user, email);
+            if (!emailResult.Succeeded)
+            {
+                _profileErrors.AddRange(emailResult.Errors.Select(e => e.Description));
+                return;
+            }
+
+            var phoneResult = await UserManager.SetPhoneNumberAsync(_user, phone);
+            if (!phoneResult.Succeeded)
+            {
+                _profileErrors.AddRange(phoneResult.Errors.Select(e => e.Description));
+                return;
+            }
+
+            _profileSuccess = "Profile saved. Refreshing…";
+            await InvokeAsync(StateHasChanged);
+            await Task.Delay(800);
+            Navigation.NavigateTo(SettingsPath, forceLoad: true);
+        }
+        catch (Exception ex)
+        {
+            _profileErrors.Add($"Could not save profile: {ex.Message}");
+        }
+        finally
+        {
+            _savingProfile = false;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private async Task ChangePasswordAsync()
+    {
+        if (_user is null || _changingPassword)
+            return;
+
+        _passwordErrors.Clear();
+        _passwordSuccess = string.Empty;
+        _changingPassword = true;
+        await InvokeAsync(StateHasChanged);
+
+        try
+        {
+            var result = await UserManager.ChangePasswordAsync(
+                _user,
+                _passwords.CurrentPassword,
+                _passwords.NewPassword);
+
+            if (!result.Succeeded)
+            {
+                _passwordErrors.AddRange(result.Errors.Select(e => e.Description));
+                return;
+            }
+
+            _passwordSuccess = "Password updated. Refreshing…";
+            await InvokeAsync(StateHasChanged);
+            await Task.Delay(800);
+            Navigation.NavigateTo(SettingsPath, forceLoad: true);
+        }
+        catch (Exception ex)
+        {
+            _passwordErrors.Add($"Could not change password: {ex.Message}");
+        }
+        finally
+        {
+            _changingPassword = false;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private static Color GetStatusColor(string status) => status switch
+    {
+        "Requested" => Color.Info,
+        "Approved" => Color.Success,
+        "Denied" => Color.Error,
+        "Active" => Color.Primary,
+        "Ended" => Color.Default,
+        _ => Color.Default
+    };
+
+    private sealed class ProfileModel
+    {
+        [Required(ErrorMessage = "Email is required.")]
+        [EmailAddress(ErrorMessage = "Enter a valid email.")]
+        [Display(Name = "Email")]
+        public string Email { get; set; } = "";
+
+        [Required(ErrorMessage = "Phone number is required.")]
+        [Phone(ErrorMessage = "Enter a valid phone number.")]
+        [Display(Name = "Phone number")]
+        public string PhoneNumber { get; set; } = "";
+    }
+
+    private sealed class PasswordChangeModel
+    {
+        [Required(ErrorMessage = "Current password is required.")]
+        [DataType(DataType.Password)]
+        public string CurrentPassword { get; set; } = "";
+
+        [Required(ErrorMessage = "New password is required.")]
+        [StringLength(100, MinimumLength = 6, ErrorMessage = "New password must be at least 6 characters.")]
+        [DataType(DataType.Password)]
+        public string NewPassword { get; set; } = "";
+
+        [Required(ErrorMessage = "Please confirm your new password.")]
+        [DataType(DataType.Password)]
+        [Compare(nameof(NewPassword), ErrorMessage = "New password and confirmation do not match.")]
+        public string ConfirmNewPassword { get; set; } = "";
+    }
+
+    private sealed record BookingRow(
+        string BookingNumber,
+        string PropertyName,
+        DateOnly CheckIn,
+        DateOnly CheckOut,
+        decimal TotalAmount,
+        string Status);
+}
