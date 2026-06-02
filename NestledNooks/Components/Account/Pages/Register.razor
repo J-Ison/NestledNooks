@@ -5,10 +5,13 @@
 @using System.Text.Encodings.Web
 @using Microsoft.AspNetCore.Identity
 @using Microsoft.AspNetCore.WebUtilities
+@using Microsoft.Extensions.Options
 @using NestledNooks.Data
+@using NestledNooks.Services
 @using static NestledNooks.Data.AppRoles
 
 @inject UserManager<ApplicationUser> UserManager
+@inject IOptions<AdminOptions> AdminOptions
 @inject IUserStore<ApplicationUser> UserStore
 @inject SignInManager<ApplicationUser> SignInManager
 @inject IEmailSender<ApplicationUser> EmailSender
@@ -81,11 +84,15 @@
             return;
         }
 
-        var roleResult = await UserManager.AddToRoleAsync(user, Client);
+        var roleName = OwnerRoleSeedService.IsConfiguredOwnerEmail(Input.Email, AdminOptions)
+            ? Owner
+            : Client;
+        var roleResult = await UserManager.AddToRoleAsync(user, roleName);
         if (!roleResult.Succeeded)
         {
             Logger.LogWarning(
-                "User registered but Client role was not assigned: {Errors}",
+                "User registered but {Role} role was not assigned: {Errors}",
+                roleName,
                 string.Join("; ", roleResult.Errors.Select(e => e.Description)));
         }
 

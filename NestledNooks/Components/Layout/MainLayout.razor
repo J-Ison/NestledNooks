@@ -131,6 +131,15 @@
                             </MudNavLink>
                         </Authorized>
                     </AuthorizeView>
+                    <AuthorizeView Roles="@($"{AppRoles.Owner},{AppRoles.Manager}")">
+                        <Authorized>
+                            <MudNavLink Href="/account/manage/bookings"
+                                        Icon="@Icons.Material.Filled.CalendarMonth"
+                                        OnClick="@CloseDrawerLocal">
+                                Manage bookings
+                            </MudNavLink>
+                        </Authorized>
+                    </AuthorizeView>
                 }
                 <MudDivider Class="my-2" />
 				<AuthorizeView>

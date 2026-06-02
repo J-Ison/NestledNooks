@@ -182,6 +182,65 @@ public sealed class BookingRequestService : IBookingRequestService
             .ConfigureAwait(false);
     }
 
+    public async Task<IReadOnlyList<BookingRequest>> GetAllForAdminAsync(
+        string? status = null,
+        CancellationToken cancellationToken = default)
+    {
+        var query = _db.BookingRequests.AsNoTracking();
+
+        if (!string.IsNullOrWhiteSpace(status))
+            query = query.Where(b => b.Status == status);
+
+        return await query
+            .OrderByDescending(b => b.CreatedAtUtc)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    public async Task<BookingStatusUpdateResult> UpdatePaymentAsync(
+        int bookingId,
+        string paymentStatus,
+        decimal? amountPaid,
+        CancellationToken cancellationToken = default)
+    {
+        if (!IsAllowedPaymentStatus(paymentStatus))
+            return new BookingStatusUpdateResult(false, "Invalid payment status.");
+
+        var entity = await _db.BookingRequests
+            .FirstOrDefaultAsync(b => b.Id == bookingId, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (entity is null)
+            return new BookingStatusUpdateResult(false, "Booking not found.");
+
+        entity.PaymentStatus = paymentStatus;
+
+        switch (paymentStatus)
+        {
+            case PaymentStatuses.Paid:
+                entity.AmountPaid = amountPaid ?? entity.TotalAmount;
+                entity.PaymentReceivedAtUtc = DateTime.UtcNow;
+                break;
+            case PaymentStatuses.PartiallyPaid:
+                if (amountPaid is null or < 0)
+                    return new BookingStatusUpdateResult(false, "Enter amount paid for partial payment.");
+                entity.AmountPaid = amountPaid.Value;
+                entity.PaymentReceivedAtUtc = DateTime.UtcNow;
+                break;
+            case PaymentStatuses.Unpaid:
+                entity.AmountPaid = 0;
+                entity.PaymentReceivedAtUtc = null;
+                break;
+            case PaymentStatuses.Refunded:
+                entity.AmountPaid = amountPaid ?? entity.AmountPaid;
+                entity.PaymentReceivedAtUtc ??= DateTime.UtcNow;
+                break;
+        }
+
+        await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        return new BookingStatusUpdateResult(true, null);
+    }
+
     public async Task<BookingStatusUpdateResult> UpdateStatusAsync(
         int bookingId,
         string newStatus,
@@ -251,4 +310,10 @@ public sealed class BookingRequestService : IBookingRequestService
             or BookingStatuses.Cancelled
             or BookingStatuses.Active
             or BookingStatuses.Ended;
+
+    private static bool IsAllowedPaymentStatus(string status) =>
+        status is PaymentStatuses.Unpaid
+            or PaymentStatuses.PartiallyPaid
+            or PaymentStatuses.Paid
+            or PaymentStatuses.Refunded;
 }

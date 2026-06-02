@@ -8,7 +8,7 @@
 @using NestledNooks.Models
 @using NestledNooks.Services
 
-@attribute [Authorize(Roles = "Owner,Manager")]
+@attribute [Authorize(Roles = $"{AppRoles.Owner},{AppRoles.Manager}")]
 
 @inject IBookingRequestService BookingService
 @inject NavigationManager Navigation
@@ -18,88 +18,193 @@
 <MudContainer MaxWidth="MaxWidth.Large" Class="py-4">
     <MudText Typo="Typo.h4" Class="mb-2">Manage bookings</MudText>
     <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4">
-        Approve or deny pending requests. Approved and pending dates are blocked on the site.
-        Import <MudLink Href="@_holdsFeedUrl" Target="_blank">holds.ics</MudLink> into Airbnb/Vrbo to block pending site requests on those platforms.
+        Review requests, update stay status, and record payment.
+        Import <MudLink Href="@_holdsFeedUrl" Target="_blank">holds.ics</MudLink> into Airbnb/Vrbo for pending site holds.
     </MudText>
 
     @if (_loading)
     {
         <MudProgressLinear Indeterminate="true" />
     }
-    else if (_pending.Count == 0)
-    {
-        <MudAlert Severity="Severity.Info">No pending booking requests.</MudAlert>
-    }
     else
     {
-        @foreach (var b in _pending)
+        <MudTabs @bind-ActivePanelIndex="_tabIndex" Class="mb-4">
+            <MudTabPanel Text="@($"Pending ({_pending.Count})")" />
+            <MudTabPanel Text="@($"Active stays ({_active.Count})")" />
+            <MudTabPanel Text="@($"All ({_all.Count})")" />
+        </MudTabs>
+
+        var list = _tabIndex switch
         {
-            <MudCard Class="mb-4">
-                <MudCardContent>
-                    <MudText Typo="Typo.h6">@b.BookingNumber — @b.PropertySlug</MudText>
-                    <MudText Typo="Typo.body2">
-                        @b.GuestFullName · @b.GuestEmail · @b.GuestPhone
-                    </MudText>
-                    <MudText Typo="Typo.body2">
-                        @b.CheckIn:yyyy-MM-dd → @b.CheckOut:yyyy-MM-dd · @b.NightCount night(s) · @b.GuestCount guests · @b.PetCount pets
-                    </MudText>
-                    <MudText Typo="Typo.body1" Class="my-2">
-                        <strong>@b.TotalAmount.ToString("C2")</strong>
-                        · Payment: @b.PaymentStatus
-                        @if (b.AmountPaid > 0)
+            0 => _pending,
+            1 => _active,
+            _ => _all
+        };
+
+        var showApproveDeny = _tabIndex == 0;
+        var showStatusActions = _tabIndex != 0;
+
+        if (list.Count == 0)
+        {
+            <MudAlert Severity="Severity.Info">No bookings in this list.</MudAlert>
+        }
+        else
+        {
+            @foreach (var b in list)
+            {
+                <MudCard Class="mb-4">
+                    <MudCardContent>
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1" Class="mb-1">
+                            <MudText Typo="Typo.h6">@b.BookingNumber — @b.PropertySlug</MudText>
+                            <MudChip T="string" Size="Size.Small" Color="Color.Primary">@b.Status</MudChip>
+                            <MudChip T="string" Size="Size.Small" Color="Color.Secondary">@b.PaymentStatus</MudChip>
+                        </MudStack>
+                        <MudText Typo="Typo.body2">
+                            @b.GuestFullName · @b.GuestEmail · @(string.IsNullOrWhiteSpace(b.GuestPhone) ? "—" : b.GuestPhone)
+                        </MudText>
+                        <MudText Typo="Typo.body2">
+                            @b.CheckIn:yyyy-MM-dd → @b.CheckOut:yyyy-MM-dd · @b.NightCount night(s) · @b.GuestCount guests · @b.PetCount pets
+                        </MudText>
+                        <MudText Typo="Typo.body1" Class="my-2">
+                            <strong>@b.TotalAmount.ToString("C2")</strong>
+                            @if (b.AmountPaid > 0)
+                            {
+                                <span> · Paid @b.AmountPaid.ToString("C2")</span>
+                            }
+                        </MudText>
+                        @if (!string.IsNullOrWhiteSpace(b.Notes))
                         {
-                            <span> (paid @b.AmountPaid.ToString("C2"))</span>
+                            <MudText Typo="Typo.body2" Class="mb-2">Notes: @b.Notes</MudText>
                         }
-                    </MudText>
-                    @if (!string.IsNullOrWhiteSpace(b.Notes))
-                    {
-                        <MudText Typo="Typo.body2" Class="mb-2">Notes: @b.Notes</MudText>
-                    }
 
-                    <MudTextField @bind-Value="_statusNotes[b.Id]"
-                                  Label="Message to guest (optional)"
-                                  Variant="Variant.Outlined"
-                                  Class="mb-3" />
+                        <MudTextField @bind-Value="_statusNotes[b.Id]"
+                                      Label="Message to guest (optional)"
+                                      Variant="Variant.Outlined"
+                                      Class="mb-3" />
 
-                    <MudStack Row="true" Spacing="2">
-                        <MudButton Color="Color.Success"
-                                   Variant="Variant.Filled"
-                                   Disabled="_processingId == b.Id"
-                                   OnClick="() => UpdateStatusAsync(b.Id, BookingStatuses.Approved)">
-                            Approve
-                        </MudButton>
-                        <MudButton Color="Color.Error"
-                                   Variant="Variant.Outlined"
-                                   Disabled="_processingId == b.Id"
-                                   OnClick="() => UpdateStatusAsync(b.Id, BookingStatuses.Denied)">
-                            Deny
-                        </MudButton>
-                    </MudStack>
+                        @if (showApproveDeny)
+                        {
+                            <MudStack Row="true" Spacing="2" Class="mb-3">
+                                <MudButton Color="Color.Success"
+                                           Variant="Variant.Filled"
+                                           Disabled="_processingId == b.Id"
+                                           OnClick="@(() => UpdateStatusAsync(b.Id, BookingStatuses.Approved))">
+                                    Approve
+                                </MudButton>
+                                <MudButton Color="Color.Error"
+                                           Variant="Variant.Outlined"
+                                           Disabled="_processingId == b.Id"
+                                           OnClick="@(() => UpdateStatusAsync(b.Id, BookingStatuses.Denied))">
+                                    Deny
+                                </MudButton>
+                            </MudStack>
+                        }
 
-                    @if (_errors.TryGetValue(b.Id, out var err))
-                    {
-                        <MudText Color="Color.Error" Class="mt-2">@err</MudText>
-                    }
-                </MudCardContent>
-            </MudCard>
+                        @if (showStatusActions && b.Status != BookingStatuses.Denied && b.Status != BookingStatuses.Ended)
+                        {
+                            <MudText Typo="Typo.subtitle2" Class="mb-1">Stay status</MudText>
+                            <MudStack Row="true" Spacing="2" Wrap="Wrap.Wrap" Class="mb-3">
+                                @if (b.Status == BookingStatuses.Approved)
+                                {
+                                    <MudButton Size="Size.Small" Variant="Variant.Outlined" Disabled="_processingId == b.Id"
+                                               OnClick="@(() => UpdateStatusAsync(b.Id, BookingStatuses.Active))">
+                                        Mark in progress
+                                    </MudButton>
+                                }
+                                @if (b.Status is BookingStatuses.Approved or BookingStatuses.Active)
+                                {
+                                    <MudButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Success" Disabled="_processingId == b.Id"
+                                               OnClick="@(() => UpdateStatusAsync(b.Id, BookingStatuses.Ended))">
+                                        Mark completed
+                                    </MudButton>
+                                    <MudButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Warning" Disabled="_processingId == b.Id"
+                                               OnClick="@(() => UpdateStatusAsync(b.Id, BookingStatuses.Cancelled))">
+                                        Cancel
+                                    </MudButton>
+                                }
+                                @if (b.Status == BookingStatuses.Pending)
+                                {
+                                    <MudButton Size="Size.Small" Color="Color.Success" Variant="Variant.Filled" Disabled="_processingId == b.Id"
+                                               OnClick="@(() => UpdateStatusAsync(b.Id, BookingStatuses.Approved))">
+                                        Approve
+                                    </MudButton>
+                                    <MudButton Size="Size.Small" Color="Color.Error" Variant="Variant.Outlined" Disabled="_processingId == b.Id"
+                                               OnClick="@(() => UpdateStatusAsync(b.Id, BookingStatuses.Denied))">
+                                        Deny
+                                    </MudButton>
+                                }
+                            </MudStack>
+                        }
+
+                        <MudText Typo="Typo.subtitle2" Class="mb-1">Payment</MudText>
+                        <MudStack Row="true" Spacing="2" AlignItems="AlignItems.End" Wrap="Wrap.Wrap" Class="mb-2">
+                            <MudSelect T="string" @bind-Value="_paymentStatuses[b.Id]" Label="Payment status" Variant="Variant.Outlined" Style="min-width: 180px;">
+                                <MudSelectItem Value="@PaymentStatuses.Unpaid">Unpaid</MudSelectItem>
+                                <MudSelectItem Value="@PaymentStatuses.PartiallyPaid">Partially paid</MudSelectItem>
+                                <MudSelectItem Value="@PaymentStatuses.Paid">Paid in full</MudSelectItem>
+                                <MudSelectItem Value="@PaymentStatuses.Refunded">Refunded</MudSelectItem>
+                            </MudSelect>
+                            <MudNumericField T="decimal" @bind-Value="_amountsPaid[b.Id]"
+                                             Label="Amount paid"
+                                             Variant="Variant.Outlined"
+                                             Min="0"
+                                             Format="C2"
+                                             Style="max-width: 160px;" />
+                            <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                                       Disabled="_processingId == b.Id"
+                                       OnClick="@(() => SavePaymentAsync(b.Id))">
+                                Save payment
+                            </MudButton>
+                        </MudStack>
+
+                        @if (_errors.TryGetValue(b.Id, out var err))
+                        {
+                            <MudText Color="Color.Error" Class="mt-2">@err</MudText>
+                        }
+                    </MudCardContent>
+                </MudCard>
+            }
         }
     }
 </MudContainer>
 
 @code {
     private List<BookingRequest> _pending = [];
+    private List<BookingRequest> _active = [];
+    private List<BookingRequest> _all = [];
     private readonly Dictionary<int, string> _statusNotes = new();
+    private readonly Dictionary<int, string> _paymentStatuses = new();
+    private readonly Dictionary<int, decimal> _amountsPaid = new();
     private readonly Dictionary<int, string> _errors = new();
     private bool _loading = true;
     private int? _processingId;
     private string _holdsFeedUrl = "";
+    private int _tabIndex;
 
     protected override async Task OnInitializedAsync()
     {
         _holdsFeedUrl = Navigation.ToAbsoluteUri($"/api/calendar/{BookingFormModel.DeerfieldSlug}/holds.ics").ToString();
+        await ReloadAsync();
+    }
+
+    private async Task ReloadAsync()
+    {
+        _loading = true;
         _pending = (await BookingService.GetPendingForPropertyAsync()).ToList();
-        foreach (var b in _pending)
-            _statusNotes[b.Id] = "";
+        _all = (await BookingService.GetAllForAdminAsync()).ToList();
+        _active = _all
+            .Where(b => b.Status is BookingStatuses.Approved or BookingStatuses.Active)
+            .OrderBy(b => b.CheckIn)
+            .ToList();
+
+        foreach (var b in _all)
+        {
+            if (!_statusNotes.ContainsKey(b.Id))
+                _statusNotes[b.Id] = b.StatusNote ?? "";
+            _paymentStatuses[b.Id] = b.PaymentStatus;
+            _amountsPaid[b.Id] = b.AmountPaid;
+        }
+
         _loading = false;
     }
 
@@ -119,7 +224,34 @@
             return;
         }
 
-        _pending.RemoveAll(b => b.Id == id);
+        await ReloadAsync();
+        _processingId = null;
+    }
+
+    private async Task SavePaymentAsync(int id)
+    {
+        _processingId = id;
+        _errors.Remove(id);
+        StateHasChanged();
+
+        if (!_paymentStatuses.TryGetValue(id, out var paymentStatus))
+        {
+            _errors[id] = "Select a payment status.";
+            _processingId = null;
+            return;
+        }
+
+        _amountsPaid.TryGetValue(id, out var amount);
+        var result = await BookingService.UpdatePaymentAsync(id, paymentStatus, amount);
+
+        if (!result.Succeeded)
+        {
+            _errors[id] = result.ErrorMessage ?? "Payment update failed.";
+            _processingId = null;
+            return;
+        }
+
+        await ReloadAsync();
         _processingId = null;
     }
 }

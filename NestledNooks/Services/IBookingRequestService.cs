@@ -22,6 +22,16 @@ public interface IBookingRequestService
         string? propertySlug = null,
         CancellationToken cancellationToken = default);
 
+    Task<IReadOnlyList<BookingRequest>> GetAllForAdminAsync(
+        string? status = null,
+        CancellationToken cancellationToken = default);
+
+    Task<BookingStatusUpdateResult> UpdatePaymentAsync(
+        int bookingId,
+        string paymentStatus,
+        decimal? amountPaid,
+        CancellationToken cancellationToken = default);
+
     Task<BookingStatusUpdateResult> UpdateStatusAsync(
         int bookingId,
         string newStatus,

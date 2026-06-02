@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.Data;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using MudBlazor.Services;
 using NestledNooks.Components;
 using NestledNooks.Components.Account;
@@ -53,6 +54,7 @@ builder.Services.AddSingleton<IEmailSender<ApplicationUser>, IdentityNoOpEmailSe
 builder.Services.Configure<SmtpOptions>(builder.Configuration.GetSection("Smtp"));
 builder.Services.AddSingleton<IEmailService, SmtpEmailService>();
 builder.Services.Configure<BookingOptions>(builder.Configuration.GetSection(BookingOptions.SectionName));
+builder.Services.Configure<AdminOptions>(builder.Configuration.GetSection(AdminOptions.SectionName));
 builder.Services.AddScoped<BookingPricingService>();
 builder.Services.AddScoped<IBookingAvailabilityService, BookingAvailabilityService>();
 builder.Services.AddScoped<IBookingRequestService, BookingRequestService>();
@@ -70,20 +72,55 @@ builder.Services.AddHttpClient("CalendarSync", client =>
 
 var app = builder.Build();
 
-await using (var scope = app.Services.CreateAsyncScope())
+if (!app.Environment.IsDevelopment()
+    && connectionString.Contains("localdb", StringComparison.OrdinalIgnoreCase))
 {
-    await SeedApplicationRolesAsync(scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>());
+    app.Logger.LogWarning(
+        "DefaultConnection uses LocalDB, which does not run on Azure App Service. " +
+        "Set ConnectionStrings__DefaultConnection in Application settings to your Azure SQL connection string.");
+}
+
+// Do not block HTTP startup on SQL or iCal — Azure health checks fail after ~230s (ContainerTimeout).
+_ = Task.Run(async () =>
+{
     try
     {
-        await scope.ServiceProvider.GetRequiredService<IBookingAvailabilityService>()
-            .SyncExternalCalendarsAsync();
+        await using var scope = app.Services.CreateAsyncScope();
+        var logger = scope.ServiceProvider.GetRequiredService<ILoggerFactory>().CreateLogger("Startup");
+
+        try
+        {
+            await SeedApplicationRolesAsync(scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>())
+                .ConfigureAwait(false);
+
+            await OwnerRoleSeedService.EnsureOwnerUsersAsync(
+                scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>(),
+                scope.ServiceProvider.GetRequiredService<IOptions<AdminOptions>>(),
+                logger).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(
+                ex,
+                "Role seed skipped. Verify ConnectionStrings:DefaultConnection and that migrations are applied on the database.");
+        }
+
+        try
+        {
+            await scope.ServiceProvider.GetRequiredService<IBookingAvailabilityService>()
+                .SyncExternalCalendarsAsync()
+                .ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Initial calendar sync skipped.");
+        }
     }
     catch (Exception ex)
     {
-        var logger = scope.ServiceProvider.GetRequiredService<ILoggerFactory>().CreateLogger("Startup");
-        logger.LogWarning(ex, "Initial calendar sync skipped (configure Booking:Properties iCal URLs).");
+        app.Logger.LogWarning(ex, "Background startup tasks failed.");
     }
-}
+});
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
