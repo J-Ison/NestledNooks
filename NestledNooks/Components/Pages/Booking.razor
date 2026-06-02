@@ -140,20 +140,9 @@
                                   Class="mb-3"
                                   Disabled="_submitting" />
 
-                    @if (_quote is not null)
-                    {
-                        <MudPaper Class="pa-4 mb-3" Elevation="0" Outlined="true">
-                            <MudText Typo="Typo.subtitle2">Estimated total</MudText>
-                            <MudText Typo="Typo.body2">@_quote.Nights night(s) × @_quote.NightlyRate.ToString("C0") = @_quote.Subtotal.ToString("C2")</MudText>
-                            <MudText Typo="Typo.body2">Cleaning: @_quote.CleaningFee.ToString("C2")</MudText>
-                            @if (_quote.PetFee > 0)
-                            {
-                                <MudText Typo="Typo.body2">Pet fee: @_quote.PetFee.ToString("C2")</MudText>
-                            }
-                            <MudText Typo="Typo.h6" Class="mt-2">@_quote.TotalAmount.ToString("C2")</MudText>
-                            <MudText Typo="Typo.caption" Color="Color.Secondary">Taxes/fees may apply. Final amount confirmed on approval.</MudText>
-                        </MudPaper>
-                    }
+                    <MudAlert Severity="Severity.Info" Class="mb-3" Dense="true">
+                        We will confirm your total rate after we review your request (dynamic pricing applies).
+                    </MudAlert>
 
                     @if (!string.IsNullOrEmpty(_error))
                     {
@@ -182,7 +171,6 @@
     private List<PropertyBookingOptions> _properties = [];
     private PropertyBookingOptions? _property;
     private HashSet<DateOnly> _unavailableDates = [];
-    private BookingQuote? _quote;
 
     private DateTime? _checkInDate;
     private DateTime? _checkOutDate;
@@ -257,19 +245,6 @@
 
         if (_model.CheckIn is { } ci && _model.CheckOut is { } co && co <= ci)
             _checkOutDate = null;
-
-        _ = RefreshQuoteAsync();
-    }
-
-    private async Task RefreshQuoteAsync()
-    {
-        if (_model.CheckIn is not { } ci || _model.CheckOut is not { } co || co <= ci)
-        {
-            _quote = null;
-            return;
-        }
-
-        _quote = await BookingService.GetQuoteAsync(_model.PropertySlug, ci, co, _model.PetCount);
     }
 
     private async Task SubmitAsync()
