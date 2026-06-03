@@ -2,12 +2,10 @@
 @using MudBlazor
 @using Microsoft.AspNetCore.Components.Routing
 @using Microsoft.AspNetCore.Components.Authorization
-@using Microsoft.AspNetCore.Identity
 @using NestledNooks.Data
 @using System.Security.Claims
 
 @inject NavigationManager Nav
-@inject SignInManager<ApplicationUser> SignInManager
 
 @implements IDisposable
 
@@ -32,30 +30,6 @@
         </div>
 
         <MudSpacer />
-        <!-- AUTH SECTION -->
-		@if (!allowLogin)
-		{
-			// If login is not allowed, show nothing or a placeholder
-		}
-		else
-		{
-			<AuthorizeView>
-				<Authorized Context="authState">
-					<MudMenuItem>
-						<form method="post" action="/api/account/logout" style="margin:0;">
-							<button type="submit" style="all:unset; cursor:pointer; width:100%;">
-								Logout
-							</button>
-						</form>
-					</MudMenuItem>
-			</Authorized>
-
-			<NotAuthorized>
-				<a href="/login" class="btn btn-sm btn-outline-light">Login</a>
-				<a href="/register" class="btn btn-sm btn-light ms-2">Register</a>
-			</NotAuthorized>
-			</AuthorizeView>
-		}
     </MudAppBar>
 	
     <MudDrawer Open="@_drawerOpen"
