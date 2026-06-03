@@ -24,3 +24,7 @@ publish/
 # OS junk
 .DS_Store
 Thumbs.db
+
+# Original full-size photos (drop here locally; deploy optimized copies from wwwroot/images/)
+NestledNooks/wwwroot/images/originals/*
+!NestledNooks/wwwroot/images/originals/.gitkeep
