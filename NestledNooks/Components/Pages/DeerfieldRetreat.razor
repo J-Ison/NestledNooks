@@ -3,138 +3,134 @@
 @rendermode InteractiveServer
 @inject NavigationManager Nav
 
-<PageTitle>Deerfield Retreat · Nestled Nooks</PageTitle>
+<PageTitle>Deerfield Retreat · @SiteBranding.Name</PageTitle>
 <HeadContent>
-	<meta name="description" content="Peaceful vacation home near Rapid City, South Dakota — open fields, visiting deer, sleeps up to 12, 4 bedrooms, 3 baths. Relax and recharge at Deerfield Retreat." />
+    <meta name="description" content="Peaceful vacation home near Rapid City, South Dakota — open fields, visiting deer, sleeps up to 12, 4 bedrooms, 3 baths. Relax and recharge at Deerfield Retreat." />
 </HeadContent>
 
 <div class="listing-page">
-    
-
     <main class="wrap">
-        <!-- Title area -->
-        <section class="title-row">
+        <header class="listing-header">
+            <p class="listing-eyebrow">@SiteBranding.RegionLine</p>
             <h1 class="title">Deerfield Retreat</h1>
             <p class="subtitle">
                 A peaceful getaway surrounded by open fields and visiting deer — the perfect spot to slow down,
                 recharge, and enjoy the quiet.
             </p>
+            <ul class="listing-stats" aria-label="Property highlights">
+                <li>Sleeps 12</li>
+                <li>4 bedrooms</li>
+                <li>6 beds</li>
+                <li>3 baths</li>
+                <li>Near Rapid City</li>
+            </ul>
+        </header>
+
+        <section class="media-grid" aria-label="Listing photos">
+            <div class="media-main">
+                <img src="@Photos[0].Url" alt="@Photos[0].Alt" loading="lazy" />
+            </div>
+
+            <div class="media-side @(HasLastWidePhoto ? "has-wide" : "no-wide")">
+                @foreach (var p in SidePhotos)
+                {
+                    <img src="@p.Url" alt="@p.Alt" loading="lazy" />
+                }
+
+                @if (HasLastWidePhoto)
+                {
+                    <div class="media-last">
+                        <img src="@LastWidePhoto!.Url" alt="@LastWidePhoto!.Alt" loading="lazy" />
+                        <button type="button"
+                                class="show-photos"
+                                @onclick="OpenGallery"
+                                @onclick:stopPropagation="true">
+                            Show all photos
+                        </button>
+                    </div>
+                }
+                else
+                {
+                    <div class="media-last no-photo">
+                        <button type="button"
+                                class="show-photos"
+                                @onclick="OpenGallery"
+                                @onclick:stopPropagation="true">
+                            Show all photos
+                        </button>
+                    </div>
+                }
+            </div>
         </section>
 
-        <!-- Photo grid -->
-		<section class="media-grid" aria-label="Listing photos">
-			<div class="media-main">
-				<img src="@Photos[0].Url" alt="@Photos[0].Alt" loading="lazy" />
-			</div>
-
-			<div class="media-side @(HasLastWidePhoto ? "has-wide" : "no-wide")">
-				@foreach (var p in SidePhotos)
-				{
-					<img src="@p.Url" alt="@p.Alt" loading="lazy" />
-				}
-
-				@if (HasLastWidePhoto)
-				{
-					<div class="media-last">
-						<img src="@LastWidePhoto!.Url" alt="@LastWidePhoto!.Alt" loading="lazy" />
-						<button type="button"
-								class="show-photos"
-								@onclick="OpenGallery"
-								@onclick:stopPropagation="true">
-							Show all photos
-						</button>
-
-
-					</div>
-				}
-				else
-				{
-					<div class="media-last no-photo">
-						<button type="button"
-								class="show-photos"
-								@onclick="OpenGallery"
-								@onclick:stopPropagation="true">
-							Show all photos
-						</button>
-
-
-					</div>
-				}
-			</div>
-		</section>
-
-        <!-- Main layout: left content + right booking card -->
         <section class="content-grid">
             <div class="left">
-                <div class="subhead">
-                    <div class="line-1">Entire home near Rapid City, South Dakota</div>
-                    <div class="line-2">Sleeps up to 12 · 4 bedrooms · 6 beds · 3 baths</div>
-                </div>
-
-                <div class="badges">
-                    <div class="badge">
-                        <div class="badge-title">Guest favorite</div>
-                        <div class="badge-sub">A relaxing, family-friendly stay</div>
+                <div class="listing-intro-card">
+                    <div class="subhead">
+                        <div class="line-1">Entire home · Black Hills, South Dakota</div>
+                        <div class="line-2">Family-friendly · Prairie views · Quiet nights</div>
                     </div>
 
-                    <div class="badge">
-                        <div class="badge-title">Prairie View</div>
-                        <div class="badge-sub">Open fields + big skies</div>
+                    <div class="badges">
+                        <div class="badge">
+                            <div class="badge-title">Guest favorite</div>
+                            <div class="badge-sub">A relaxing, family-friendly stay</div>
+                        </div>
+                        <div class="badge">
+                            <div class="badge-title">Prairie view</div>
+                            <div class="badge-sub">Open fields + big skies</div>
+                        </div>
                     </div>
                 </div>
 
-                <hr class="divider" />
-
-                <section class="section">
-                    <h2>About this property</h2>
+                <article class="listing-block">
+                    <h2 class="listing-block-title">About this property</h2>
                     <p class="desc">
                         Deerfield Retreat is a cozy escape tucked away from the noise, with wide-open views and
                         frequent deer sightings right from the yard. Whether you're here with family, friends, or on
-                        a solo reset, it’s designed to feel calm, comfortable, and easy.
+                        a solo reset, it's designed to feel calm, comfortable, and easy.
                     </p>
-                </section>
+                </article>
 
-                <hr class="divider" />
-
-                <section class="section">
-                    <h2>Amenities</h2>
-                    <ul class="bullets">
+                <article class="listing-block">
+                    <h2 class="listing-block-title">Amenities</h2>
+                    <ul class="listing-amenities">
                         <li>4 comfortable bedrooms with scenic views</li>
                         <li>Fully equipped kitchen with modern appliances</li>
                         <li>Outdoor seating area with BBQ grill</li>
-                        <li>High-speed Wi-Fi for work or streaming</li>
+                        <li>High-speed Wi‑Fi for work or streaming</li>
                         <li>Washer &amp; dryer for longer stays</li>
                         <li>Pet-friendly (with prior approval)</li>
                     </ul>
-                </section>
+                </article>
 
-                <hr class="divider" />
-
-                <section class="section">
-                    <h2>Location</h2>
+                <article class="listing-block">
+                    <h2 class="listing-block-title">Location</h2>
                     <p class="desc">
-                        Deerfield Retreat sits just about 20 minutes from town, so you’re close to groceries,
+                        Deerfield Retreat sits just about 20 minutes from town, so you're close to groceries,
                         restaurants, and attractions — but far enough out that nights stay quiet and the stars stay
                         bright.
                     </p>
-                </section>
+                </article>
 
-                <hr class="divider" />
-
-                <section class="section">
-                    <h2>Guest guide</h2>
-                    <p class="desc">
-                        House details, local recommendations, and stay resources — Wi‑Fi and access info are in your confirmation email.
-                    </p>
-                    <a class="pill-btn" href="/properties/deerfield-retreat/guide">Open guest guide</a>
-                </section>
+                <article class="listing-block listing-block--guide">
+                    <div class="listing-guide-inner">
+                        <div>
+                            <h2 class="listing-block-title">Guest guide</h2>
+                            <p class="desc">
+                                House details, local recommendations, and stay resources. Wi‑Fi and access info are in your confirmation email.
+                            </p>
+                        </div>
+                        <a class="listing-guide-btn" href="/properties/deerfield-retreat/guide">Open guest guide</a>
+                    </div>
+                </article>
             </div>
 
             <aside class="right">
                 <div class="booking-card">
                     <div class="booking-head">
-                        <div class="booking-title">Book on your preferred platform</div>
-                        <div class="booking-sub">Airbnb and Vrbo stay in sync.</div>
+                        <div class="booking-title">Book your stay</div>
+                        <div class="booking-sub">Direct request, Airbnb, or Vrbo — calendars stay in sync.</div>
                     </div>
 
                     <div class="cta-stack">
@@ -147,111 +143,104 @@
                            href="https://airbnb.com/h/mydeerfieldretreat"
                            target="_blank"
                            rel="noopener noreferrer">
-                            View availability on Airbnb
+                            View on Airbnb
                         </a>
 
                         <a class="primary-btn vrbo"
                            href="https://www.vrbo.com/4507873?dateless=true"
                            target="_blank"
                            rel="noopener noreferrer">
-                            View availability on Vrbo
+                            View on Vrbo
                         </a>
                     </div>
 
                     <div class="fineprint">
-                        Tip: You’ll see the most accurate pricing and dates on the platform pages.
+                        Most accurate pricing and availability appear on each platform.
                     </div>
                 </div>
             </aside>
         </section>
     </main>
-	@if (IsGalleryOpen)
-	{
-		<div class="gallery-overlay" @onclick="CloseGallery">
-			<div class="gallery-modal" @onclick:stopPropagation>
-				<div class="gallery-header">
-					<button class="gallery-close" type="button" @onclick="CloseGallery">✕</button>
-					<div class="gallery-count">@($"{SelectedIndex + 1} / {Photos.Count}")</div>
-				</div>
 
-				<div class="gallery-body">
-					<button class="gallery-nav prev" type="button" @onclick="Prev" disabled="@(!CanPrev)">‹</button>
+    @if (IsGalleryOpen)
+    {
+        <div class="gallery-overlay" @onclick="CloseGallery">
+            <div class="gallery-modal" @onclick:stopPropagation>
+                <div class="gallery-header">
+                    <button class="gallery-close" type="button" @onclick="CloseGallery">✕</button>
+                    <div class="gallery-count">@($"{SelectedIndex + 1} / {Photos.Count}")</div>
+                </div>
 
-					<div class="gallery-main">
-						<img src="@Photos[SelectedIndex].Url" alt="@Photos[SelectedIndex].Alt" />
-						<div class="gallery-caption">@Photos[SelectedIndex].Alt</div>
-					</div>
+                <div class="gallery-body">
+                    <button class="gallery-nav prev" type="button" @onclick="Prev" disabled="@(!CanPrev)">‹</button>
 
-					<button class="gallery-nav next" type="button" @onclick="Next" disabled="@(!CanNext)">›</button>
-				</div>
+                    <div class="gallery-main">
+                        <img src="@Photos[SelectedIndex].Url" alt="@Photos[SelectedIndex].Alt" />
+                        <div class="gallery-caption">@Photos[SelectedIndex].Alt</div>
+                    </div>
 
-				<div class="gallery-thumbs">
-					@for (var i = 0; i < Photos.Count; i++)
-					{
-						var p = Photos[i];
-						<button class="thumb @(i == SelectedIndex ? "active" : "")"
-								type="button"
-								@onclick="(() => Select(i))">
-							<img src="@p.Url" alt="@p.Alt" loading="lazy" />
-						</button>
-					}
-				</div>
-			</div>
-		</div>
-	}
+                    <button class="gallery-nav next" type="button" @onclick="Next" disabled="@(!CanNext)">›</button>
+                </div>
 
+                <div class="gallery-thumbs">
+                    @for (var i = 0; i < Photos.Count; i++)
+                    {
+                        var p = Photos[i];
+                        <button class="thumb @(i == SelectedIndex ? "active" : "")"
+                                type="button"
+                                @onclick="(() => Select(i))">
+                            <img src="@p.Url" alt="@p.Alt" loading="lazy" />
+                        </button>
+                    }
+                </div>
+            </div>
+        </div>
+    }
 </div>
 
-
-
 @code {
-	private int TestClicks = 0;
-	private readonly List<ListingPhoto> Photos =
-	[
-		new("/images/DeerfieldRetreate_ext04_compressed.jpg", "Exterior aerial view"),
-		new("/images/322EliBalcony_1.webp", "Back Balcony"),
-		new("/images/322EliLiving_Dining_1.webp", "Living Room view"),
-		new("/images/322EliKitchen_1.webp", "Kitchen View"),
-		new("/images/322DiningRoomView.webp", "Dining Room View"),
-		new("/images/322SwingView_1.webp", "Swing/Ground View"),
-		new("/images/322MasterBed_1.webp", "Master Bedroom"),
+    private readonly List<ListingPhoto> Photos =
+    [
+        new("/images/DeerfieldRetreate_ext04_compressed.jpg", "Exterior aerial view"),
+        new("/images/322EliBalcony_1.webp", "Back Balcony"),
+        new("/images/322EliLiving_Dining_1.webp", "Living Room view"),
+        new("/images/322EliKitchen_1.webp", "Kitchen View"),
+        new("/images/322DiningRoomView.webp", "Dining Room View"),
+        new("/images/322SwingView_1.webp", "Swing/Ground View"),
+        new("/images/322MasterBed_1.webp", "Master Bedroom"),
+    ];
 
-	];
+    private IEnumerable<ListingPhoto> SidePhotos => Photos.Skip(1).Take(4);
+    private ListingPhoto? LastWidePhoto => Photos.Skip(5).FirstOrDefault();
+    private bool HasLastWidePhoto => LastWidePhoto is not null;
 
-	private IEnumerable<ListingPhoto> SidePhotos => Photos.Skip(1).Take(4);
-	private ListingPhoto? LastWidePhoto => Photos.Skip(5).FirstOrDefault(); // optional 6th photo
-	private bool HasLastWidePhoto => LastWidePhoto is not null;
+    private sealed record ListingPhoto(string Url, string Alt);
+    private bool IsGalleryOpen { get; set; }
+    private int SelectedIndex { get; set; }
 
-	private sealed record ListingPhoto(string Url, string Alt);
-	private bool IsGalleryOpen { get; set; }
-	private int SelectedIndex { get; set; } = 0;
+    private void OpenGallery()
+    {
+        SelectedIndex = 0;
+        IsGalleryOpen = true;
+    }
 
-	private void OpenGallery()
-	{
-		Console.WriteLine("OpenGallery clicked");
-		SelectedIndex = 0; // or keep last selected if you prefer
-		IsGalleryOpen = true;
-	}
+    private void CloseGallery() => IsGalleryOpen = false;
 
-	private void CloseGallery() => IsGalleryOpen = false;
+    private bool CanPrev => SelectedIndex > 0;
+    private bool CanNext => SelectedIndex < Photos.Count - 1;
 
-	private bool CanPrev => SelectedIndex > 0;
-	private bool CanNext => SelectedIndex < Photos.Count - 1;
+    private void Prev()
+    {
+        if (CanPrev) SelectedIndex--;
+    }
 
-	private void Prev()
-	{
-		if (CanPrev) SelectedIndex--;
-	}
+    private void Next()
+    {
+        if (CanNext) SelectedIndex++;
+    }
 
-	private void Next()
-	{
-		if (CanNext) SelectedIndex++;
-	}
-
-	private void Select(int index)
-	{
-		if (index >= 0 && index < Photos.Count) SelectedIndex = index;
-	}
+    private void Select(int index)
+    {
+        if (index >= 0 && index < Photos.Count) SelectedIndex = index;
+    }
 }
-
-
