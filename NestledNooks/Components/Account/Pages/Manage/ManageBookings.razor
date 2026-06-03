@@ -13,160 +13,221 @@
 @inject IBookingRequestService BookingService
 @inject NavigationManager Navigation
 
-<PageTitle>Manage bookings</PageTitle>
+<PageTitle>Manage bookings · @SiteBranding.Name</PageTitle>
 
-<MudContainer MaxWidth="MaxWidth.Large" Class="py-4">
-    <MudText Typo="Typo.h4" Class="mb-2">Manage bookings</MudText>
-    <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4">
-        Review requests, update stay status, and record payment.
-        Import <MudLink Href="@_holdsFeedUrl" Target="_blank">holds.ics</MudLink> into Airbnb/Vrbo for pending site holds.
-    </MudText>
+<div class="mgmt-page">
+    <header class="mgmt-hero">
+        <div class="mgmt-wrap">
+            <p class="mgmt-hero-eyebrow">@SiteBranding.Name · Owner tools</p>
+            <h1 class="mgmt-hero-title">Manage bookings</h1>
+            <p class="mgmt-hero-lead">
+                Review requests, update stay status, and record payment.
+                Import <a class="mgmt-link" href="@_holdsFeedUrl" target="_blank" rel="noopener">holds.ics</a> into Airbnb/Vrbo for pending site holds.
+            </p>
+        </div>
+    </header>
 
-    @if (_loading)
-    {
-        <MudProgressLinear Indeterminate="true" />
-    }
-    else
-    {
-        <MudTabs @bind-ActivePanelIndex="_tabIndex" Class="mb-4">
-            <MudTabPanel Text="@($"Pending ({_pending.Count})")" />
-            <MudTabPanel Text="@($"Active stays ({_active.Count})")" />
-            <MudTabPanel Text="@($"All ({_all.Count})")" />
-        </MudTabs>
-
-        var list = _tabIndex switch
+    <main class="mgmt-wrap mgmt-main">
+        @if (_loading)
         {
-            0 => _pending,
-            1 => _active,
-            _ => _all
-        };
-
-        var showApproveDeny = _tabIndex == 0;
-        var showStatusActions = _tabIndex != 0;
-
-        if (list.Count == 0)
-        {
-            <MudAlert Severity="Severity.Info">No bookings in this list.</MudAlert>
+            <MudProgressLinear Indeterminate="true" Class="mgmt-loading" />
         }
         else
         {
-            @foreach (var b in list)
+            <nav class="mgmt-tabs" aria-label="Booking lists">
+                <button type="button"
+                        class="@TabClass(0)"
+                        aria-pressed="@(_tabIndex == 0)"
+                        @onclick="() => _tabIndex = 0">
+                    Pending <span class="mgmt-tab-count">@_pending.Count</span>
+                </button>
+                <button type="button"
+                        class="@TabClass(1)"
+                        aria-pressed="@(_tabIndex == 1)"
+                        @onclick="() => _tabIndex = 1">
+                    Active stays <span class="mgmt-tab-count">@_active.Count</span>
+                </button>
+                <button type="button"
+                        class="@TabClass(2)"
+                        aria-pressed="@(_tabIndex == 2)"
+                        @onclick="() => _tabIndex = 2">
+                    All <span class="mgmt-tab-count">@_all.Count</span>
+                </button>
+            </nav>
+
+            @if (CurrentList.Count == 0)
             {
-                <MudCard Class="mb-4">
-                    <MudCardContent>
-                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1" Class="mb-1">
-                            <MudText Typo="Typo.h6">@b.BookingNumber — @b.PropertySlug</MudText>
-                            <MudChip T="string" Size="Size.Small" Color="Color.Primary">@b.Status</MudChip>
-                            <MudChip T="string" Size="Size.Small" Color="Color.Secondary">@b.PaymentStatus</MudChip>
-                        </MudStack>
-                        <MudText Typo="Typo.body2">
-                            @b.GuestFullName · @b.GuestEmail · @(string.IsNullOrWhiteSpace(b.GuestPhone) ? "—" : b.GuestPhone)
-                        </MudText>
-                        <MudText Typo="Typo.body2">
-                            @b.CheckIn:yyyy-MM-dd → @b.CheckOut:yyyy-MM-dd · @b.NightCount night(s) · @b.GuestCount guests · @b.PetCount pets
-                        </MudText>
-                        <MudText Typo="Typo.body1" Class="my-2">
-                            <strong>@b.TotalAmount.ToString("C2")</strong>
-                            @if (b.AmountPaid > 0)
+                <div class="mgmt-empty">
+                    <p>No bookings in this list.</p>
+                </div>
+            }
+            else
+            {
+                @foreach (var b in CurrentList)
+                {
+                    <article class="mgmt-card @StatusCardClass(b.Status)">
+                        <header class="mgmt-card-header">
+                            <div class="mgmt-card-heading">
+                                <h2 class="mgmt-card-title">@b.BookingNumber</h2>
+                                <p class="mgmt-card-subtitle">@FormatPropertyName(b.PropertySlug)</p>
+                            </div>
+                            <div class="mgmt-badges">
+                                <span class="mgmt-badge mgmt-badge--status">@b.Status</span>
+                                <span class="mgmt-badge mgmt-badge--payment">@FormatPaymentStatus(b.PaymentStatus)</span>
+                            </div>
+                        </header>
+
+                        <div class="mgmt-card-body">
+                            <div class="mgmt-meta-grid">
+                                <div class="mgmt-meta-item">
+                                    <span class="mgmt-meta-label">Guest</span>
+                                    <span class="mgmt-meta-value">@b.GuestFullName</span>
+                                </div>
+                                <div class="mgmt-meta-item">
+                                    <span class="mgmt-meta-label">Email</span>
+                                    <a class="mgmt-link" href="@($"mailto:{b.GuestEmail}")">@b.GuestEmail</a>
+                                </div>
+                                <div class="mgmt-meta-item">
+                                    <span class="mgmt-meta-label">Phone</span>
+                                    <span class="mgmt-meta-value">@(string.IsNullOrWhiteSpace(b.GuestPhone) ? "—" : b.GuestPhone)</span>
+                                </div>
+                                <div class="mgmt-meta-item">
+                                    <span class="mgmt-meta-label">Dates</span>
+                                    <span class="mgmt-meta-value">@FormatDateRange(b.CheckIn, b.CheckOut)</span>
+                                </div>
+                                <div class="mgmt-meta-item">
+                                    <span class="mgmt-meta-label">Party</span>
+                                    <span class="mgmt-meta-value">@b.NightCount night(s) · @b.GuestCount guests · @b.PetCount pets</span>
+                                </div>
+                                <div class="mgmt-meta-item">
+                                    <span class="mgmt-meta-label">Total</span>
+                                    <span class="mgmt-meta-value mgmt-meta-value--strong">@b.TotalAmount.ToString("C2")</span>
+                                    @if (b.AmountPaid > 0)
+                                    {
+                                        <span class="mgmt-meta-note">Paid @b.AmountPaid.ToString("C2")</span>
+                                    }
+                                </div>
+                            </div>
+
+                            @if (!string.IsNullOrWhiteSpace(b.Notes))
                             {
-                                <span> · Paid @b.AmountPaid.ToString("C2")</span>
+                                <div class="mgmt-subblock">
+                                    <h3 class="mgmt-subblock-title">Guest notes</h3>
+                                    <p class="mgmt-note-text">@b.Notes</p>
+                                </div>
                             }
-                        </MudText>
-                        @if (!string.IsNullOrWhiteSpace(b.Notes))
-                        {
-                            <MudText Typo="Typo.body2" Class="mb-2">Notes: @b.Notes</MudText>
-                        }
 
-                        <MudTextField @bind-Value="_statusNotes[b.Id]"
-                                      Label="Message to guest (optional)"
-                                      Variant="Variant.Outlined"
-                                      Class="mb-3" />
+                            <div class="mgmt-subblock">
+                                <h3 class="mgmt-subblock-title">Message to guest</h3>
+                                <MudTextField @bind-Value="_statusNotes[b.Id]"
+                                              Placeholder="Optional note included when status changes"
+                                              Variant="Variant.Outlined"
+                                              Lines="2"
+                                              Disabled="_processingId == b.Id"
+                                              Class="mgmt-field" />
+                            </div>
 
-                        @if (showApproveDeny)
-                        {
-                            <MudStack Row="true" Spacing="2" Class="mb-3">
-                                <MudButton Color="Color.Success"
-                                           Variant="Variant.Filled"
-                                           Disabled="_processingId == b.Id"
-                                           OnClick="@(() => UpdateStatusAsync(b.Id, BookingStatuses.Approved))">
-                                    Approve
-                                </MudButton>
-                                <MudButton Color="Color.Error"
-                                           Variant="Variant.Outlined"
-                                           Disabled="_processingId == b.Id"
-                                           OnClick="@(() => UpdateStatusAsync(b.Id, BookingStatuses.Denied))">
-                                    Deny
-                                </MudButton>
-                            </MudStack>
-                        }
+                            @if (ShowApproveDeny)
+                            {
+                                <div class="mgmt-subblock mgmt-subblock--actions">
+                                    <h3 class="mgmt-subblock-title">Decision</h3>
+                                    <div class="mgmt-action-row">
+                                        <MudButton Color="Color.Success"
+                                                   Variant="Variant.Filled"
+                                                   Disabled="_processingId == b.Id"
+                                                   OnClick="@(() => UpdateStatusAsync(b.Id, BookingStatuses.Approved))">
+                                            Approve
+                                        </MudButton>
+                                        <MudButton Color="Color.Error"
+                                                   Variant="Variant.Outlined"
+                                                   Disabled="_processingId == b.Id"
+                                                   OnClick="@(() => UpdateStatusAsync(b.Id, BookingStatuses.Denied))">
+                                            Deny
+                                        </MudButton>
+                                    </div>
+                                </div>
+                            }
 
-                        @if (showStatusActions && b.Status != BookingStatuses.Denied && b.Status != BookingStatuses.Ended)
-                        {
-                            <MudText Typo="Typo.subtitle2" Class="mb-1">Stay status</MudText>
-                            <MudStack Row="true" Spacing="2" Wrap="Wrap.Wrap" Class="mb-3">
-                                @if (b.Status == BookingStatuses.Approved)
-                                {
-                                    <MudButton Size="Size.Small" Variant="Variant.Outlined" Disabled="_processingId == b.Id"
-                                               OnClick="@(() => UpdateStatusAsync(b.Id, BookingStatuses.Active))">
-                                        Mark in progress
-                                    </MudButton>
-                                }
-                                @if (b.Status is BookingStatuses.Approved or BookingStatuses.Active)
-                                {
-                                    <MudButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Success" Disabled="_processingId == b.Id"
-                                               OnClick="@(() => UpdateStatusAsync(b.Id, BookingStatuses.Ended))">
-                                        Mark completed
-                                    </MudButton>
-                                    <MudButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Warning" Disabled="_processingId == b.Id"
-                                               OnClick="@(() => UpdateStatusAsync(b.Id, BookingStatuses.Cancelled))">
-                                        Cancel
-                                    </MudButton>
-                                }
-                                @if (b.Status == BookingStatuses.Pending)
-                                {
-                                    <MudButton Size="Size.Small" Color="Color.Success" Variant="Variant.Filled" Disabled="_processingId == b.Id"
-                                               OnClick="@(() => UpdateStatusAsync(b.Id, BookingStatuses.Approved))">
-                                        Approve
-                                    </MudButton>
-                                    <MudButton Size="Size.Small" Color="Color.Error" Variant="Variant.Outlined" Disabled="_processingId == b.Id"
-                                               OnClick="@(() => UpdateStatusAsync(b.Id, BookingStatuses.Denied))">
-                                        Deny
-                                    </MudButton>
-                                }
-                            </MudStack>
-                        }
+                            @if (ShowStatusActions && b.Status != BookingStatuses.Denied && b.Status != BookingStatuses.Ended)
+                            {
+                                <div class="mgmt-subblock mgmt-subblock--actions">
+                                    <h3 class="mgmt-subblock-title">Stay status</h3>
+                                    <div class="mgmt-action-row">
+                                        @if (b.Status == BookingStatuses.Approved)
+                                        {
+                                            <MudButton Size="Size.Small" Variant="Variant.Outlined" Disabled="_processingId == b.Id"
+                                                       OnClick="@(() => UpdateStatusAsync(b.Id, BookingStatuses.Active))">
+                                                Mark in progress
+                                            </MudButton>
+                                        }
+                                        @if (b.Status is BookingStatuses.Approved or BookingStatuses.Active)
+                                        {
+                                            <MudButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Success" Disabled="_processingId == b.Id"
+                                                       OnClick="@(() => UpdateStatusAsync(b.Id, BookingStatuses.Ended))">
+                                                Mark completed
+                                            </MudButton>
+                                            <MudButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Warning" Disabled="_processingId == b.Id"
+                                                       OnClick="@(() => UpdateStatusAsync(b.Id, BookingStatuses.Cancelled))">
+                                                Cancel
+                                            </MudButton>
+                                        }
+                                        @if (b.Status == BookingStatuses.Pending)
+                                        {
+                                            <MudButton Size="Size.Small" Color="Color.Success" Variant="Variant.Filled" Disabled="_processingId == b.Id"
+                                                       OnClick="@(() => UpdateStatusAsync(b.Id, BookingStatuses.Approved))">
+                                                Approve
+                                            </MudButton>
+                                            <MudButton Size="Size.Small" Color="Color.Error" Variant="Variant.Outlined" Disabled="_processingId == b.Id"
+                                                       OnClick="@(() => UpdateStatusAsync(b.Id, BookingStatuses.Denied))">
+                                                Deny
+                                            </MudButton>
+                                        }
+                                    </div>
+                                </div>
+                            }
 
-                        <MudText Typo="Typo.subtitle2" Class="mb-1">Payment</MudText>
-                        <MudStack Row="true" Spacing="2" AlignItems="AlignItems.End" Wrap="Wrap.Wrap" Class="mb-2">
-                            <MudSelect T="string" @bind-Value="_paymentStatuses[b.Id]" Label="Payment status" Variant="Variant.Outlined" Style="min-width: 180px;">
-                                <MudSelectItem Value="@PaymentStatuses.Unpaid">Unpaid</MudSelectItem>
-                                <MudSelectItem Value="@PaymentStatuses.PartiallyPaid">Partially paid</MudSelectItem>
-                                <MudSelectItem Value="@PaymentStatuses.Paid">Paid in full</MudSelectItem>
-                                <MudSelectItem Value="@PaymentStatuses.Refunded">Refunded</MudSelectItem>
-                            </MudSelect>
-                            <MudNumericField T="decimal" @bind-Value="_amountsPaid[b.Id]"
-                                             Label="Amount paid"
-                                             Variant="Variant.Outlined"
-                                             Min="0"
-                                             Format="C2"
-                                             Style="max-width: 160px;" />
-                            <MudButton Variant="Variant.Filled" Color="Color.Primary"
-                                       Disabled="_processingId == b.Id"
-                                       OnClick="@(() => SavePaymentAsync(b.Id))">
-                                Save payment
-                            </MudButton>
-                        </MudStack>
+                            <div class="mgmt-subblock mgmt-subblock--payment">
+                                <h3 class="mgmt-subblock-title">Payment</h3>
+                                <div class="mgmt-payment-row">
+                                    <MudSelect T="string"
+                                               @bind-Value="_paymentStatuses[b.Id]"
+                                               Label="Status"
+                                               Variant="Variant.Outlined"
+                                               Disabled="_processingId == b.Id"
+                                               Class="mgmt-field mgmt-field--payment-status">
+                                        <MudSelectItem Value="@PaymentStatuses.Unpaid">Unpaid</MudSelectItem>
+                                        <MudSelectItem Value="@PaymentStatuses.PartiallyPaid">Partially paid</MudSelectItem>
+                                        <MudSelectItem Value="@PaymentStatuses.Paid">Paid in full</MudSelectItem>
+                                        <MudSelectItem Value="@PaymentStatuses.Refunded">Refunded</MudSelectItem>
+                                    </MudSelect>
+                                    <MudNumericField T="decimal"
+                                                     @bind-Value="_amountsPaid[b.Id]"
+                                                     Label="Amount paid"
+                                                     Variant="Variant.Outlined"
+                                                     Min="0"
+                                                     Format="C2"
+                                                     Disabled="_processingId == b.Id"
+                                                     Class="mgmt-field mgmt-field--amount" />
+                                    <MudButton Variant="Variant.Filled"
+                                               Color="Color.Primary"
+                                               Disabled="_processingId == b.Id"
+                                               OnClick="@(() => SavePaymentAsync(b.Id))">
+                                        Save payment
+                                    </MudButton>
+                                </div>
+                            </div>
 
-                        @if (_errors.TryGetValue(b.Id, out var err))
-                        {
-                            <MudText Color="Color.Error" Class="mt-2">@err</MudText>
-                        }
-                    </MudCardContent>
-                </MudCard>
+                            @if (_errors.TryGetValue(b.Id, out var err))
+                            {
+                                <div class="mgmt-error">@err</div>
+                            }
+                        </div>
+                    </article>
+                }
             }
         }
-    }
-</MudContainer>
+    </main>
+</div>
 
 @code {
     private List<BookingRequest> _pending = [];
@@ -180,6 +241,17 @@
     private int? _processingId;
     private string _holdsFeedUrl = "";
     private int _tabIndex;
+
+    private IReadOnlyList<BookingRequest> CurrentList => _tabIndex switch
+    {
+        0 => _pending,
+        1 => _active,
+        _ => _all
+    };
+
+    private bool ShowApproveDeny => _tabIndex == 0;
+
+    private bool ShowStatusActions => _tabIndex != 0;
 
     protected override async Task OnInitializedAsync()
     {
@@ -254,4 +326,33 @@
         await ReloadAsync();
         _processingId = null;
     }
+
+    private string TabClass(int index) =>
+        $"mgmt-tab{(_tabIndex == index ? " is-active" : "")}";
+
+    private static string StatusCardClass(string status) => status switch
+    {
+        BookingStatuses.Pending => "mgmt-card--pending",
+        BookingStatuses.Approved => "mgmt-card--approved",
+        BookingStatuses.Active => "mgmt-card--active",
+        BookingStatuses.Denied => "mgmt-card--denied",
+        BookingStatuses.Cancelled => "mgmt-card--denied",
+        BookingStatuses.Ended => "mgmt-card--ended",
+        _ => ""
+    };
+
+    private static string FormatDateRange(DateOnly checkIn, DateOnly checkOut) =>
+        $"{checkIn:MMM d, yyyy} → {checkOut:MMM d, yyyy}";
+
+    private static string FormatPropertyName(string slug) =>
+        slug.Replace('-', ' ') is var s
+            ? char.ToUpper(s[0]) + s[1..]
+            : slug;
+
+    private static string FormatPaymentStatus(string status) => status switch
+    {
+        PaymentStatuses.PartiallyPaid => "Partially paid",
+        PaymentStatuses.Paid => "Paid in full",
+        _ => status
+    };
 }

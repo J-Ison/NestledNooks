@@ -20,12 +20,29 @@
 
     <main class="wrap guide-main">
         <nav class="guide-nav" aria-label="Guide sections">
-            <a class="guide-nav-pill guide-nav-pill--house" href="#house">House info</a>
-            <a class="guide-nav-pill guide-nav-pill--local" href="#local">Local picks</a>
-            <a class="guide-nav-pill guide-nav-pill--resources" href="#resources">Resources</a>
+            <button type="button"
+                    class="@NavPillClass("house", "guide-nav-pill--house")"
+                    aria-pressed="@(_section == "house")"
+                    @onclick='() => SelectSection("house")'>
+                House info
+            </button>
+            <button type="button"
+                    class="@NavPillClass("local", "guide-nav-pill--local")"
+                    aria-pressed="@(_section == "local")"
+                    @onclick='() => SelectSection("local")'>
+                Local picks
+            </button>
+            <button type="button"
+                    class="@NavPillClass("resources", "guide-nav-pill--resources")"
+                    aria-pressed="@(_section == "resources")"
+                    @onclick='() => SelectSection("resources")'>
+                Resources
+            </button>
             <a class="guide-nav-pill guide-nav-pill--neutral" href="/contact">Contact</a>
         </nav>
 
+        @if (_section == "house")
+        {
         <article id="house" class="guide-card guide-card--house">
             <header class="guide-card-header">
                 <span class="guide-card-icon" aria-hidden="true">🏠</span>
@@ -63,7 +80,10 @@
                 </div>
             </div>
         </article>
+        }
 
+        @if (_section == "local")
+        {
         <article id="local" class="guide-card guide-card--local">
             <header class="guide-card-header">
                 <span class="guide-card-icon" aria-hidden="true">⛰️</span>
@@ -117,7 +137,10 @@
                 </div>
             </div>
         </article>
+        }
 
+        @if (_section == "resources")
+        {
         <article id="resources" class="guide-card guide-card--resources">
             <header class="guide-card-header">
                 <span class="guide-card-icon" aria-hidden="true">📋</span>
@@ -142,6 +165,7 @@
                 </p>
             </div>
         </article>
+        }
 
         <footer class="guide-footer">
             <a class="guide-footer-btn guide-footer-btn--secondary" href="/properties/deerfield-retreat">← Deerfield Retreat</a>
@@ -149,3 +173,15 @@
         </footer>
     </main>
 </div>
+
+@code {
+    private string _section = "house";
+
+    private void SelectSection(string section)
+    {
+        _section = section;
+    }
+
+    private string NavPillClass(string section, string colorClass) =>
+        $"guide-nav-pill {colorClass}{(_section == section ? " is-active" : "")}";
+}
