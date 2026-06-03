@@ -444,6 +444,364 @@ footer {
         margin: 7px 0;
     }
 
+.guide-nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin: 8px 0 20px;
+}
+
+.guide-section {
+    scroll-margin-top: 80px;
+}
+
+.guide-h3 {
+    font-size: 16px;
+    font-weight: 900;
+    margin: 16px 0 8px;
+}
+
+.guide-note {
+    margin-top: 14px;
+    color: var(--muted);
+    font-size: 14px;
+}
+
+.guide-footer {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 28px;
+}
+
+/* =========================
+   Guest guide page
+   ========================= */
+
+.guide-page {
+    background: linear-gradient(180deg, #f0f9ff 0%, #f8fafc 220px, #f1f5f9 100%);
+    color: var(--ink);
+    min-height: 60vh;
+}
+
+.guide-hero {
+    background: linear-gradient(135deg, #93c5fd 0%, #60a5fa 45%, #34d399 100%);
+    color: #0f172a;
+    padding: 28px 18px 32px;
+    border-bottom: 3px solid #2563eb;
+    box-shadow: 0 8px 24px rgba(37, 99, 235, 0.15);
+}
+
+.guide-hero-inner {
+    max-width: 1120px;
+    margin: 0 auto;
+}
+
+.guide-hero-eyebrow {
+    margin: 0 0 8px;
+    font-weight: 800;
+    font-size: 13px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #1e3a8a;
+    opacity: 0.9;
+}
+
+.guide-hero-title {
+    margin: 0 0 10px;
+    font-size: clamp(28px, 5vw, 38px);
+    font-weight: 900;
+    line-height: 1.15;
+}
+
+.guide-hero-lead {
+    margin: 0;
+    max-width: 640px;
+    font-size: 16px;
+    line-height: 1.55;
+    color: #1e293b;
+}
+
+.guide-main {
+    max-width: 1120px;
+    margin: 0 auto;
+    padding: 22px 18px 56px;
+}
+
+.guide-nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin: 0 0 24px;
+    padding: 14px 16px;
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06);
+}
+
+.guide-nav-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 9px 16px;
+    border-radius: 999px;
+    font-weight: 800;
+    font-size: 14px;
+    text-decoration: none;
+    border: 2px solid transparent;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+    .guide-nav-pill:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(15, 23, 42, 0.1);
+    }
+
+.guide-nav-pill--house {
+    background: #eff6ff;
+    color: #1d4ed8;
+    border-color: #bfdbfe;
+}
+
+.guide-nav-pill--local {
+    background: #fffbeb;
+    color: #b45309;
+    border-color: #fde68a;
+}
+
+.guide-nav-pill--resources {
+    background: #ecfdf5;
+    color: #047857;
+    border-color: #a7f3d0;
+}
+
+.guide-nav-pill--neutral {
+    background: #f8fafc;
+    color: #334155;
+    border-color: #e2e8f0;
+}
+
+.guide-card {
+    scroll-margin-top: 88px;
+    margin-bottom: 24px;
+    background: #fff;
+    border-radius: 16px;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 6px 20px rgba(15, 23, 42, 0.07);
+    overflow: hidden;
+}
+
+.guide-card--house {
+    border-top: 4px solid #3b82f6;
+}
+
+.guide-card--local {
+    border-top: 4px solid #f59e0b;
+}
+
+.guide-card--resources {
+    border-top: 4px solid #10b981;
+}
+
+.guide-card-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    padding: 20px 22px;
+    border-bottom: 2px solid #f1f5f9;
+}
+
+.guide-card--house .guide-card-header {
+    background: linear-gradient(90deg, #eff6ff 0%, #fff 100%);
+    border-bottom-color: #dbeafe;
+}
+
+.guide-card--local .guide-card-header {
+    background: linear-gradient(90deg, #fffbeb 0%, #fff 100%);
+    border-bottom-color: #fde68a;
+}
+
+.guide-card--resources .guide-card-header {
+    background: linear-gradient(90deg, #ecfdf5 0%, #fff 100%);
+    border-bottom-color: #a7f3d0;
+}
+
+.guide-card-icon {
+    font-size: 28px;
+    line-height: 1;
+    flex-shrink: 0;
+}
+
+.guide-card-title {
+    margin: 0 0 4px;
+    font-size: 22px;
+    font-weight: 900;
+    color: #0f172a;
+}
+
+.guide-card-subtitle {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--muted);
+}
+
+.guide-card-body {
+    padding: 20px 22px 22px;
+}
+
+.guide-intro {
+    margin: 0 0 16px;
+    color: #334155;
+    line-height: 1.6;
+}
+
+.guide-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+    .guide-list li {
+        position: relative;
+        margin: 0 0 10px;
+        padding: 10px 12px 10px 28px;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        color: #1e293b;
+        line-height: 1.5;
+    }
+
+        .guide-list li::before {
+            content: "";
+            position: absolute;
+            left: 12px;
+            top: 16px;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #94a3b8;
+        }
+
+.guide-card--house .guide-list li::before {
+    background: #3b82f6;
+}
+
+.guide-card--local .guide-list li::before {
+    background: #f59e0b;
+}
+
+.guide-card--resources .guide-list li::before {
+    background: #10b981;
+}
+
+.guide-subblock {
+    margin-top: 20px;
+    padding-top: 18px;
+    border-top: 1px dashed #cbd5e1;
+}
+
+.guide-subblock-title {
+    margin: 0 0 12px;
+    padding: 8px 12px;
+    font-size: 15px;
+    font-weight: 900;
+    color: #0f172a;
+    background: #f1f5f9;
+    border-left: 4px solid #64748b;
+    border-radius: 0 8px 8px 0;
+}
+
+.guide-card--house .guide-subblock-title {
+    background: #eff6ff;
+    border-left-color: #3b82f6;
+}
+
+.guide-card--local .guide-subblock-title {
+    background: #fffbeb;
+    border-left-color: #f59e0b;
+}
+
+.guide-card--resources .guide-subblock-title {
+    background: #ecfdf5;
+    border-left-color: #10b981;
+}
+
+.guide-link {
+    color: #2563eb;
+    font-weight: 800;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+    .guide-link:hover {
+        color: #1d4ed8;
+    }
+
+.guide-disclaimer {
+    margin: 18px 0 0;
+    padding: 12px 14px;
+    font-size: 14px;
+    line-height: 1.5;
+    color: #64748b;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+}
+
+.guide-footer {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 8px;
+    padding-top: 8px;
+}
+
+.guide-footer-btn {
+    display: inline-flex;
+    align-items: center;
+    padding: 12px 18px;
+    border-radius: 12px;
+    font-weight: 900;
+    text-decoration: none;
+    border: 2px solid transparent;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+    .guide-footer-btn:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 6px 16px rgba(15, 23, 42, 0.12);
+    }
+
+.guide-footer-btn--primary {
+    background: linear-gradient(135deg, #3b82f6, #2563eb);
+    color: #fff;
+    border-color: #1d4ed8;
+}
+
+.guide-footer-btn--secondary {
+    background: #fff;
+    color: #334155;
+    border-color: #cbd5e1;
+}
+
+@media (max-width: 640px) {
+    .guide-hero {
+        padding: 22px 16px 26px;
+    }
+
+    .guide-card-header,
+    .guide-card-body {
+        padding-left: 16px;
+        padding-right: 16px;
+    }
+
+    .guide-nav {
+        padding: 12px;
+    }
+}
+
 .booking-card {
     position: sticky;
     top: 86px;
