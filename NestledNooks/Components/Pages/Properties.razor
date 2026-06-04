@@ -1,90 +1,36 @@
 ﻿@page "/properties"
 
-<PageTitle>Our properties · Nestled Nooks</PageTitle>
+<PageTitle>@SiteBranding.PageTitle("Our properties")</PageTitle>
 <HeadContent>
-	<meta name="description" content="Browse Nestled Nooks getaways. Deerfield Retreat — a serene stay near Rapid City, South Dakota, with prairie views and room for the whole group." />
+    <meta name="description" content="Browse Nestled Nooks getaways. Deerfield Retreat — a peaceful stay near Rapid City, South Dakota, with prairie views and room for the whole group." />
 </HeadContent>
 
-<div class="properties-page">
-    <header class="properties-header">
-        <h1>Explore Our Properties</h1>
-        <p>Discover the perfect place for your next getaway. Choose from our available options below.</p>
+<div class="guide-page">
+    <header class="guide-hero">
+        <div class="wrap guide-hero-inner">
+            <p class="guide-hero-eyebrow">@SiteBranding.Name · @SiteBranding.RegionLine</p>
+            <h1 class="guide-hero-title">Our properties</h1>
+            <p class="guide-hero-lead">
+                Peaceful Black Hills stays with room to spread out. Each Nestled Nooks property is set up for families, groups, and slow-down weekends.
+            </p>
+        </div>
     </header>
 
-    <section class="property-list">
-        <article class="property-item">
-            <h2>Deerfield Retreat</h2>
-            <p>A serene retreat nestled in the rolling hills, offering breathtaking views and ultimate relaxation.</p>
-			<a href="/properties/deerfield-retreat" class="btn-primary">View Property</a>
-        </article>
+    <main class="wrap guide-main">
+        <div class="properties-grid">
+            <article class="property-card">
+                <h2 class="property-card-title">Deerfield Retreat</h2>
+                <p class="property-card-desc">
+                    A peaceful getaway surrounded by open fields and visiting deer near Rapid City.
+                    Sleeps up to 12 · 4 bedrooms · 3 baths · prairie views.
+                </p>
+                <a href="/properties/deerfield-retreat" class="guide-footer-btn guide-footer-btn--primary">View property</a>
+            </article>
+        </div>
 
-        <!-- Add more properties here as needed -->
-    </section>
+        <footer class="guide-footer">
+            <a class="guide-footer-btn guide-footer-btn--secondary" href="/">← Deerfield Retreat</a>
+            <a class="guide-footer-btn guide-footer-btn--primary" href="/booking?property=deerfield-retreat">Request booking</a>
+        </footer>
+    </main>
 </div>
-
-<style>
-    .properties-page {
-        font-family: Arial, sans-serif;
-        margin: 20px;
-        text-align: center;
-    }
-
-    .properties-header {
-        background-color: #f5f5f5;
-        padding: 20px;
-        border-radius: 10px;
-    }
-
-    .properties-header h1 {
-        font-size: 2rem;
-        margin-bottom: 10px;
-        color: #2c3e50;
-    }
-
-    .properties-header p {
-        font-size: 1.1rem;
-        color: #34495e;
-    }
-
-    .property-list {
-        margin: 20px auto;
-        max-width: 600px;
-        text-align: left;
-    }
-
-    .property-item {
-        margin-bottom: 20px;
-        padding: 15px;
-        border: 1px solid #ccc;
-        border-radius: 5px;
-        background-color: #fff;
-    }
-
-    .property-item h2 {
-        font-size: 1.5rem;
-        margin-bottom: 10px;
-        color: #2c3e50;
-    }
-
-    .property-item p {
-        font-size: 1rem;
-        margin-bottom: 10px;
-        color: #34495e;
-    }
-
-    .btn-primary {
-        background-color: #27ae60;
-        color: white;
-        padding: 10px 20px;
-        font-size: 1rem;
-        border: none;
-        border-radius: 5px;
-        cursor: pointer;
-        text-decoration: none;
-        display: inline-block;
-    }
-
-    .btn-primary:hover {
-        background-color: #2ecc71;
-    }
-</style>

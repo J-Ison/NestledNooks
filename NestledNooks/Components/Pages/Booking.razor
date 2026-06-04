@@ -18,77 +18,96 @@
 @inject UserManager<ApplicationUser> UserManager
 @inject AuthenticationStateProvider AuthStateProvider
 
-<PageTitle>Book your stay · Nestled Nooks</PageTitle>
+<PageTitle>@SiteBranding.PageTitle("Request booking")</PageTitle>
 <HeadContent>
-    <meta name="description" content="Request a reservation at Nestled Nooks. Only available dates can be selected — synced with Airbnb and Vrbo." />
+    <meta name="description" content="Request a reservation at Deerfield Retreat. Only available dates can be selected — synced with Airbnb and Vrbo." />
 </HeadContent>
 
-<MudContainer MaxWidth="MaxWidth.Medium" Class="py-4">
-    <MudText Typo="Typo.h4" Class="mb-2">Request a stay</MudText>
-    <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4">
-        Choose available dates below. Pending requests hold dates until we approve or decline.
-        @if (_property is not null)
+<div class="guide-page">
+    <header class="guide-hero guide-hero--booking">
+        <div class="wrap guide-hero-inner">
+            <p class="guide-hero-eyebrow">Deerfield Retreat · @SiteBranding.RegionLine</p>
+            <h1 class="guide-hero-title">Request a stay</h1>
+            <p class="guide-hero-lead">
+                Choose available dates below. Pending requests hold dates until we approve or decline.
+                @if (_property is not null)
+                {
+                    <span> Minimum @_property.MinimumNights nights.</span>
+                }
+            </p>
+        </div>
+    </header>
+
+    <main class="wrap guide-main">
+        @if (_loading)
         {
-            <span> Minimum @_property.MinimumNights nights.</span>
+            <p class="nn-loading">Loading availability…</p>
         }
-    </MudText>
+        else
+        {
+            <article class="guide-card guide-card--booking">
+                <header class="guide-card-header">
+                    <span class="guide-card-icon" aria-hidden="true">📅</span>
+                    <div>
+                        <h2 class="guide-card-title">Booking request</h2>
+                        <p class="guide-card-subtitle">Direct request — calendars stay in sync with Airbnb and Vrbo</p>
+                    </div>
+                </header>
 
-    @if (_loading)
-    {
-        <MudProgressLinear Indeterminate="true" Class="mb-4" />
-    }
-    else
-    {
-        <MudAlert Severity="Severity.Info" Class="mb-4" Dense="true">
-            Calendar blocks include Airbnb/Vrbo bookings (when iCal URLs are configured) and pending site requests.
-        </MudAlert>
+                <div class="guide-card-body nn-booking-mud">
+                    <p class="nn-note">
+                        Calendar blocks include Airbnb/Vrbo bookings (when iCal URLs are configured) and pending site requests.
+                    </p>
 
-        <MudCard Class="mb-4">
-            <MudCardContent>
-                <EditForm Model="@_model" OnValidSubmit="SubmitAsync">
-                    <DataAnnotationsValidator />
+                    <EditForm Model="@_model" OnValidSubmit="SubmitAsync">
+                        <DataAnnotationsValidator />
 
-                    <MudSelect T="string" @bind-Value="_model.PropertySlug"
-                               Label="Property"
-                               Variant="Variant.Outlined"
-                               Class="mb-3"
-                               Disabled="_submitting">
-                        @foreach (var p in _properties)
+                        @if (_properties.Count > 1)
                         {
-                            <MudSelectItem Value="@p.Slug">@p.DisplayName</MudSelectItem>
+                            <MudSelect T="string" @bind-Value="_model.PropertySlug"
+                                       Label="Property"
+                                       Variant="Variant.Outlined"
+                                       Class="mb-3"
+                                       Disabled="_submitting">
+                                @foreach (var p in _properties)
+                                {
+                                    <MudSelectItem Value="@p.Slug">@p.DisplayName</MudSelectItem>
+                                }
+                            </MudSelect>
                         }
-                    </MudSelect>
+                        else if (_property is not null)
+                        {
+                            <p class="nn-property-label">Property: @_property.DisplayName</p>
+                        }
 
-                    <MudTextField @bind-Value="_model.GuestFullName"
-                                  For="@(() => _model.GuestFullName)"
-                                  Label="Full name"
-                                  Variant="Variant.Outlined"
-                                  Class="mb-3"
-                                  Disabled="_submitting" />
+                        <MudTextField @bind-Value="_model.GuestFullName"
+                                      For="@(() => _model.GuestFullName)"
+                                      Label="Full name"
+                                      Variant="Variant.Outlined"
+                                      Class="mb-3"
+                                      Disabled="_submitting" />
 
-                    <MudTextField @bind-Value="_model.GuestEmail"
-                                  For="@(() => _model.GuestEmail)"
-                                  Label="Email"
-                                  Variant="Variant.Outlined"
-                                  Class="mb-3"
-                                  InputType="InputType.Email"
-                                  Disabled="_submitting" />
+                        <MudTextField @bind-Value="_model.GuestEmail"
+                                      For="@(() => _model.GuestEmail)"
+                                      Label="Email"
+                                      Variant="Variant.Outlined"
+                                      Class="mb-3"
+                                      InputType="InputType.Email"
+                                      Disabled="_submitting" />
 
-                    <MudTextField @bind-Value="_model.GuestPhone"
-                                  For="@(() => _model.GuestPhone)"
-                                  Label="Phone"
-                                  Variant="Variant.Outlined"
-                                  Class="mb-3"
-                                  Disabled="_submitting" />
+                        <MudTextField @bind-Value="_model.GuestPhone"
+                                      For="@(() => _model.GuestPhone)"
+                                      Label="Phone"
+                                      Variant="Variant.Outlined"
+                                      Class="mb-3"
+                                      Disabled="_submitting" />
 
-                    <MudText Typo="Typo.subtitle2" Class="mb-2">Dates</MudText>
-                    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-3">
-                        Grayed-out days are already booked. Select check-in, then check-out.
-                    </MudText>
-                    <MudGrid Class="mb-3">
-                        <MudItem xs="12" md="6">
-                            <MudPaper Class="pa-2" Elevation="0" Outlined="true">
-                                <MudText Typo="Typo.caption" Class="mb-2 px-2">Check-in</MudText>
+                        <p class="nn-booking-section-title">Dates</p>
+                        <p class="nn-booking-section-hint">Grayed-out days are unavailable. Select check-in, then check-out.</p>
+
+                        <div class="nn-booking-dates">
+                            <div class="nn-booking-date-panel">
+                                <MudText Typo="Typo.caption" Class="mb-2 px-1">Check-in</MudText>
                                 <MudDatePicker @bind-Date="_checkInDate"
                                                @bind-Date:after="OnDatesUpdated"
                                                PickerVariant="PickerVariant.Static"
@@ -97,11 +116,9 @@
                                                DateDisabledFunc="IsDateUnavailable"
                                                Disabled="_submitting"
                                                ShowToolbar="false" />
-                            </MudPaper>
-                        </MudItem>
-                        <MudItem xs="12" md="6">
-                            <MudPaper Class="pa-2" Elevation="0" Outlined="true">
-                                <MudText Typo="Typo.caption" Class="mb-2 px-2">Check-out</MudText>
+                            </div>
+                            <div class="nn-booking-date-panel">
+                                <MudText Typo="Typo.caption" Class="mb-2 px-1">Check-out</MudText>
                                 <MudDatePicker @bind-Date="_checkOutDate"
                                                @bind-Date:after="OnDatesUpdated"
                                                PickerVariant="PickerVariant.Static"
@@ -110,61 +127,67 @@
                                                DateDisabledFunc="IsDateUnavailable"
                                                Disabled="_submitting"
                                                ShowToolbar="false" />
-                            </MudPaper>
-                        </MudItem>
-                    </MudGrid>
+                            </div>
+                        </div>
 
-                    <MudNumericField @bind-Value="_model.GuestCount"
-                                     For="@(() => _model.GuestCount)"
-                                     Label="Guests"
-                                     Variant="Variant.Outlined"
-                                     Min="1"
-                                     Max="@(_property?.MaxGuests ?? 12)"
-                                     Class="mb-3"
-                                     Disabled="_submitting" />
+                        <MudNumericField @bind-Value="_model.GuestCount"
+                                         For="@(() => _model.GuestCount)"
+                                         Label="Guests"
+                                         Variant="Variant.Outlined"
+                                         Min="1"
+                                         Max="@(_property?.MaxGuests ?? 12)"
+                                         Class="mb-3"
+                                         Disabled="_submitting" />
 
-                    <MudNumericField @bind-Value="_model.PetCount"
-                                     For="@(() => _model.PetCount)"
-                                     Label="Pets"
-                                     Variant="Variant.Outlined"
-                                     Min="0"
-                                     Max="@(_property?.MaxPets ?? 4)"
-                                     Class="mb-3"
-                                     Disabled="_submitting" />
+                        <MudNumericField @bind-Value="_model.PetCount"
+                                         For="@(() => _model.PetCount)"
+                                         Label="Pets"
+                                         Variant="Variant.Outlined"
+                                         Min="0"
+                                         Max="@(_property?.MaxPets ?? 4)"
+                                         Class="mb-3"
+                                         Disabled="_submitting" />
 
-                    <MudTextField @bind-Value="_model.Notes"
-                                  For="@(() => _model.Notes)"
-                                  Label="Special requests (optional)"
-                                  Variant="Variant.Outlined"
-                                  Lines="4"
-                                  Class="mb-3"
-                                  Disabled="_submitting" />
+                        <MudTextField @bind-Value="_model.Notes"
+                                      For="@(() => _model.Notes)"
+                                      Label="Special requests (optional)"
+                                      Variant="Variant.Outlined"
+                                      Lines="4"
+                                      Class="mb-3"
+                                      Disabled="_submitting" />
 
-                    <MudAlert Severity="Severity.Info" Class="mb-3" Dense="true">
-                        We will confirm your total rate after we review your request (dynamic pricing applies).
-                    </MudAlert>
+                        <p class="nn-note">
+                            We will confirm your total rate after we review your request (dynamic pricing applies).
+                        </p>
 
-                    @if (!string.IsNullOrEmpty(_error))
-                    {
-                        <MudAlert Severity="Severity.Error" Class="mb-3">@_error</MudAlert>
-                    }
+                        @if (!string.IsNullOrEmpty(_error))
+                        {
+                            <p class="nn-note nn-note--error">@_error</p>
+                        }
 
-                    @if (!string.IsNullOrEmpty(_success))
-                    {
-                        <MudAlert Severity="Severity.Success" Class="mb-3">@_success</MudAlert>
-                    }
+                        @if (!string.IsNullOrEmpty(_success))
+                        {
+                            <p class="nn-note nn-note--success">@_success</p>
+                        }
 
-                    <MudButton ButtonType="ButtonType.Submit"
-                               Variant="Variant.Filled"
-                               Color="Color.Primary"
-                               Disabled="_submitting">
-                        @(_submitting ? "Submitting…" : "Request booking")
-                    </MudButton>
-                </EditForm>
-            </MudCardContent>
-        </MudCard>
-    }
-</MudContainer>
+                        <MudButton ButtonType="ButtonType.Submit"
+                                   Variant="Variant.Filled"
+                                   Color="Color.Success"
+                                   Class="nn-booking-submit"
+                                   Disabled="_submitting">
+                            @(_submitting ? "Submitting…" : "Request booking")
+                        </MudButton>
+                    </EditForm>
+                </div>
+            </article>
+
+            <footer class="guide-footer">
+                <a class="guide-footer-btn guide-footer-btn--secondary" href="/properties/deerfield-retreat">← Deerfield Retreat</a>
+                <a class="guide-footer-btn guide-footer-btn--primary" href="/properties/deerfield-retreat/guide">Guest guide</a>
+            </footer>
+        }
+    </main>
+</div>
 
 @code {
     private readonly BookingFormModel _model = new();

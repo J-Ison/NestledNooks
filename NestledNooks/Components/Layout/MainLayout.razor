@@ -3,7 +3,6 @@
 @using Microsoft.AspNetCore.Components.Routing
 @using Microsoft.AspNetCore.Components.Authorization
 @using NestledNooks.Data
-@using System.Security.Claims
 
 @inject NavigationManager Nav
 
@@ -21,17 +20,17 @@
                        Edge="Edge.Start"
                        OnClick="ToggleDrawer" />
 
-		<div class="nn-brand nn-brand-inline" style="display:flex; align-items:center;">
+        <a href="/" class="nn-brand nn-brand-inline nn-brand-link" @onclick="CloseDrawerLocal">
             <img src="/images/apple5_blue.png" alt="Logo" class="nn-logo-img" />
             <div class="nn-brand-text">
-                <div class="nn-brand-title">Nestled Nooks</div>
-                <div class="nn-brand-subtitle">Relax • Recharge • Reset</div>
+                <div class="nn-brand-title">@SiteBranding.Name</div>
+                <div class="nn-brand-subtitle">@SiteBranding.Tagline</div>
             </div>
-        </div>
+        </a>
 
         <MudSpacer />
     </MudAppBar>
-	
+
     <MudDrawer Open="@_drawerOpen"
                OpenChanged="OnDrawerOpenChanged"
                Variant="DrawerVariant.Temporary"
@@ -43,7 +42,6 @@
                Class="nn-drawer-white">
 
         <div class="nn-drawer-inner">
-
             <div class="nn-drawer-header">
                 <MudText Typo="Typo.h6">Menu</MudText>
                 <MudIconButton Icon="@Icons.Material.Filled.Close"
@@ -54,24 +52,17 @@
             <MudDivider />
 
             <MudNavMenu>
-
                 <MudNavLink Href="/"
                             Match="NavLinkMatch.All"
                             Icon="@Icons.Material.Filled.Home"
                             OnClick="@CloseDrawerLocal">
-                    Home
+                    Deerfield Retreat
                 </MudNavLink>
 
-                <MudNavLink Href="/weather"
-                            Icon="@Icons.Material.Filled.Cloud"
+                <MudNavLink Href="/booking?property=deerfield-retreat"
+                            Icon="@Icons.Material.Filled.EventAvailable"
                             OnClick="@CloseDrawerLocal">
-                    Weather
-                </MudNavLink>
-
-                <MudNavLink Href="/contact"
-                            Icon="@Icons.Material.Filled.Email"
-                            OnClick="@CloseDrawerLocal">
-                    Contact Us
+                    Request booking
                 </MudNavLink>
 
                 <MudNavLink Href="/properties/deerfield-retreat/guide"
@@ -80,96 +71,87 @@
                     Guest guide
                 </MudNavLink>
 
+                <MudNavLink Href="/contact"
+                            Icon="@Icons.Material.Filled.Email"
+                            OnClick="@CloseDrawerLocal">
+                    Contact
+                </MudNavLink>
+
                 <MudDivider Class="my-2" />
 
-                @if (!allowLogin)
-                {
-                    <span class="text-muted">
-                        Guest booking coming soon
-                    </span>
-                }
-                else
-                {
-                    <MudNavLink Href="/login"
-                                Icon="@Icons.Material.Filled.Lock"
-                                OnClick="@CloseDrawerLocal">
-                        Login
-                    </MudNavLink>
+                <MudNavLink Href="/login"
+                            Icon="@Icons.Material.Filled.Lock"
+                            OnClick="@CloseDrawerLocal">
+                    Login
+                </MudNavLink>
 
-                    <MudNavLink Href="/register"
-                                Icon="@Icons.Material.Filled.PersonAdd"
-                                OnClick="@CloseDrawerLocal">
-                        Register
-                    </MudNavLink>
+                <MudNavLink Href="/register"
+                            Icon="@Icons.Material.Filled.PersonAdd"
+                            OnClick="@CloseDrawerLocal">
+                    Register
+                </MudNavLink>
 
-                    <AuthorizeView>
-                        <Authorized>
-                            <MudNavLink Href="/account/manage/settings"
-                                        Icon="@Icons.Material.Filled.Settings"
-                                        OnClick="@CloseDrawerLocal">
-                                Settings
-                            </MudNavLink>
-                        </Authorized>
-                    </AuthorizeView>
-                    <AuthorizeView Roles="@($"{AppRoles.Owner},{AppRoles.Manager}")">
-                        <Authorized>
-                            <MudNavLink Href="/account/manage/bookings"
-                                        Icon="@Icons.Material.Filled.CalendarMonth"
-                                        OnClick="@CloseDrawerLocal">
-                                Manage bookings
-                            </MudNavLink>
-                        </Authorized>
-                    </AuthorizeView>
-                }
+                <AuthorizeView>
+                    <Authorized>
+                        <MudNavLink Href="/account/manage/settings"
+                                    Icon="@Icons.Material.Filled.Settings"
+                                    OnClick="@CloseDrawerLocal">
+                            Settings
+                        </MudNavLink>
+                    </Authorized>
+                </AuthorizeView>
+
+                <AuthorizeView Roles="@($"{AppRoles.Owner},{AppRoles.Manager}")">
+                    <Authorized>
+                        <MudNavLink Href="/account/manage/bookings"
+                                    Icon="@Icons.Material.Filled.CalendarMonth"
+                                    OnClick="@CloseDrawerLocal">
+                            Manage bookings
+                        </MudNavLink>
+                    </Authorized>
+                </AuthorizeView>
+
                 <MudDivider Class="my-2" />
-				<AuthorizeView>
-					<Authorized>
-						<div class="auth-status">
-							<span class="status-dot green"></span>
-							<span>Logged In</span>
-						</div>
-					</Authorized>
 
-					<NotAuthorized>
-						<div class="auth-status">
-							<span class="status-dot gray"></span>
-							<span>Not signed in</span>
-						</div>
-					</NotAuthorized>
-				</AuthorizeView>
-				<MudDivider Class="my-2" />
-				<AuthorizeView>
-					<Authorized Context="authState">
-						<MudMenuItem>
-							<form method="post" action="/api/account/logout" style="margin:0;">
-								<button type="submit" style="all:unset; cursor:pointer; width:100%;">
-									Logout
-								</button>
-							</form>
-						</MudMenuItem>
-					</Authorized>
-				</AuthorizeView>
+                <AuthorizeView>
+                    <Authorized>
+                        <div class="auth-status">
+                            <span class="status-dot green"></span>
+                            <span>Signed in</span>
+                        </div>
+                    </Authorized>
+                    <NotAuthorized>
+                        <div class="auth-status">
+                            <span class="status-dot gray"></span>
+                            <span>Guest</span>
+                        </div>
+                    </NotAuthorized>
+                </AuthorizeView>
+
+                <AuthorizeView>
+                    <Authorized>
+                        <MudDivider Class="my-2" />
+                        <form method="post" action="/api/account/logout" class="nn-drawer-logout">
+                            <button type="submit" class="nn-drawer-logout-btn">Sign out</button>
+                        </form>
+                    </Authorized>
+                </AuthorizeView>
             </MudNavMenu>
         </div>
     </MudDrawer>
 
-    <MudMainContent>
+    <MudMainContent Class="nn-main-content">
         @Body
     </MudMainContent>
-
 </MudLayout>
 
 @code {
-    private bool allowLogin = true;
     private bool _drawerOpen;
 
     private void ToggleDrawer() => _drawerOpen = !_drawerOpen;
     private void OnDrawerOpenChanged(bool open) => _drawerOpen = open;
 
-    private void CloseDrawerLocal()
-    {
-        _drawerOpen = false;
-    }
+    private void CloseDrawerLocal() => _drawerOpen = false;
 
     protected override void OnInitialized()
     {
@@ -185,173 +167,8 @@
         });
     }
 
-    
-
-    private string GetInitial(ClaimsPrincipal user)
-    {
-        var name = user.Identity?.Name;
-
-        if (string.IsNullOrWhiteSpace(name))
-            return "?";
-
-        return name.Substring(0, 1).ToUpper();
-    }
-
     public void Dispose()
     {
         Nav.LocationChanged -= OnLocationChanged;
     }
 }
-
-
-
-@* @inherits LayoutComponentBase
-@using MudBlazor
-@using Microsoft.AspNetCore.Components.Routing
-@inject NavigationManager Nav
-@implements IDisposable
-@using Microsoft.AspNetCore.Components.Authorization
-@using System.Security.Claims
-@inject AuthenticationStateProvider AuthStateProvider
-
-<MudThemeProvider />
-<MudPopoverProvider />
-<MudDialogProvider />
-<MudSnackbarProvider />
-
-<MudLayout>
-	<MudAppBar Elevation="4" Dense="true" Class="nn-appbar nn-appbar-sky">
-		<MudIconButton Icon="@Icons.Material.Filled.Menu"
-					   Color="Color.Inherit"
-					   Edge="Edge.Start"
-					   OnClick="ToggleDrawer" />
-
-		<div class="nn-brand nn-brand-inline">
-			<img src="/images/apple5_blue.png" alt="Logo" class="nn-logo-img" />
-			<div class="nn-brand-text">
-				<div class="nn-brand-title">Nestled Nooks</div>
-				<div class="nn-brand-subtitle">Relax • Recharge • Reset</div>
-			</div>
-		</div>
-
-		<MudSpacer />
-
-	</MudAppBar>
-
-	<MudDrawer Open="@_drawerOpen"
-			   OpenChanged="OnDrawerOpenChanged"
-			   Variant="DrawerVariant.Temporary"
-			   Anchor="Anchor.Left"
-			   Elevation="8"
-			   Overlay="true"
-			   ClipMode="DrawerClipMode.Never"
-			   Width="280px"
-			   Class="nn-drawer-white">
-
-		<div class="nn-drawer-inner">
-
-			<div class="nn-drawer-header">
-				<MudText Typo="Typo.h6">Menu</MudText>
-				<MudIconButton Icon="@Icons.Material.Filled.Close"
-							   Color="Color.Inherit"
-							   OnClick="@CloseDrawerLocal" />
-			</div>
-
-			<MudDivider />
-
-			<MudNavMenu>
-
-				<MudNavLink Href="/"
-							Match="NavLinkMatch.All"
-							Icon="@Icons.Material.Filled.Home"
-							OnClick="@CloseDrawerLocal">
-					Home
-				</MudNavLink>
-
-				<MudNavLink Href="/weather"
-							Icon="@Icons.Material.Filled.Cloud"
-							OnClick="@CloseDrawerLocal">
-					Weather
-				</MudNavLink>
-
-				<MudNavLink Href="/contact"
-							Icon="@Icons.Material.Filled.Email"
-							OnClick="@CloseDrawerLocal">
-					Contact Us
-				</MudNavLink>
-
-				<MudDivider Class="my-2" />
-				@if (!allowLogin)
-				{
-					<span class="text-muted">
-						Guest booking coming soon
-					</span>
-				}
-				else
-				{
-					<MudNavLink Href="/login"
-								Icon="@Icons.Material.Filled.Lock"
-								OnClick="@CloseDrawerLocal">
-						Login
-					</MudNavLink>
-
-					<MudNavLink Href="/register"
-								Icon="@Icons.Material.Filled.PersonAdd"
-								OnClick="@CloseDrawerLocal">
-						Register
-					</MudNavLink>
-				}
-				<MudDivider Class="my-2" />
-
-			</MudNavMenu>
-		</div>
-	</MudDrawer>
-
-	<MudMainContent>
-		@Body
-	</MudMainContent>
-
-</MudLayout>
-
-@code {
-	private bool allowLogin = true;
-	private bool _drawerOpen;
-
-	private void ToggleDrawer() => _drawerOpen = !_drawerOpen;
-	private void OnDrawerOpenChanged(bool open) => _drawerOpen = open;
-
-	[Parameter] public EventCallback OnNavigate { get; set; }
-
-	[Parameter] public Action? CloseDrawer { get; set; }
-
-
-	// Local helper that ensures the drawer state is updated and the optional external CloseDrawer action is invoked.
-	private void CloseDrawerLocal()
-	{
-		_drawerOpen = false;
-		CloseDrawer?.Invoke();
-	}
-
-	// Subscribe to navigation events so the drawer closes automatically on any navigation.
-	protected override void OnInitialized()
-	{
-		base.OnInitialized();
-		Nav.LocationChanged += OnLocationChanged;
-	}
-
-	private void OnLocationChanged(object? sender, LocationChangedEventArgs args)
-	{
-		// Ensure UI update on the renderer thread
-		InvokeAsync(() =>
-		{
-			_drawerOpen = false;
-			StateHasChanged();
-		});
-	}
-
-	// Unsubscribe when disposed to avoid memory leaks.
-	public void Dispose()
-	{
-		Nav.LocationChanged -= OnLocationChanged;
-	}
-} *@

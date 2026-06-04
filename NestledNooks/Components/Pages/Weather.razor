@@ -3,95 +3,116 @@
 @using MudBlazor
 @inject IHttpClientFactory HttpClientFactory
 
-<PageTitle>Weather</PageTitle>
+<PageTitle>@SiteBranding.PageTitle("Local weather")</PageTitle>
+<HeadContent>
+    <meta name="description" content="Rapid City area weather forecast and seasonal averages for guests staying at Deerfield Retreat in the Black Hills." />
+</HeadContent>
 
-<MudText Typo="Typo.h4" Class="mb-1">Rapid City, SD Weather</MudText>
+<div class="guide-page">
+    <header class="guide-hero guide-hero--weather">
+        <div class="wrap guide-hero-inner">
+            <p class="guide-hero-eyebrow">Deerfield Retreat · @SiteBranding.RegionLine</p>
+            <h1 class="guide-hero-title">Local weather</h1>
+            <p class="guide-hero-lead">
+                Rapid City area forecast for the next 16 days. For dates beyond that, we show typical
+                conditions based on 1991–2020 averages — mountain weather can change quickly, so check again closer to your trip.
+            </p>
+        </div>
+    </header>
 
-<MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-3">
-    Forecast for the next 16 days. Beyond that, this shows “Typical Weather (1991–2020 average)”.
-</MudText>
+    <main class="wrap guide-main">
+        <article class="guide-card guide-card--weather">
+            <header class="guide-card-header">
+                <span class="guide-card-icon" aria-hidden="true">🌤️</span>
+                <div>
+                    <h2 class="guide-card-title">Rapid City, SD</h2>
+                    <p class="guide-card-subtitle">Daily high, low, precipitation, and wind</p>
+                </div>
+            </header>
 
-<MudPaper Class="pa-4 mb-4" Elevation="1" Rounded="true">
-    <MudGrid Spacing="2" AlignItems="AlignItems.Center">
-        <MudItem xs="12" md="8">
-            <MudDateRangePicker Label="Date range"
-                                DateRange="_range"
-                                DateRangeChanged="OnRangeChanged"
-                                PickerVariant="PickerVariant.Dialog"
-                                Clearable="false"
-                                Disabled="@_loading"
-                                DateFormat="MMM dd, yyyy"
-                                MinDate="@MinSelectableDate"
-                                MaxDate="@MaxSelectableDate" />
-            <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-2">
-                Range allowed: today → 2 years out.
-            </MudText>
-        </MudItem>
+            <div class="guide-card-body">
+                <div class="weather-toolbar">
+                    <div>
+                        <MudDateRangePicker Label="Date range"
+                                            DateRange="_range"
+                                            DateRangeChanged="OnRangeChanged"
+                                            PickerVariant="PickerVariant.Dialog"
+                                            Clearable="false"
+                                            Disabled="@_loading"
+                                            DateFormat="MMM dd, yyyy"
+                                            MinDate="@MinSelectableDate"
+                                            MaxDate="@MaxSelectableDate" />
+                        <p class="nn-booking-section-hint">Select today through two years out.</p>
+                    </div>
 
-        <MudItem xs="12" md="4" Class="d-flex justify-end">
-            <MudChip T="string" Color="@ChipColor"
-         Variant="Variant.Filled"
-         Class="mr-2">
-    @ChipLabel
-</MudChip>
+                    <div class="weather-toolbar-actions">
+                        <span class="weather-mode-chip @(IsForecastMode ? "weather-mode-chip--forecast" : "weather-mode-chip--typical")">
+                            @ChipLabel
+                        </span>
+                        <button type="button" class="nn-btn-secondary" @onclick="Reload" disabled="@_loading">
+                            Refresh
+                        </button>
+                    </div>
+                </div>
 
+                @if (_loading)
+                {
+                    <p class="nn-loading">Loading forecast…</p>
+                }
+                else if (!string.IsNullOrWhiteSpace(_error))
+                {
+                    <p class="nn-note nn-note--error">@_error</p>
+                }
+                else if (_rows.Count == 0)
+                {
+                    <p class="nn-note">No data for that date range.</p>
+                }
+                else
+                {
+                    @if (!IsForecastMode)
+                    {
+                        <p class="nn-note nn-note--warn">
+                            Showing typical weather (30-year average for each calendar day). This is not a day-by-day forecast.
+                        </p>
+                    }
 
+                    <div class="weather-table-wrap">
+                        <table class="weather-table">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>High</th>
+                                    <th>Low</th>
+                                    <th>Precip</th>
+                                    <th>Wind</th>
+                                    <th>Type</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var row in _rows)
+                                {
+                                    <tr>
+                                        <td>@row.Date.ToString("MMM dd, yyyy")</td>
+                                        <td>@($"{row.MaxF:0}°F")</td>
+                                        <td>@($"{row.MinF:0}°F")</td>
+                                        <td>@($"{row.PrecipIn:0.00} in")</td>
+                                        <td>@($"{row.WindMph:0} mph")</td>
+                                        <td>@row.Source</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </div>
+        </article>
 
-            <MudButton Variant="Variant.Filled"
-                       Color="Color.Primary"
-                       OnClick="Reload"
-                       Disabled="@_loading">
-                Refresh
-            </MudButton>
-        </MudItem>
-    </MudGrid>
-</MudPaper>
-
-@if (_loading)
-{
-    <MudProgressLinear Indeterminate="true" Class="mb-3" />
-    <MudText>Loading…</MudText>
-}
-else if (!string.IsNullOrWhiteSpace(_error))
-{
-    <MudAlert Severity="Severity.Error" Variant="Variant.Filled">
-        @_error
-    </MudAlert>
-}
-else if (_rows.Count == 0)
-{
-    <MudAlert Severity="Severity.Info" Variant="Variant.Outlined">
-        No rows for that date range.
-    </MudAlert>
-}
-else
-{
-    @if (!IsForecastMode)
-    {
-        <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="mb-3">
-            Showing “Typical Weather” (30-year average for each calendar day). This is not an actual day-by-day forecast.
-        </MudAlert>
-    }
-
-    <MudTable Items="_rows" Dense="true" Hover="true" Elevation="1">
-        <HeaderContent>
-            <MudTh>Date</MudTh>
-            <MudTh>High</MudTh>
-            <MudTh>Low</MudTh>
-            <MudTh>Precip</MudTh>
-            <MudTh>Wind</MudTh>
-            <MudTh>Type</MudTh>
-        </HeaderContent>
-        <RowTemplate>
-            <MudTd DataLabel="Date">@context.Date.ToString("MMM dd, yyyy")</MudTd>
-            <MudTd DataLabel="High">@($"{context.MaxF:0}°F")</MudTd>
-            <MudTd DataLabel="Low">@($"{context.MinF:0}°F")</MudTd>
-            <MudTd DataLabel="Precip">@($"{context.PrecipIn:0.00} in")</MudTd>
-            <MudTd DataLabel="Wind">@($"{context.WindMph:0} mph")</MudTd>
-            <MudTd DataLabel="Type">@context.Source</MudTd>
-        </RowTemplate>
-    </MudTable>
-}
+        <footer class="guide-footer">
+            <a class="guide-footer-btn guide-footer-btn--secondary" href="/properties/deerfield-retreat/guide">← Guest guide</a>
+            <a class="guide-footer-btn guide-footer-btn--primary" href="/properties/deerfield-retreat">Deerfield Retreat</a>
+        </footer>
+    </main>
+</div>
 
 @code {
     // Rapid City, SD (approx)
@@ -114,7 +135,6 @@ else
 
     // Cache of typical weather by MM-dd (computed from 1991–2020 historical daily data)
     private static Dictionary<string, TypicalDay>? _typicalByMonthDay;
-	private Color ChipColor => IsForecastMode ? Color.Success : Color.Info;
 
 	private string ChipLabel => IsForecastMode
 		? "Forecast"

@@ -3,91 +3,102 @@
 @using NestledNooks.Services
 @inject IEmailService EmailService
 
-<PageTitle>Contact us · Nestled Nooks</PageTitle>
+<PageTitle>@SiteBranding.PageTitle("Contact")</PageTitle>
 <HeadContent>
-	<meta name="description" content="Reach Nestled Nooks with questions about Deerfield Retreat, availability, or your stay. We read every message and reply as soon as we can." />
+    <meta name="description" content="Reach Nestled Nooks with questions about Deerfield Retreat, availability, or your stay. We read every message and reply as soon as we can." />
 </HeadContent>
 
-<div class="login-wrapper">
-	<div class="login-card">
+<div class="guide-page">
+    <header class="guide-hero guide-hero--contact">
+        <div class="wrap guide-hero-inner">
+            <p class="guide-hero-eyebrow">@SiteBranding.Name · @SiteBranding.RegionLine</p>
+            <h1 class="guide-hero-title">Contact us</h1>
+            <p class="guide-hero-lead">
+                Questions about Deerfield Retreat, your stay, or availability? Send a message and we will get back to you as soon as we can.
+            </p>
+        </div>
+    </header>
 
-		<h2 class="login-title">Contact Us</h2>
-		<p class="login-subtitle">
-			Have a question or need help? Send us a message and we’ll get back to you.
-		</p>
+    <main class="wrap guide-main">
+        <article class="guide-card guide-card--contact">
+            <header class="guide-card-header">
+                <span class="guide-card-icon" aria-hidden="true">✉️</span>
+                <div>
+                    <h2 class="guide-card-title">Send a message</h2>
+                    <p class="guide-card-subtitle">We read every note — usually within one business day</p>
+                </div>
+            </header>
 
-		<EditForm Model="@contactModel" OnValidSubmit="SendMessage">
-			<DataAnnotationsValidator />
+            <div class="guide-card-body">
+                <EditForm Model="@contactModel" OnValidSubmit="SendMessage">
+                    <DataAnnotationsValidator />
 
-			<div class="form-group">
-				<label for="name">Your Name</label>
-				<InputText id="name"
-						   class="form-control"
-						   @bind-Value="contactModel.Name" />
-				<ValidationMessage For="() => contactModel.Name" class="text-danger" />
-			</div>
+                    <div class="nn-form-group">
+                        <label for="name">Your name</label>
+                        <InputText id="name" class="nn-form-control" @bind-Value="contactModel.Name" />
+                        <ValidationMessage For="() => contactModel.Name" class="validation-message" />
+                    </div>
 
-			<div class="form-group">
-				<label for="email">Your Email</label>
-				<InputText id="email"
-						   type="email"
-						   class="form-control"
-						   @bind-Value="contactModel.Email" />
-				<ValidationMessage For="() => contactModel.Email" class="text-danger" />
-			</div>
+                    <div class="nn-form-group">
+                        <label for="email">Your email</label>
+                        <InputText id="email" type="email" class="nn-form-control" @bind-Value="contactModel.Email" />
+                        <ValidationMessage For="() => contactModel.Email" class="validation-message" />
+                    </div>
 
-			<div class="form-group">
-				<label for="message">Your Message</label>
-				<InputTextArea id="message"
-							   rows="5"
-							   class="form-control"
-							   @bind-Value="contactModel.Message" />
-				<ValidationMessage For="() => contactModel.Message" class="text-danger" />
-			</div>
+                    <div class="nn-form-group">
+                        <label for="message">Your message</label>
+                        <InputTextArea id="message" rows="5" class="nn-form-control" @bind-Value="contactModel.Message" />
+                        <ValidationMessage For="() => contactModel.Message" class="validation-message" />
+                    </div>
 
-			<button type="submit"
-					class="btn btn-login"
-					disabled="@isSending">
-				@(isSending ? "Sending..." : "Send Message")
-			</button>
+                    <button type="submit" class="nn-btn-primary" disabled="@isSending">
+                        @(isSending ? "Sending…" : "Send message")
+                    </button>
 
-			@if (!string.IsNullOrEmpty(statusMessage))
-			{
-				<p class="login-subtitle mt-3">@statusMessage</p>
-			}
-		</EditForm>
+                    @if (!string.IsNullOrEmpty(statusMessage))
+                    {
+                        <p class="nn-note @(statusMessage.StartsWith("Thanks") ? "nn-note--success" : "nn-note--error")">
+                            @statusMessage
+                        </p>
+                    }
+                </EditForm>
+            </div>
+        </article>
 
-	</div>
+        <footer class="guide-footer">
+            <a class="guide-footer-btn guide-footer-btn--secondary" href="/properties/deerfield-retreat">← Deerfield Retreat</a>
+            <a class="guide-footer-btn guide-footer-btn--primary" href="/booking?property=deerfield-retreat">Request booking</a>
+        </footer>
+    </main>
 </div>
 
 @code {
-	private ContactFormModel contactModel = new();
-	private bool isSending = false;
-	private string statusMessage = string.Empty;
+    private ContactFormModel contactModel = new();
+    private bool isSending;
+    private string statusMessage = string.Empty;
 
-	private async Task SendMessage()
-	{
-		isSending = true;
-		statusMessage = string.Empty;
+    private async Task SendMessage()
+    {
+        isSending = true;
+        statusMessage = string.Empty;
 
-		try
-		{
-			await EmailService.SendContactEmail(
-				contactModel.Name,
-				contactModel.Email,
-				contactModel.Message
-			);
+        try
+        {
+            await EmailService.SendContactEmail(
+                contactModel.Name,
+                contactModel.Email,
+                contactModel.Message);
 
-			statusMessage = "Thanks! Your message has been sent.";
-			contactModel = new();
-		}
-		catch
-		{
-			statusMessage = "Something went wrong. Please try again later.";
-		}
-		finally
-		{
-			isSending = false;
-		}
-	}
+            statusMessage = "Thanks! Your message has been sent.";
+            contactModel = new();
+        }
+        catch
+        {
+            statusMessage = "Something went wrong. Please try again later.";
+        }
+        finally
+        {
+            isSending = false;
+        }
+    }
 }
