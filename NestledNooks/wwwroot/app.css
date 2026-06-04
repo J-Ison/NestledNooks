@@ -371,9 +371,18 @@ footer {
 .content-grid {
     display: grid;
     grid-template-columns: 1fr 360px;
+    grid-template-areas: "left right";
     gap: 40px;
     margin-top: 28px;
     align-items: start;
+}
+
+.content-grid .left {
+    grid-area: left;
+}
+
+.content-grid .right {
+    grid-area: right;
 }
 
 .listing-intro-card {
@@ -1359,6 +1368,9 @@ footer {
 @media (max-width: 980px) {
     .content-grid {
         grid-template-columns: 1fr;
+        grid-template-areas:
+            "right"
+            "left";
         gap: 22px;
     }
 
