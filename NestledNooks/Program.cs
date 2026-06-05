@@ -89,9 +89,10 @@ var app = builder.Build();
 await using (var migrateScope = app.Services.CreateAsyncScope())
 {
     var migrateLogger = migrateScope.ServiceProvider.GetRequiredService<ILoggerFactory>().CreateLogger("Startup");
+    var db = migrateScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
     try
     {
-        var db = migrateScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
         await db.Database.MigrateAsync().ConfigureAwait(false);
         migrateLogger.LogInformation("Database migrations applied.");
     }
@@ -99,7 +100,19 @@ await using (var migrateScope = app.Services.CreateAsyncScope())
     {
         migrateLogger.LogCritical(
             ex,
-            "Database migration failed. Login and account features may return errors until migrations are applied.");
+            "Database migration failed. Will attempt direct schema repair for login-critical columns.");
+    }
+
+    try
+    {
+        await DatabaseSchemaRepair.EnsureAspNetUserProfileColumnsAsync(db, migrateLogger)
+            .ConfigureAwait(false);
+    }
+    catch (Exception ex)
+    {
+        migrateLogger.LogCritical(
+            ex,
+            "AspNetUsers profile column repair failed. Sign-in will not work until Nickname and MessageTagsJson exist on AspNetUsers.");
     }
 }
 
