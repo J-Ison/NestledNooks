@@ -12,6 +12,7 @@
 @inject IMessagingService MessagingService
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject NavigationManager Navigation
+@inject ILogger<ComposeMessage> Logger
 
 <PageTitle>New message · @SiteBranding.Name</PageTitle>
 
@@ -197,6 +198,7 @@
         try
         {
             SendMessageResult result;
+
             if (_form.BroadcastToAllGuests && _isOwner)
             {
                 result = await MessagingService.BroadcastToRoleAsync(_userId, AppRoles.Client, _form.Body);
@@ -225,9 +227,15 @@
 
             _error = result.ErrorMessage ?? "Could not send message.";
         }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Compose message failed for user {UserId}", _userId);
+            _error = "Could not send your message. Please try again in a moment.";
+        }
         finally
         {
             _sending = false;
+            await InvokeAsync(StateHasChanged);
         }
     }
 

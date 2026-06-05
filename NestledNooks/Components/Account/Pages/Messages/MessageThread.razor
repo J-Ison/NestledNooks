@@ -10,6 +10,7 @@
 
 @inject IMessagingService MessagingService
 @inject AuthenticationStateProvider AuthenticationStateProvider
+@inject ILogger<MessageThread> Logger
 
 <PageTitle>@(_threadTitle ?? "Conversation") · @SiteBranding.Name</PageTitle>
 
@@ -242,9 +243,15 @@
             if (detail is not null)
                 _messages = detail.Messages;
         }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Reply failed for thread {ThreadId}", ThreadId);
+            _error = "Could not send your reply. Please try again in a moment.";
+        }
         finally
         {
             _sending = false;
+            await InvokeAsync(StateHasChanged);
         }
     }
 

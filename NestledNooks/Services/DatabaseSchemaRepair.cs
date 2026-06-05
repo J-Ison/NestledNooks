@@ -3,10 +3,18 @@ using NestledNooks.Data;
 
 namespace NestledNooks.Services;
 
-/// <summary>
-/// Idempotent SQL repairs for production when migration history and schema drift.</summary>
+/// <summary>Idempotent SQL repairs when migration history and schema drift on production.</summary>
 public static class DatabaseSchemaRepair
 {
+    public static async Task EnsureAllAsync(
+        ApplicationDbContext db,
+        ILogger logger,
+        CancellationToken cancellationToken = default)
+    {
+        await EnsureAspNetUserProfileColumnsAsync(db, logger, cancellationToken).ConfigureAwait(false);
+        await EnsureMessagingTablesAsync(db, logger, cancellationToken).ConfigureAwait(false);
+    }
+
     public static async Task EnsureAspNetUserProfileColumnsAsync(
         ApplicationDbContext db,
         ILogger logger,
@@ -23,5 +31,61 @@ public static class DatabaseSchemaRepair
             cancellationToken).ConfigureAwait(false);
 
         logger.LogInformation("Verified AspNetUsers profile columns (Nickname, MessageTagsJson).");
+    }
+
+    public static async Task EnsureMessagingTablesAsync(
+        ApplicationDbContext db,
+        ILogger logger,
+        CancellationToken cancellationToken = default)
+    {
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            IF OBJECT_ID(N'[MessageThreads]', N'U') IS NULL
+            BEGIN
+                CREATE TABLE [MessageThreads] (
+                    [Id] int NOT NULL IDENTITY(1,1),
+                    [CreatedAtUtc] datetime2 NOT NULL,
+                    [UpdatedAtUtc] datetime2 NOT NULL,
+                    CONSTRAINT [PK_MessageThreads] PRIMARY KEY ([Id])
+                );
+                CREATE INDEX [IX_MessageThreads_UpdatedAtUtc] ON [MessageThreads] ([UpdatedAtUtc]);
+            END
+
+            IF OBJECT_ID(N'[MessageThreadParticipants]', N'U') IS NULL
+            BEGIN
+                CREATE TABLE [MessageThreadParticipants] (
+                    [ThreadId] int NOT NULL,
+                    [UserId] nvarchar(450) NOT NULL,
+                    [LastReadAtUtc] datetime2 NULL,
+                    CONSTRAINT [PK_MessageThreadParticipants] PRIMARY KEY ([ThreadId], [UserId]),
+                    CONSTRAINT [FK_MessageThreadParticipants_MessageThreads_ThreadId]
+                        FOREIGN KEY ([ThreadId]) REFERENCES [MessageThreads] ([Id]) ON DELETE CASCADE,
+                    CONSTRAINT [FK_MessageThreadParticipants_AspNetUsers_UserId]
+                        FOREIGN KEY ([UserId]) REFERENCES [AspNetUsers] ([Id]) ON DELETE CASCADE
+                );
+                CREATE INDEX [IX_MessageThreadParticipants_UserId] ON [MessageThreadParticipants] ([UserId]);
+            END
+
+            IF OBJECT_ID(N'[Messages]', N'U') IS NULL
+            BEGIN
+                CREATE TABLE [Messages] (
+                    [Id] int NOT NULL IDENTITY(1,1),
+                    [ThreadId] int NOT NULL,
+                    [SenderUserId] nvarchar(450) NOT NULL,
+                    [Body] nvarchar(4000) NOT NULL,
+                    [CreatedAtUtc] datetime2 NOT NULL,
+                    CONSTRAINT [PK_Messages] PRIMARY KEY ([Id]),
+                    CONSTRAINT [FK_Messages_MessageThreads_ThreadId]
+                        FOREIGN KEY ([ThreadId]) REFERENCES [MessageThreads] ([Id]) ON DELETE CASCADE,
+                    CONSTRAINT [FK_Messages_AspNetUsers_SenderUserId]
+                        FOREIGN KEY ([SenderUserId]) REFERENCES [AspNetUsers] ([Id])
+                );
+                CREATE INDEX [IX_Messages_SenderUserId] ON [Messages] ([SenderUserId]);
+                CREATE INDEX [IX_Messages_ThreadId_CreatedAtUtc] ON [Messages] ([ThreadId], [CreatedAtUtc]);
+            END
+            """,
+            cancellationToken).ConfigureAwait(false);
+
+        logger.LogInformation("Verified messaging tables (MessageThreads, MessageThreadParticipants, Messages).");
     }
 }

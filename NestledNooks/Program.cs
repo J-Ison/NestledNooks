@@ -105,14 +105,13 @@ await using (var migrateScope = app.Services.CreateAsyncScope())
 
     try
     {
-        await DatabaseSchemaRepair.EnsureAspNetUserProfileColumnsAsync(db, migrateLogger)
-            .ConfigureAwait(false);
+        await DatabaseSchemaRepair.EnsureAllAsync(db, migrateLogger).ConfigureAwait(false);
     }
     catch (Exception ex)
     {
         migrateLogger.LogCritical(
             ex,
-            "AspNetUsers profile column repair failed. Sign-in will not work until Nickname and MessageTagsJson exist on AspNetUsers.");
+            "Database schema repair failed. Sign-in and messaging may not work until migrations are applied.");
     }
 }
 
