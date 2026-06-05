@@ -81,17 +81,21 @@
 
                 <MudDivider Class="my-2" />
 
-                <MudNavLink Href="/login"
-                            Icon="@Icons.Material.Filled.Lock"
-                            OnClick="@CloseDrawerLocal">
-                    Login
-                </MudNavLink>
+                <AuthorizeView>
+                    <NotAuthorized>
+                        <MudNavLink Href="/login"
+                                    Icon="@Icons.Material.Filled.Lock"
+                                    OnClick="@CloseDrawerLocal">
+                            Login
+                        </MudNavLink>
 
-                <MudNavLink Href="/register"
-                            Icon="@Icons.Material.Filled.PersonAdd"
-                            OnClick="@CloseDrawerLocal">
-                    Register
-                </MudNavLink>
+                        <MudNavLink Href="/register"
+                                    Icon="@Icons.Material.Filled.PersonAdd"
+                                    OnClick="@CloseDrawerLocal">
+                            Register
+                        </MudNavLink>
+                    </NotAuthorized>
+                </AuthorizeView>
 
                 <AuthorizeView>
                     <Authorized>
