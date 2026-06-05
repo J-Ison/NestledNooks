@@ -1,3 +1,4 @@
+@using NestledNooks.Services
 @inject ISiteThemeService SiteThemeService
 
 @((MarkupString)_styleTag)
@@ -7,7 +8,15 @@
 
     protected override async Task OnInitializedAsync()
     {
-        var css = await SiteThemeService.GetEffectiveCssAsync();
-        _styleTag = $"<style id=\"nn-site-theme\">{css}</style>";
+        try
+        {
+            var css = await SiteThemeService.GetEffectiveCssAsync();
+            _styleTag = $"<style id=\"nn-site-theme\">{css}</style>";
+        }
+        catch
+        {
+            var fallback = SiteThemeCss.BuildStyleBlock(SiteThemePresets.CreateTheme(SiteThemePresets.Default));
+            _styleTag = $"<style id=\"nn-site-theme\">{fallback}</style>";
+        }
     }
 }

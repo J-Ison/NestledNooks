@@ -85,6 +85,21 @@ builder.Services.AddHttpClient("CalendarSync", client =>
 
 var app = builder.Build();
 
+await using (var migrateScope = app.Services.CreateAsyncScope())
+{
+    var migrateLogger = migrateScope.ServiceProvider.GetRequiredService<ILoggerFactory>().CreateLogger("Startup");
+    try
+    {
+        var db = migrateScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        await db.Database.MigrateAsync().ConfigureAwait(false);
+        migrateLogger.LogInformation("Database migrations applied.");
+    }
+    catch (Exception ex)
+    {
+        migrateLogger.LogError(ex, "Database migration failed. Apply migrations manually if the site errors on load.");
+    }
+}
+
 if (!app.Environment.IsDevelopment()
     && connectionString.Contains("localdb", StringComparison.OrdinalIgnoreCase))
 {
