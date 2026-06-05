@@ -65,6 +65,7 @@ builder.Services.AddScoped<ISiteThemeService, SiteThemeService>();
 builder.Services.AddScoped<IPropertyService, PropertyService>();
 builder.Services.AddScoped<IUserAdminService, UserAdminService>();
 builder.Services.AddScoped<IMessagingService, MessagingService>();
+builder.Services.AddScoped<IContactInquiryService, ContactInquiryService>();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddDistributedMemoryCache();
 builder.Services.AddSession(options =>
@@ -86,32 +87,35 @@ builder.Services.AddHttpClient("CalendarSync", client =>
 
 var app = builder.Build();
 
-await using (var migrateScope = app.Services.CreateAsyncScope())
+if (!app.Environment.IsEnvironment("Testing"))
 {
-    var migrateLogger = migrateScope.ServiceProvider.GetRequiredService<ILoggerFactory>().CreateLogger("Startup");
-    var db = migrateScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    await using (var migrateScope = app.Services.CreateAsyncScope())
+    {
+        var migrateLogger = migrateScope.ServiceProvider.GetRequiredService<ILoggerFactory>().CreateLogger("Startup");
+        var db = migrateScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
-    try
-    {
-        await db.Database.MigrateAsync().ConfigureAwait(false);
-        migrateLogger.LogInformation("Database migrations applied.");
-    }
-    catch (Exception ex)
-    {
-        migrateLogger.LogCritical(
-            ex,
-            "Database migration failed. Will attempt direct schema repair for login-critical columns.");
-    }
+        try
+        {
+            await db.Database.MigrateAsync().ConfigureAwait(false);
+            migrateLogger.LogInformation("Database migrations applied.");
+        }
+        catch (Exception ex)
+        {
+            migrateLogger.LogCritical(
+                ex,
+                "Database migration failed. Will attempt direct schema repair for login-critical columns.");
+        }
 
-    try
-    {
-        await DatabaseSchemaRepair.EnsureAllAsync(db, migrateLogger).ConfigureAwait(false);
-    }
-    catch (Exception ex)
-    {
-        migrateLogger.LogCritical(
-            ex,
-            "Database schema repair failed. Sign-in and messaging may not work until migrations are applied.");
+        try
+        {
+            await DatabaseSchemaRepair.EnsureAllAsync(db, migrateLogger).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            migrateLogger.LogCritical(
+                ex,
+                "Database schema repair failed. Sign-in and messaging may not work until migrations are applied.");
+        }
     }
 }
 
@@ -232,3 +236,5 @@ static async Task SeedApplicationRolesAsync(RoleManager<IdentityRole> roleManage
 }
 
 public record LoginRequest(string Email, string Password);
+
+public partial class Program;

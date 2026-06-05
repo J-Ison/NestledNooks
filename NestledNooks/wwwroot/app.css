@@ -1067,6 +1067,20 @@ footer {
         font-size: 14px;
     }
 
+.nn-field-hint {
+    margin: 6px 0 0;
+    font-size: 13px;
+    color: var(--nn-ink-muted);
+    line-height: 1.4;
+}
+
+.nn-form-group .validation-message {
+    display: block;
+    margin-top: 6px;
+    font-size: 13px;
+    color: var(--nn-error, #b42318);
+}
+
 .nn-form-control {
     width: 100%;
     padding: 11px 12px;
@@ -2628,7 +2642,113 @@ footer {
     user-select: all;
 }
 
+.contact-trust-banner {
+    margin-bottom: 18px;
+}
+
+.contact-verified-fields {
+    margin-bottom: 16px;
+    padding: 14px 16px;
+    border-radius: 12px;
+    background: var(--nn-surface-muted);
+    border: 1px solid var(--nn-line);
+}
+
+.contact-verified-fields p {
+    margin: 0 0 6px;
+}
+
+.contact-verified-hint {
+    font-size: 13px;
+    color: var(--nn-ink-muted);
+}
+
+.contact-inquiry-layout {
+    display: grid;
+    grid-template-columns: minmax(260px, 340px) 1fr;
+    gap: 16px;
+    align-items: start;
+}
+
+.contact-inquiry-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.contact-inquiry-item {
+    width: 100%;
+    text-align: left;
+    padding: 12px 14px;
+    border-radius: 12px;
+    border: 1px solid var(--nn-line);
+    background: var(--nn-surface);
+    cursor: pointer;
+    font-family: inherit;
+}
+
+.contact-inquiry-item.is-selected {
+    border-color: color-mix(in srgb, var(--nn-primary) 45%, var(--nn-line));
+    box-shadow: var(--nn-shadow-soft);
+}
+
+.contact-inquiry-item.is-new {
+    border-left: 3px solid var(--nn-booking);
+}
+
+.contact-inquiry-item-top {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 4px;
+}
+
+.contact-inquiry-item-meta {
+    display: block;
+    font-size: 12px;
+    color: var(--nn-ink-muted);
+    margin-bottom: 4px;
+}
+
+.contact-inquiry-item-preview {
+    display: block;
+    font-size: 13px;
+    color: var(--nn-ink-secondary);
+    line-height: 1.4;
+}
+
+.contact-inquiry-detail {
+    padding: 18px 20px;
+}
+
+.contact-inquiry-detail-head h2 {
+    margin: 0 0 6px;
+}
+
+.contact-inquiry-detail-head p {
+    margin: 0 0 8px;
+}
+
+.contact-inquiry-detail-hint {
+    font-size: 13px;
+    color: var(--nn-ink-muted);
+}
+
+.contact-inquiry-detail-body {
+    margin: 16px 0;
+    padding: 14px 16px;
+    border-radius: 12px;
+    background: var(--nn-surface-muted);
+    border: 1px solid var(--nn-line);
+    white-space: pre-wrap;
+}
+
 @media (max-width: 900px) {
+    .contact-inquiry-layout {
+        grid-template-columns: 1fr;
+    }
+
     .user-admin-filters {
         grid-template-columns: 1fr;
     }

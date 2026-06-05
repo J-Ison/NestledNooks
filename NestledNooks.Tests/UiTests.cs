@@ -1,105 +1,176 @@
-﻿using System;
-using Xunit;
+﻿using NestledNooks.Tests.Infrastructure;
 using OpenQA.Selenium;
-using OpenQA.Selenium.Chrome;
-using OpenQA.Selenium.Support.UI;
 
 namespace NestledNooks.UiTests;
 
-public class UiTests : IDisposable
+/// <summary>
+/// Browser smoke tests against a running Nestled Nooks site (staging, prod, or local).
+/// Excluded from CI via Category=E2E — run manually after deploy:
+///   dotnet test --filter "Category=E2E"
+/// Local app:
+///   set NESTLEDNOOKS_E2E_BASE_URL=https://localhost:7225
+/// </summary>
+[Trait("Category", "E2E")]
+public sealed class UiTests : IClassFixture<E2eWebDriverFixture>
 {
-    private readonly IWebDriver _driver;
-    //private const string BaseUrl = "https://localhost:7225/"; // local
-    private const string BaseUrl = "https://nestlednooks-bvd3htchb9hwhzex.centralus-01.azurewebsites.net/"; // deployed site
+    private readonly E2eWebDriverFixture _browser;
 
-    public UiTests()
+    public UiTests(E2eWebDriverFixture browser) => _browser = browser;
+
+    [Fact]
+    public void HomePage_Loads_DeerfieldRetreatListing()
     {
-        var options = new ChromeOptions();
+        _browser.Navigate("/");
 
-#if !DEBUG
-        // CI / Release: run headless (no display) and use container-safe flags
-        options.AddArgument("--headless=new");
-        options.AddArgument("--no-sandbox");w
-        options.AddArgument("--disable-dev-shm-usage");
-        options.AddArgument("--disable-gpu");
-#else
-        // Local / Debug: show real browser for debugging
-        options.AddArgument("--start-maximized");
-#endif
+        var title = _browser.WaitFor(
+            driver =>
+            {
+                try
+                {
+                    var heading = driver.FindElement(By.CssSelector("h1.title"));
+                    return heading.Text.Contains("Deerfield Retreat", StringComparison.OrdinalIgnoreCase)
+                        ? heading
+                        : null;
+                }
+                catch (NoSuchElementException)
+                {
+                    return null;
+                }
+            },
+            because: "Home page should finish loading the Deerfield Retreat listing (h1.title). " +
+                     "If you only see 'Loading…', the property seed or database may be unavailable.");
 
-        // Optional but nice for consistency
-        options.AddArgument("--window-size=1920,1080");
-
-        _driver = new ChromeDriver(options);
-    }
-
-    public void Dispose()
-    {
-        _driver.Quit();
+        Assert.Contains("Deerfield Retreat", title.Text, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
-    public void DeerfieldRetreatProperty_Loads_AndShowsPropertyTitle()
+    public void HomePage_ShowsAirbnbAndVrboLinksWhenConfigured()
     {
-        _driver.Navigate().GoToUrl(BaseUrl);
+        _browser.Navigate("/");
 
-        Assert.Contains("Deerfield Retreat", _driver.Title + _driver.PageSource);
-    }
+        _browser.WaitUntil(
+            driver => driver.FindElements(By.CssSelector("h1.title")).Any(el =>
+                el.Text.Contains("Deerfield Retreat", StringComparison.OrdinalIgnoreCase)),
+            because: "Listing must load before checking external booking links.");
 
-    public void DeerfieldRetreatProperty_HasAirbnbAndVrboButtons()
-    {
-        _driver.Navigate().GoToUrl(BaseUrl);
+        IWebElement? airbnb = null;
+        IWebElement? vrbo = null;
 
-        // These are <a> tags styled as buttons, so LinkText should work
-        var airbnbButton = _driver.FindElement(By.LinkText("View availability on Airbnb"));
-        var vrboButton = _driver.FindElement(By.LinkText("View availability on Vrbo"));
+        try { airbnb = _browser.Driver.FindElement(By.LinkText("View on Airbnb")); } catch (NoSuchElementException) { }
+        try { vrbo = _browser.Driver.FindElement(By.LinkText("View on Vrbo")); } catch (NoSuchElementException) { }
 
-        Assert.NotNull(airbnbButton);
-        Assert.NotNull(vrboButton);
+        if (airbnb is null && vrbo is null)
+        {
+            Assert.Fail(
+                "Neither 'View on Airbnb' nor 'View on Vrbo' was found. " +
+                "This is OK if URLs are not configured in Manage Properties — set Airbnb/Vrbo URLs on staging to enable this check.");
+        }
 
-        // Basic sanity check that they actually go somewhere
-        Assert.False(string.IsNullOrWhiteSpace(airbnbButton.GetAttribute("href")));
-        Assert.False(string.IsNullOrWhiteSpace(vrboButton.GetAttribute("href")));
-    }
+        if (airbnb is not null)
+            Assert.False(string.IsNullOrWhiteSpace(airbnb.GetAttribute("href")), "Airbnb link should have an href.");
 
-
-    [Fact]
-    public void Smoke_ContactPageLoads()
-    {
-        _driver.Navigate().GoToUrl($@"{BaseUrl}contact");
-        var h1 = WaitForElement(By.TagName("h1"));
-        Assert.Equal("Contact Us", h1.Text);
+        if (vrbo is not null)
+            Assert.False(string.IsNullOrWhiteSpace(vrbo.GetAttribute("href")), "Vrbo link should have an href.");
     }
 
     [Fact]
-    public void Smoke_LoginPageLoads()
+    public void ContactPage_ShowsContactUsHeading()
     {
-        _driver.Navigate().GoToUrl($@"{BaseUrl}login");
-        var loginButton = WaitForElement(By.CssSelector("button.btn-login"));
-        Assert.Equal("Login", loginButton.Text);
+        _browser.Navigate("/contact");
+
+        var heading = _browser.WaitFor(
+            driver =>
+            {
+                try
+                {
+                    var el = driver.FindElement(By.CssSelector("h1.guide-hero-title"));
+                    return el.Text.Contains("Contact us", StringComparison.OrdinalIgnoreCase) ? el : null;
+                }
+                catch (NoSuchElementException)
+                {
+                    return null;
+                }
+            },
+            because: "Contact page hero should contain h1.guide-hero-title with text 'Contact us'.");
+
+        Assert.Contains("Contact us", heading.Text, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
-    public void Smoke_RegisterPageLoads()
+    public void LoginPage_ShowsSignInForm()
     {
-        _driver.Navigate().GoToUrl($@"{BaseUrl}Register");
-        var createAccountBtn = WaitForElement(By.CssSelector("button.btn-login"));
-        Assert.Equal("Create Account", createAccountBtn.Text.Trim());
+        _browser.Navigate("/login");
+
+        var heading = _browser.WaitFor(
+            driver =>
+            {
+                try
+                {
+                    var el = driver.FindElement(By.CssSelector("h1.guide-hero-title"));
+                    return el.Text.Contains("Welcome back", StringComparison.OrdinalIgnoreCase) ? el : null;
+                }
+                catch (NoSuchElementException)
+                {
+                    return null;
+                }
+            },
+            because: "Login page should show the 'Welcome back' hero heading.");
+
+        var signInButton = _browser.WaitFor(
+            driver =>
+            {
+                try
+                {
+                    var button = driver.FindElement(By.CssSelector("form.auth-form button.nn-btn-primary"));
+                    return button.Text.Contains("Sign in", StringComparison.OrdinalIgnoreCase) ? button : null;
+                }
+                catch (NoSuchElementException)
+                {
+                    return null;
+                }
+            },
+            because: "Login form should expose a primary submit button labeled 'Sign in' (not the legacy btn-login class).");
+
+        Assert.Contains("Welcome back", heading.Text, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Sign in", signInButton.Text, StringComparison.OrdinalIgnoreCase);
     }
 
-    public void Smoke_DeerfieldRetreatPropertyPageLoads()
+    [Fact]
+    public void RegisterPage_ShowsCreateAccountForm()
     {
-        _driver.Navigate().GoToUrl($@"{BaseUrl}");
-        var title = WaitForElement(By.ClassName("title"));
-        Assert.Equal("Deerfield Retreat", title.Text.Trim());
-    }
+        _browser.Navigate("/register");
 
-    private IWebElement WaitForElement(By by, int timeoutSeconds = 10)
-    {
-        var wait = new WebDriverWait(new SystemClock(), _driver,
-            TimeSpan.FromSeconds(timeoutSeconds),
-            TimeSpan.FromMilliseconds(500));
+        var heading = _browser.WaitFor(
+            driver =>
+            {
+                try
+                {
+                    var el = driver.FindElement(By.CssSelector("h1.guide-hero-title"));
+                    return el.Text.Contains("Create an account", StringComparison.OrdinalIgnoreCase) ? el : null;
+                }
+                catch (NoSuchElementException)
+                {
+                    return null;
+                }
+            },
+            because: "Register page should show the 'Create an account' hero heading.");
 
-        return wait.Until(drv => drv.FindElement(by));
+        var createButton = _browser.WaitFor(
+            driver =>
+            {
+                try
+                {
+                    var button = driver.FindElement(By.CssSelector("button.nn-btn-primary[type='submit']"));
+                    return button.Text.Contains("Create account", StringComparison.OrdinalIgnoreCase) ? button : null;
+                }
+                catch (NoSuchElementException)
+                {
+                    return null;
+                }
+            },
+            because: "Register form should expose a submit button labeled 'Create account'.");
+
+        Assert.Contains("Create an account", heading.Text, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Create account", createButton.Text, StringComparison.OrdinalIgnoreCase);
     }
 }

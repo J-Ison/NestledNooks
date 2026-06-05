@@ -1,0 +1,247 @@
+@page "/account/manage/contact"
+@layout NestledNooks.Components.Layout.MainLayout
+@rendermode InteractiveServer
+
+@using Microsoft.AspNetCore.Authorization
+@using NestledNooks.Data
+@using NestledNooks.Services
+
+@attribute [Authorize(Roles = AppRoles.Owner)]
+
+@inject IContactInquiryService ContactInquiryService
+
+<PageTitle>Contact inquiries · @SiteBranding.Name</PageTitle>
+
+<div class="mgmt-page">
+    <header class="mgmt-hero">
+        <div class="mgmt-wrap">
+            <p class="mgmt-hero-eyebrow">@SiteBranding.Name · Owner tools</p>
+            <h1 class="mgmt-hero-title">Contact inquiries</h1>
+            <p class="mgmt-hero-lead">
+                Public contact form submissions — separate from in-app Messages.
+                Verified inquiries are tied to a signed-in account; anonymous ones are labeled unverified.
+            </p>
+        </div>
+    </header>
+
+    <main class="mgmt-wrap mgmt-main">
+        @if (_loading)
+        {
+            <p class="nn-loading">Loading inquiries…</p>
+        }
+        else
+        {
+            @if (!string.IsNullOrEmpty(_success))
+            {
+                <p class="nn-note nn-note--success">@_success</p>
+            }
+
+            @if (!string.IsNullOrEmpty(_error))
+            {
+                <p class="nn-note nn-note--error">@_error</p>
+            }
+
+            <section class="theme-panel user-admin-toolbar">
+                <div class="user-admin-filters">
+                    <div class="nn-form-group user-admin-role-filter">
+                        <label for="inquiry-status">Status</label>
+                        <select id="inquiry-status" class="nn-form-control" @bind="_statusFilter" @bind:after="ReloadAsync">
+                            <option value="all">All</option>
+                            @foreach (var status in ContactInquiryStatuses.All)
+                            {
+                                <option value="@status">@status</option>
+                            }
+                        </select>
+                    </div>
+                </div>
+                <p class="user-admin-count">@_inquiries.Count inquiry@(_inquiries.Count == 1 ? "" : "ies")</p>
+            </section>
+
+            @if (_inquiries.Count == 0)
+            {
+                <div class="mgmt-empty">
+                    <p>No contact inquiries yet.</p>
+                </div>
+            }
+            else
+            {
+                <div class="contact-inquiry-layout">
+                    <div class="contact-inquiry-list">
+                        @foreach (var item in _inquiries)
+                        {
+                            <button type="button"
+                                    class="contact-inquiry-item @(_selectedId == item.Id ? "is-selected" : "") @(item.Status == ContactInquiryStatuses.New ? "is-new" : "")"
+                                    @onclick="() => SelectAsync(item.Id)">
+                                <span class="contact-inquiry-item-top">
+                                    <strong>@item.DisplayName</strong>
+                                    @if (item.IsVerifiedAccount)
+                                    {
+                                        <span class="mgmt-badge mgmt-badge--published">Verified</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="mgmt-badge mgmt-badge--status">Unverified</span>
+                                    }
+                                </span>
+                                <span class="contact-inquiry-item-meta">@item.ReplyEmail · @FormatWhen(item.SubmittedAtUtc)</span>
+                                <span class="contact-inquiry-item-preview">@item.Preview</span>
+                            </button>
+                        }
+                    </div>
+
+                    @if (_detail is not null)
+                    {
+                        <article class="contact-inquiry-detail theme-panel">
+                            <header class="contact-inquiry-detail-head">
+                                <h2>@_detail.DisplayName</h2>
+                                <p>
+                                    <a class="mgmt-link" href="@($"mailto:{_detail.ReplyEmail}")">@_detail.ReplyEmail</a>
+                                    · @FormatWhen(_detail.SubmittedAtUtc)
+                                </p>
+                                <p>
+                                    @if (_detail.IsVerifiedAccount)
+                                    {
+                                        <span class="mgmt-badge mgmt-badge--published">Verified account</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="mgmt-badge mgmt-badge--status">Unverified form</span>
+                                    }
+                                    <span class="mgmt-badge mgmt-badge--status">@_detail.Status</span>
+                                </p>
+                                @if (_detail.IsVerifiedAccount && !string.IsNullOrEmpty(_detail.SubmittedByUserId))
+                                {
+                                    <p class="contact-inquiry-detail-hint">
+                                        <a class="mgmt-link" href="/account/messages/compose?to=@_detail.SubmittedByUserId">Message this guest</a>
+                                        (in-app, account-linked)
+                                    </p>
+                                }
+                            </header>
+
+                            <div class="contact-inquiry-detail-body">
+                                <p>@_detail.Message</p>
+                            </div>
+
+                            <div class="nn-form-group">
+                                <label for="owner-notes">Owner notes</label>
+                                <textarea id="owner-notes" class="nn-form-control" rows="3" @bind="_ownerNotes"></textarea>
+                            </div>
+
+                            <div class="nn-form-group">
+                                <label for="inquiry-status-edit">Status</label>
+                                <select id="inquiry-status-edit" class="nn-form-control" @bind="_editStatus">
+                                    @foreach (var status in ContactInquiryStatuses.All)
+                                    {
+                                        <option value="@status">@status</option>
+                                    }
+                                </select>
+                            </div>
+
+                            <button type="button" class="nn-btn-primary" disabled="@_saving" @onclick="SaveDetailAsync">
+                                @(_saving ? "Saving…" : "Save")
+                            </button>
+                        </article>
+                    }
+                </div>
+            }
+        }
+    </main>
+</div>
+
+@code {
+    private bool _loading = true;
+    private bool _saving;
+    private string _statusFilter = "all";
+    private string? _success;
+    private string? _error;
+    private int? _selectedId;
+    private string _ownerNotes = "";
+    private string _editStatus = ContactInquiryStatuses.New;
+    private IReadOnlyList<ContactInquiryListItem> _inquiries = [];
+    private ContactInquiryDetail? _detail;
+
+    protected override async Task OnInitializedAsync() => await ReloadAsync();
+
+    private async Task ReloadAsync()
+    {
+        _loading = true;
+        _error = null;
+
+        try
+        {
+            _inquiries = await ContactInquiryService.GetInboxAsync(_statusFilter);
+            if (_selectedId.HasValue)
+                await LoadDetailAsync(_selectedId.Value);
+        }
+        catch
+        {
+            _error = "Could not load contact inquiries.";
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task SelectAsync(int id)
+    {
+        _selectedId = id;
+        _success = null;
+        _error = null;
+        await LoadDetailAsync(id);
+        await ContactInquiryService.MarkReadAsync(id);
+        await RefreshInboxAsync();
+    }
+
+    private async Task RefreshInboxAsync()
+    {
+        _inquiries = await ContactInquiryService.GetInboxAsync(_statusFilter);
+        if (_selectedId.HasValue)
+            await LoadDetailAsync(_selectedId.Value);
+    }
+
+    private async Task LoadDetailAsync(int id)
+    {
+        _detail = await ContactInquiryService.GetDetailAsync(id);
+        if (_detail is null)
+            return;
+
+        _ownerNotes = _detail.OwnerNotes ?? "";
+        _editStatus = _detail.Status;
+    }
+
+    private async Task SaveDetailAsync()
+    {
+        if (_detail is null || _saving)
+            return;
+
+        _saving = true;
+        _success = null;
+        _error = null;
+
+        try
+        {
+            var result = await ContactInquiryService.UpdateAsync(_detail.Id, new ContactInquiryUpdateRequest
+            {
+                Status = _editStatus,
+                OwnerNotes = _ownerNotes,
+            });
+
+            if (!result.Succeeded)
+            {
+                _error = result.ErrorMessage ?? "Could not save.";
+                return;
+            }
+
+            _success = "Inquiry updated.";
+            await RefreshInboxAsync();
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private static string FormatWhen(DateTime utc) =>
+        utc.ToLocalTime().ToString("MMM d, yyyy h:mm tt");
+}

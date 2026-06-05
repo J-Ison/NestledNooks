@@ -33,7 +33,7 @@
                     <div>
                         <h2 class="guide-card-title">@(isSubmitted ? "You're all set" : "Account details")</h2>
                         <p class="guide-card-subtitle">
-                            @(isSubmitted ? "You can sign in whenever you're ready." : "We use this for booking confirmations")
+                            @(isSubmitted ? "You can sign in whenever you're ready." : "Your name appears in messages and booking confirmations")
                         </p>
                     </div>
                 </header>
@@ -44,8 +44,14 @@
                         <ValidationSummary class="nn-note nn-note--error auth-validation" />
 
                         <div class="nn-form-group">
-                            <label for="username">Username</label>
-                            <InputText id="username" class="nn-form-control" @bind-Value="model.Username" />
+                            <label for="nickname">Nickname</label>
+                            <InputText id="nickname"
+                                       class="nn-form-control"
+                                       @bind-Value="model.Nickname"
+                                       autocomplete="name"
+                                       placeholder="Jane or Jane Smith" />
+                            <p class="nn-field-hint">One word or first and last name — this is how you appear in messages.</p>
+                            <ValidationMessage For="() => model.Nickname" />
                         </div>
 
                         <div class="nn-form-group">
@@ -107,10 +113,11 @@
 
     private RegisterModel model = new();
 
-    private sealed class RegisterModel
+    private sealed class RegisterModel : IValidatableObject
     {
-        [Required]
-        public string? Username { get; set; }
+        [Required(ErrorMessage = "Please enter a nickname.")]
+        [Display(Name = "Nickname")]
+        public string? Nickname { get; set; }
 
         [Required, EmailAddress]
         public string? Email { get; set; }
@@ -123,6 +130,17 @@
 
         [Required, Compare(nameof(Password), ErrorMessage = "Passwords do not match.")]
         public string? ConfirmPassword { get; set; }
+
+        public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+        {
+            var nickname = UserNicknames.ValidateRegistrationName(Nickname);
+            if (!nickname.Succeeded)
+            {
+                yield return new ValidationResult(
+                    nickname.ErrorMessage,
+                    [nameof(Nickname)]);
+            }
+        }
     }
 
     private async Task HandleRegistrationAsync()
@@ -141,13 +159,10 @@
                 return;
             }
 
-            var usernameToUse = string.IsNullOrWhiteSpace(model.Username)
-                ? model.Email!
-                : model.Username;
-
-            if (await UserManager.FindByNameAsync(usernameToUse) != null)
+            var nicknameResult = UserNicknames.ValidateRegistrationName(model.Nickname);
+            if (!nicknameResult.Succeeded)
             {
-                statusMessage = "That username is already taken.";
+                statusMessage = nicknameResult.ErrorMessage ?? "Please enter a valid nickname.";
                 return;
             }
 
@@ -160,8 +175,9 @@
 
             var user = new ApplicationUser
             {
-                UserName = usernameToUse,
+                UserName = model.Email,
                 Email = model.Email,
+                Nickname = nicknameResult.Normalized,
                 PhoneNumber = model.PhoneNumber
             };
 

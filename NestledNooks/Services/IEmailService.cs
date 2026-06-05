@@ -4,6 +4,8 @@ public interface IEmailService
 {
     Task SendContactEmail(string name, string fromEmail, string message);
 
+    Task SendContactInquiryEmail(ContactInquiryEmailPayload payload);
+
     Task SendBookingRequestEmail(BookingRequestEmailPayload payload);
 
     Task SendBookingRequestGuestConfirmationEmail(BookingRequestEmailPayload payload);

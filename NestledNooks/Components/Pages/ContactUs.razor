@@ -1,7 +1,13 @@
 ﻿@page "/contact"
+@rendermode InteractiveServer
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Identity
+@using NestledNooks.Data
 @using NestledNooks.Models
 @using NestledNooks.Services
-@inject IEmailService EmailService
+@inject IContactInquiryService ContactInquiryService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject UserManager<ApplicationUser> UserManager
 
 <PageTitle>@SiteBranding.PageTitle("Contact")</PageTitle>
 <HeadContent>
@@ -20,30 +26,67 @@
     </header>
 
     <main class="wrap guide-main">
+        @if (_isSignedIn)
+        {
+            <div class="nn-note nn-note--success contact-trust-banner">
+                <strong>Signed in as @_accountLabel.</strong>
+                Inquiries you send here are tied to your account (verified).
+                For ongoing conversation with your host, use
+                <a class="guide-link" href="/account/messages/compose">Messages</a>.
+            </div>
+        }
+        else
+        {
+            <div class="nn-note contact-trust-banner">
+                <strong>Not signed in.</strong>
+                This form is for general questions. Anyone can type any name or email — we treat it as
+                <em>unverified</em> until you create an account.
+                Already registered?
+                <a class="guide-link" href="/login">Sign in</a>
+                to message your host securely.
+            </div>
+        }
+
         <article class="guide-card guide-card--contact">
             <header class="guide-card-header">
                 <span class="guide-card-icon" aria-hidden="true">✉️</span>
                 <div>
                     <h2 class="guide-card-title">Send a message</h2>
-                    <p class="guide-card-subtitle">We read every note — usually within one business day</p>
+                    <p class="guide-card-subtitle">
+                        @(_isSignedIn
+                            ? "Saved to our contact queue as your verified account"
+                            : "We read every note — usually within one business day")
+                    </p>
                 </div>
             </header>
 
             <div class="guide-card-body">
                 <EditForm Model="@contactModel" OnValidSubmit="SendMessage">
                     <DataAnnotationsValidator />
+                    <ValidationSummary class="nn-note nn-note--error auth-validation" />
 
-                    <div class="nn-form-group">
-                        <label for="name">Your name</label>
-                        <InputText id="name" class="nn-form-control" @bind-Value="contactModel.Name" />
-                        <ValidationMessage For="() => contactModel.Name" class="validation-message" />
-                    </div>
+                    @if (!_isSignedIn)
+                    {
+                        <div class="nn-form-group">
+                            <label for="name">Your name</label>
+                            <InputText id="name" class="nn-form-control" @bind-Value="contactModel.Name" />
+                            <ValidationMessage For="() => contactModel.Name" class="validation-message" />
+                        </div>
 
-                    <div class="nn-form-group">
-                        <label for="email">Your email</label>
-                        <InputText id="email" type="email" class="nn-form-control" @bind-Value="contactModel.Email" />
-                        <ValidationMessage For="() => contactModel.Email" class="validation-message" />
-                    </div>
+                        <div class="nn-form-group">
+                            <label for="email">Your email</label>
+                            <InputText id="email" type="email" class="nn-form-control" @bind-Value="contactModel.Email" />
+                            <ValidationMessage For="() => contactModel.Email" class="validation-message" />
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="contact-verified-fields">
+                            <p><strong>Name:</strong> @_accountDisplayName</p>
+                            <p><strong>Email:</strong> @_accountEmail</p>
+                            <p class="contact-verified-hint">Taken from your account — not editable here so inquiries stay tied to you.</p>
+                        </div>
+                    }
 
                     <div class="nn-form-group">
                         <label for="message">Your message</label>
@@ -75,7 +118,33 @@
 @code {
     private ContactFormModel contactModel = new();
     private bool isSending;
+    private bool _isSignedIn;
+    private string? _userId;
+    private string _accountLabel = "";
+    private string _accountDisplayName = "";
+    private string _accountEmail = "";
     private string statusMessage = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var auth = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = auth.User;
+        _isSignedIn = user.Identity?.IsAuthenticated == true;
+        _userId = user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+
+        if (_isSignedIn && !string.IsNullOrEmpty(_userId))
+        {
+            var account = await UserManager.FindByIdAsync(_userId);
+            if (account is not null)
+            {
+                _accountEmail = account.Email ?? account.UserName ?? "";
+                _accountDisplayName = UserDisplayNames.Format(account.Email, account.UserName, account.Nickname);
+                _accountLabel = _accountDisplayName;
+            }
+        }
+
+        contactModel.RequireIdentityFields = !_isSignedIn;
+    }
 
     private async Task SendMessage()
     {
@@ -84,12 +153,23 @@
 
         try
         {
-            await EmailService.SendContactEmail(
-                contactModel.Name,
-                contactModel.Email,
-                contactModel.Message);
+            var result = await ContactInquiryService.SubmitAsync(new ContactInquirySubmitRequest
+            {
+                ActingUserId = _userId,
+                SelfReportedName = contactModel.Name,
+                SelfReportedEmail = contactModel.Email,
+                Message = contactModel.Message,
+            });
 
-            statusMessage = "Thanks! Your message has been sent.";
+            if (!result.Succeeded)
+            {
+                statusMessage = result.ErrorMessage ?? "Something went wrong. Please try again.";
+                return;
+            }
+
+            statusMessage = _isSignedIn
+                ? "Thanks! Your inquiry was saved and linked to your account. We will reply soon."
+                : "Thanks! Your message was sent. We will reply to the email you provided.";
             contactModel = new();
         }
         catch
@@ -99,6 +179,7 @@
         finally
         {
             isSending = false;
+            StateHasChanged();
         }
     }
 }

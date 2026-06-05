@@ -20,13 +20,13 @@ jobs:
           dotnet-version: '8.0.x'
 
       - name: Restore
-        run: dotnet restore ./NestledNooks/NestledNooks.csproj
+        run: dotnet restore ./NestledNooks.sln
 
       - name: Build
-        run: dotnet build ./NestledNooks/NestledNooks.csproj --configuration Release --no-restore
+        run: dotnet build ./NestledNooks.sln --configuration Release --no-restore
 
-      # - name: Run Tests
-      #   run: dotnet test ./NestledNooks.Tests/NestledNooks.Tests.csproj --configuration Release --no-build
+      - name: Run functional tests (exclude browser E2E)
+        run: dotnet test ./NestledNooks.Tests/NestledNooks.Tests.csproj --configuration Release --no-build --filter "Category!=E2E"
 
       - name: Publish
         run: dotnet publish ./NestledNooks/NestledNooks.csproj --configuration Release --output ./publish

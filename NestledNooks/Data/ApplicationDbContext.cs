@@ -14,6 +14,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<MessageThread> MessageThreads => Set<MessageThread>();
     public DbSet<MessageThreadParticipant> MessageThreadParticipants => Set<MessageThreadParticipant>();
     public DbSet<Message> Messages => Set<Message>();
+    public DbSet<ContactInquiry> ContactInquiries => Set<ContactInquiry>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -131,6 +132,23 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
                 .WithMany()
                 .HasForeignKey(x => x.SenderUserId)
                 .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        builder.Entity<ContactInquiry>(e =>
+        {
+            e.Property(x => x.DisplayName).HasMaxLength(200).IsRequired();
+            e.Property(x => x.ReplyEmail).HasMaxLength(256).IsRequired();
+            e.Property(x => x.Message).HasMaxLength(4000).IsRequired();
+            e.Property(x => x.Status).HasMaxLength(40).IsRequired();
+            e.Property(x => x.OwnerNotes).HasMaxLength(2000);
+
+            e.HasIndex(x => x.SubmittedAtUtc);
+            e.HasIndex(x => x.Status);
+
+            e.HasOne(x => x.SubmittedByUser)
+                .WithMany()
+                .HasForeignKey(x => x.SubmittedByUserId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
     }
 }

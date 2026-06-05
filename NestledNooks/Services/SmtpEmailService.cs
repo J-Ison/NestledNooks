@@ -33,6 +33,45 @@ public sealed class SmtpEmailService : IEmailService
         return SendMimeAsync(mime, "contact email");
     }
 
+    public Task SendContactInquiryEmail(ContactInquiryEmailPayload payload)
+    {
+        var mime = new MimeMessage();
+        mime.From.Add(new MailboxAddress(_options.FromName, _options.FromEmail));
+        mime.To.Add(MailboxAddress.Parse(_options.ToEmail));
+
+        var trustLabel = payload.IsVerifiedAccount
+            ? "Verified account inquiry"
+            : "Unverified form inquiry";
+
+        mime.Subject = $"[{trustLabel}] Contact #{payload.InquiryId} — {payload.DisplayName}";
+
+        try
+        {
+            mime.ReplyTo.Add(MailboxAddress.Parse(payload.ReplyEmail));
+        }
+        catch
+        {
+            // Owner still receives the inquiry in-app even if reply-to is invalid.
+        }
+
+        var bodyBuilder = new BodyBuilder
+        {
+            TextBody =
+                $"Contact inquiry #{payload.InquiryId}\r\n" +
+                $"Trust: {(payload.IsVerifiedAccount ? "Verified signed-in account" : "Anonymous form — identity not verified")}\r\n" +
+                (payload.IsVerifiedAccount && !string.IsNullOrEmpty(payload.SubmittedByUserId)
+                    ? $"Account id: {payload.SubmittedByUserId}\r\n"
+                    : "") +
+                $"Name: {payload.DisplayName}\r\n" +
+                $"Reply email: {payload.ReplyEmail}\r\n\r\n" +
+                $"Message:\r\n{payload.Message}\r\n\r\n" +
+                "View and manage this inquiry in Manage contact (owner tools)."
+        };
+
+        mime.Body = bodyBuilder.ToMessageBody();
+        return SendMimeAsync(mime, "contact inquiry email");
+    }
+
     public Task SendBookingRequestEmail(BookingRequestEmailPayload payload)
     {
         var mime = new MimeMessage();

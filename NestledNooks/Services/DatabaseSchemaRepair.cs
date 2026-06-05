@@ -13,6 +13,7 @@ public static class DatabaseSchemaRepair
     {
         await EnsureAspNetUserProfileColumnsAsync(db, logger, cancellationToken).ConfigureAwait(false);
         await EnsureMessagingTablesAsync(db, logger, cancellationToken).ConfigureAwait(false);
+        await EnsureContactInquiryTableAsync(db, logger, cancellationToken).ConfigureAwait(false);
     }
 
     public static async Task EnsureAspNetUserProfileColumnsAsync(
@@ -87,5 +88,38 @@ public static class DatabaseSchemaRepair
             cancellationToken).ConfigureAwait(false);
 
         logger.LogInformation("Verified messaging tables (MessageThreads, MessageThreadParticipants, Messages).");
+    }
+
+    public static async Task EnsureContactInquiryTableAsync(
+        ApplicationDbContext db,
+        ILogger logger,
+        CancellationToken cancellationToken = default)
+    {
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            IF OBJECT_ID(N'[ContactInquiries]', N'U') IS NULL
+            BEGIN
+                CREATE TABLE [ContactInquiries] (
+                    [Id] int NOT NULL IDENTITY(1,1),
+                    [SubmittedAtUtc] datetime2 NOT NULL,
+                    [DisplayName] nvarchar(200) NOT NULL,
+                    [ReplyEmail] nvarchar(256) NOT NULL,
+                    [Message] nvarchar(4000) NOT NULL,
+                    [SubmittedByUserId] nvarchar(450) NULL,
+                    [IsVerifiedAccount] bit NOT NULL,
+                    [Status] nvarchar(40) NOT NULL,
+                    [ReadAtUtc] datetime2 NULL,
+                    [OwnerNotes] nvarchar(2000) NULL,
+                    CONSTRAINT [PK_ContactInquiries] PRIMARY KEY ([Id]),
+                    CONSTRAINT [FK_ContactInquiries_AspNetUsers_SubmittedByUserId]
+                        FOREIGN KEY ([SubmittedByUserId]) REFERENCES [AspNetUsers] ([Id]) ON DELETE SET NULL
+                );
+                CREATE INDEX [IX_ContactInquiries_SubmittedAtUtc] ON [ContactInquiries] ([SubmittedAtUtc]);
+                CREATE INDEX [IX_ContactInquiries_Status] ON [ContactInquiries] ([Status]);
+            END
+            """,
+            cancellationToken).ConfigureAwait(false);
+
+        logger.LogInformation("Verified ContactInquiries table.");
     }
 }
