@@ -66,6 +66,7 @@ builder.Services.AddScoped<IPropertyService, PropertyService>();
 builder.Services.AddScoped<IUserAdminService, UserAdminService>();
 builder.Services.AddScoped<IMessagingService, MessagingService>();
 builder.Services.AddScoped<IContactInquiryService, ContactInquiryService>();
+builder.Services.AddScoped<IQrCodeService, QrCodeService>();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddDistributedMemoryCache();
 builder.Services.AddSession(options =>
@@ -172,6 +173,17 @@ _ = Task.Run(async () =>
         catch (Exception ex)
         {
             logger.LogWarning(ex, "Site theme seed skipped.");
+        }
+
+        try
+        {
+            await scope.ServiceProvider.GetRequiredService<IQrCodeService>()
+                .EnsureSeededAsync()
+                .ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Site QR settings seed skipped.");
         }
 
         try

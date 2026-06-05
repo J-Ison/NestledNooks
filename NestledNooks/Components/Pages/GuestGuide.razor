@@ -1,5 +1,7 @@
 @page "/properties/deerfield-retreat/guide"
 @rendermode InteractiveServer
+@using NestledNooks.Services
+@inject IQrCodeService QrCodes
 
 <PageTitle>@SiteBranding.PageTitle("Guest guide — Deerfield Retreat")</PageTitle>
 <HeadContent>
@@ -19,6 +21,30 @@
     </header>
 
     <main class="wrap guide-main">
+        @if (!string.IsNullOrEmpty(_guestGuideQrPath))
+        {
+            <aside class="guide-qr-card" aria-label="Guest guide QR code">
+                <div class="guide-qr-card-copy">
+                    <h2 class="guide-qr-card-title">Scan this guide</h2>
+                    <p class="guide-qr-card-lead">
+                        Save or share this QR so guests can open the Deerfield Retreat guest guide on their phone.
+                    </p>
+                    @if (!string.IsNullOrEmpty(_guestGuideQrUrl))
+                    {
+                        <p class="guide-qr-card-url">
+                            <a class="guide-link" href="@_guestGuideQrUrl" target="_blank" rel="noopener">@_guestGuideQrUrl</a>
+                        </p>
+                    }
+                </div>
+                <img src="@_guestGuideQrPath"
+                     alt="QR code linking to the Deerfield Retreat guest guide"
+                     class="guide-qr-card-image"
+                     width="180"
+                     height="180"
+                     loading="lazy" />
+            </aside>
+        }
+
         <nav class="guide-nav" aria-label="Guide sections">
             <button type="button"
                     class="@NavPillClass("house", "guide-nav-pill--house")"
@@ -176,6 +202,15 @@
 
 @code {
     private string _section = "house";
+    private string? _guestGuideQrPath;
+    private string? _guestGuideQrUrl;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _guestGuideQrUrl = await QrCodes.GetDeerfieldGuestGuideUrlAsync();
+        if (!string.IsNullOrEmpty(_guestGuideQrUrl))
+            _guestGuideQrPath = IQrCodeService.DeerfieldGuestGuideQrCodePublicPath;
+    }
 
     private void SelectSection(string section)
     {

@@ -1,0 +1,369 @@
+@page "/account/manage/qr-codes"
+@layout NestledNooks.Components.Layout.MainLayout
+@rendermode InteractiveServer
+
+@using Microsoft.AspNetCore.Authorization
+@using NestledNooks.Data
+@using NestledNooks.Services
+
+@attribute [Authorize(Roles = AppRoles.Owner)]
+
+@inject IQrCodeService QrCodes
+@inject NavigationManager Navigation
+
+<PageTitle>QR codes · @SiteBranding.Name</PageTitle>
+
+<div class="mgmt-page">
+    <header class="mgmt-hero">
+        <div class="mgmt-wrap">
+            <p class="mgmt-hero-eyebrow">@SiteBranding.Name · Owner tools</p>
+            <h1 class="mgmt-hero-title">QR codes</h1>
+            <p class="mgmt-hero-lead">
+                Generate static QR codes for any URL. Save one as your main site QR so print materials and signage always match.
+            </p>
+        </div>
+    </header>
+
+    <main class="mgmt-wrap mgmt-main">
+        @if (_loading)
+        {
+            <p class="nn-loading">Loading QR settings…</p>
+        }
+        else
+        {
+            @if (!string.IsNullOrEmpty(_success))
+            {
+                <p class="nn-note nn-note--success">@_success</p>
+            }
+
+            @if (!string.IsNullOrEmpty(_error))
+            {
+                <p class="nn-note nn-note--error">@_error</p>
+            }
+
+            <section class="theme-panel qr-panel">
+                <h2 class="theme-panel-title">Main site QR code</h2>
+                <p class="theme-panel-lead">
+                    This is the canonical QR for @SiteBranding.Name. Use the stable link below on business cards, flyers, and signage.
+                </p>
+
+                @if (!string.IsNullOrEmpty(_mainUrl))
+                {
+                    <div class="qr-main-summary">
+                        <p><strong>Saved URL:</strong> <a class="guide-link" href="@_mainUrl" target="_blank" rel="noopener">@_mainUrl</a></p>
+                        @if (_mainUpdatedAtUtc is not null)
+                        {
+                            <p class="qr-meta">Last updated @_mainUpdatedAtUtc.Value.ToLocalTime().ToString("f")</p>
+                        }
+                        <p class="qr-meta">
+                            <strong>Stable PNG link:</strong>
+                            <a class="guide-link" href="@_mainPublicPath" target="_blank" rel="noopener">@GetAbsoluteUrl(_mainPublicPath)</a>
+                        </p>
+                    </div>
+
+                    <div class="qr-preview-wrap">
+                        <img src="@_mainPreviewDataUrl"
+                             alt="Main site QR code"
+                             class="qr-preview-image"
+                             width="240"
+                             height="240" />
+                    </div>
+
+                    <div class="qr-actions">
+                        <a class="nn-btn-primary qr-download-btn"
+                           href="@_mainPublicPath"
+                           download="nestled-nooks-main-qrcode.png"
+                           target="_blank"
+                           rel="noopener">
+                            Download main PNG
+                        </a>
+                    </div>
+                }
+                else
+                {
+                    <p class="nn-note">No main QR URL saved yet. Generate one below and click <strong>Save as main site QR</strong>.</p>
+                }
+            </section>
+
+            <section class="theme-panel qr-panel">
+                <h2 class="theme-panel-title">Deerfield Retreat guest guide QR</h2>
+                <p class="theme-panel-lead">
+                    Shown at the top of the guest guide page and for in-house printouts. Guests scan to open
+                    <code>/properties/deerfield-retreat/guide</code>.
+                </p>
+
+                @if (!string.IsNullOrEmpty(_guestGuideUrl))
+                {
+                    <div class="qr-main-summary">
+                        <p><strong>Saved URL:</strong> <a class="guide-link" href="@_guestGuideUrl" target="_blank" rel="noopener">@_guestGuideUrl</a></p>
+                        <p class="qr-meta">
+                            <strong>Stable PNG link:</strong>
+                            <a class="guide-link" href="@_guestGuidePublicPath" target="_blank" rel="noopener">@GetAbsoluteUrl(_guestGuidePublicPath)</a>
+                        </p>
+                        <p class="qr-meta">
+                            <strong>On site:</strong>
+                            <a class="guide-link" href="/properties/deerfield-retreat/guide" target="_blank" rel="noopener">Guest guide page</a>
+                        </p>
+                    </div>
+
+                    <div class="qr-preview-wrap">
+                        <img src="@_guestGuidePreviewDataUrl"
+                             alt="Deerfield Retreat guest guide QR code"
+                             class="qr-preview-image"
+                             width="240"
+                             height="240" />
+                    </div>
+
+                    <div class="qr-actions">
+                        <a class="nn-btn-primary qr-download-btn"
+                           href="@_guestGuidePublicPath"
+                           download="deerfield-retreat-guest-guide-qrcode.png"
+                           target="_blank"
+                           rel="noopener">
+                            Download guest guide PNG
+                        </a>
+                    </div>
+                }
+                else
+                {
+                    <p class="nn-note">
+                        No guest guide QR saved yet. Use the generator below and click
+                        <strong>Save as Deerfield guest guide QR</strong>.
+                    </p>
+                }
+            </section>
+
+            <section class="theme-panel qr-panel">
+                <h2 class="theme-panel-title">Generate a QR code</h2>
+                <p class="theme-panel-lead">Enter any http or https URL. Preview first, then save it as your main site QR or the Deerfield guest guide QR.</p>
+
+                <div class="nn-form-group">
+                    <label for="qr-url">Website URL</label>
+                    <input id="qr-url"
+                           class="nn-form-control"
+                           @bind="_draftUrl"
+                           @bind:event="oninput"
+                           placeholder="https://backhillsnestlednooks.com/properties/deerfield-retreat/guide" />
+                    <p class="nn-field-hint">You can paste a full URL or just a domain — we will add https:// when needed.</p>
+                </div>
+
+                <div class="qr-actions">
+                    <button type="button"
+                            class="nn-btn-primary"
+                            disabled="@_generating"
+                            @onclick="GeneratePreviewAsync">
+                        @(_generating ? "Generating…" : "Generate preview")
+                    </button>
+
+                    <button type="button"
+                            class="guide-footer-btn guide-footer-btn--primary"
+                            disabled="@(_saving || string.IsNullOrEmpty(_previewUrl))"
+                            @onclick="SaveAsMainAsync">
+                        @(_saving ? "Saving…" : "Save as main site QR")
+                    </button>
+
+                    <button type="button"
+                            class="guide-footer-btn guide-footer-btn--secondary"
+                            disabled="@(_savingGuestGuide || string.IsNullOrEmpty(_previewUrl))"
+                            @onclick="SaveAsGuestGuideAsync">
+                        @(_savingGuestGuide ? "Saving…" : "Save as Deerfield guest guide QR")
+                    </button>
+                </div>
+
+                @if (!string.IsNullOrEmpty(_previewError))
+                {
+                    <p class="nn-note nn-note--error">@_previewError</p>
+                }
+
+                @if (!string.IsNullOrEmpty(_previewDataUrl))
+                {
+                    <div class="qr-preview-wrap">
+                        <p class="qr-meta"><strong>Preview encodes:</strong> @_previewUrl</p>
+                        <img src="@_previewDataUrl"
+                             alt="QR code preview"
+                             class="qr-preview-image"
+                             width="240"
+                             height="240" />
+                    </div>
+
+                    <div class="qr-actions">
+                        <a class="guide-footer-btn guide-footer-btn--secondary qr-download-btn"
+                           href="@_previewDataUrl"
+                           download="qrcode-preview.png">
+                            Download preview PNG
+                        </a>
+                    </div>
+                }
+            </section>
+        }
+    </main>
+</div>
+
+@code {
+    private bool _loading = true;
+    private bool _generating;
+    private bool _saving;
+    private bool _savingGuestGuide;
+    private string _draftUrl = QrCodeService.DefaultDeerfieldGuestGuideQrCodeUrl;
+    private string? _mainUrl;
+    private string? _guestGuideUrl;
+    private DateTime? _mainUpdatedAtUtc;
+    private string? _mainPreviewDataUrl;
+    private string? _guestGuidePreviewDataUrl;
+    private string? _previewUrl;
+    private string? _previewDataUrl;
+    private string? _previewError;
+    private string _success = "";
+    private string _error = "";
+    private readonly string _mainPublicPath = IQrCodeService.MainQrCodePublicPath;
+    private readonly string _guestGuidePublicPath = IQrCodeService.DeerfieldGuestGuideQrCodePublicPath;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        _error = "";
+
+        try
+        {
+            var settings = await QrCodes.GetSettingsAsync();
+            _mainUrl = settings.MainQrCodeUrl;
+            _guestGuideUrl = settings.DeerfieldGuestGuideQrCodeUrl;
+            _mainUpdatedAtUtc = settings.UpdatedAtUtc;
+
+            if (!string.IsNullOrEmpty(_mainUrl))
+            {
+                var mainPng = QrCodes.GeneratePng(_mainUrl);
+                _mainPreviewDataUrl = QrCodes.ToDataUrl(mainPng);
+            }
+
+            if (!string.IsNullOrEmpty(_guestGuideUrl))
+            {
+                _draftUrl = _guestGuideUrl;
+                var guidePng = QrCodes.GeneratePng(_guestGuideUrl);
+                _guestGuidePreviewDataUrl = QrCodes.ToDataUrl(guidePng);
+            }
+            else if (!string.IsNullOrEmpty(_mainUrl))
+            {
+                _draftUrl = _mainUrl;
+            }
+        }
+        catch (Exception ex)
+        {
+            _error = $"Could not load QR settings: {ex.Message}";
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task GeneratePreviewAsync()
+    {
+        _generating = true;
+        _previewError = "";
+        _previewDataUrl = null;
+        _previewUrl = null;
+        _success = "";
+
+        try
+        {
+            var normalized = QrCodes.NormalizeUrl(_draftUrl);
+            if (!normalized.Succeeded || normalized.NormalizedUrl is null)
+            {
+                _previewError = normalized.ErrorMessage ?? "Enter a valid URL.";
+                return;
+            }
+
+            _previewUrl = normalized.NormalizedUrl;
+            var png = QrCodes.GeneratePng(_previewUrl);
+            _previewDataUrl = QrCodes.ToDataUrl(png);
+        }
+        finally
+        {
+            _generating = false;
+        }
+
+        await Task.CompletedTask;
+    }
+
+    private async Task SaveAsMainAsync()
+    {
+        _saving = true;
+        _error = "";
+        _success = "";
+
+        try
+        {
+            var urlToSave = _previewUrl ?? _draftUrl;
+            var result = await QrCodes.SaveMainUrlAsync(urlToSave);
+            if (!result.Succeeded)
+            {
+                _error = result.ErrorMessage ?? "Could not save main QR URL.";
+                return;
+            }
+
+            _success = $"Main site QR saved for {result.SavedUrl}. Use the stable PNG link above on all materials.";
+            await LoadAsync();
+
+            if (string.IsNullOrEmpty(_previewDataUrl) && !string.IsNullOrEmpty(result.SavedUrl))
+            {
+                _previewUrl = result.SavedUrl;
+                var png = QrCodes.GeneratePng(result.SavedUrl);
+                _previewDataUrl = QrCodes.ToDataUrl(png);
+            }
+        }
+        catch (Exception ex)
+        {
+            _error = $"Save failed: {ex.Message}";
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private async Task SaveAsGuestGuideAsync()
+    {
+        _savingGuestGuide = true;
+        _error = "";
+        _success = "";
+
+        try
+        {
+            var urlToSave = _previewUrl ?? _draftUrl;
+            var result = await QrCodes.SaveDeerfieldGuestGuideUrlAsync(urlToSave);
+            if (!result.Succeeded)
+            {
+                _error = result.ErrorMessage ?? "Could not save guest guide QR URL.";
+                return;
+            }
+
+            _success =
+                $"Deerfield guest guide QR saved for {result.SavedUrl}. It appears on the guest guide page and at the stable PNG link above.";
+            await LoadAsync();
+
+            if (string.IsNullOrEmpty(_previewDataUrl) && !string.IsNullOrEmpty(result.SavedUrl))
+            {
+                _previewUrl = result.SavedUrl;
+                var png = QrCodes.GeneratePng(result.SavedUrl);
+                _previewDataUrl = QrCodes.ToDataUrl(png);
+            }
+        }
+        catch (Exception ex)
+        {
+            _error = $"Save failed: {ex.Message}";
+        }
+        finally
+        {
+            _savingGuestGuide = false;
+        }
+    }
+
+    private string GetAbsoluteUrl(string path) =>
+        Navigation.ToAbsoluteUri(path).ToString();
+}

@@ -15,6 +15,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<MessageThreadParticipant> MessageThreadParticipants => Set<MessageThreadParticipant>();
     public DbSet<Message> Messages => Set<Message>();
     public DbSet<ContactInquiry> ContactInquiries => Set<ContactInquiry>();
+    public DbSet<SiteSettings> SiteSettings => Set<SiteSettings>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -149,6 +150,14 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
                 .WithMany()
                 .HasForeignKey(x => x.SubmittedByUserId)
                 .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        builder.Entity<SiteSettings>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.MainQrCodeUrl).HasMaxLength(500);
+            e.Property(x => x.DeerfieldGuestGuideQrCodeUrl).HasMaxLength(500);
         });
     }
 }

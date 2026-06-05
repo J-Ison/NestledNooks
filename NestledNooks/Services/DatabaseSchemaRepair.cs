@@ -14,6 +14,7 @@ public static class DatabaseSchemaRepair
         await EnsureAspNetUserProfileColumnsAsync(db, logger, cancellationToken).ConfigureAwait(false);
         await EnsureMessagingTablesAsync(db, logger, cancellationToken).ConfigureAwait(false);
         await EnsureContactInquiryTableAsync(db, logger, cancellationToken).ConfigureAwait(false);
+        await EnsureSiteSettingsTableAsync(db, logger, cancellationToken).ConfigureAwait(false);
     }
 
     public static async Task EnsureAspNetUserProfileColumnsAsync(
@@ -121,5 +122,36 @@ public static class DatabaseSchemaRepair
             cancellationToken).ConfigureAwait(false);
 
         logger.LogInformation("Verified ContactInquiries table.");
+    }
+
+    public static async Task EnsureSiteSettingsTableAsync(
+        ApplicationDbContext db,
+        ILogger logger,
+        CancellationToken cancellationToken = default)
+    {
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            IF OBJECT_ID(N'[SiteSettings]', N'U') IS NULL
+            BEGIN
+                CREATE TABLE [SiteSettings] (
+                    [Id] int NOT NULL,
+                    [MainQrCodeUrl] nvarchar(500) NULL,
+                    [UpdatedAtUtc] datetime2 NOT NULL,
+                    CONSTRAINT [PK_SiteSettings] PRIMARY KEY ([Id])
+                );
+            END
+            """,
+            cancellationToken).ConfigureAwait(false);
+
+        logger.LogInformation("Verified SiteSettings table.");
+
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            IF COL_LENGTH('SiteSettings', 'DeerfieldGuestGuideQrCodeUrl') IS NULL
+                ALTER TABLE [SiteSettings] ADD [DeerfieldGuestGuideQrCodeUrl] nvarchar(500) NULL;
+            """,
+            cancellationToken).ConfigureAwait(false);
+
+        logger.LogInformation("Verified SiteSettings.DeerfieldGuestGuideQrCodeUrl column.");
     }
 }
