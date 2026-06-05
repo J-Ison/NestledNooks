@@ -97,7 +97,9 @@ await using (var migrateScope = app.Services.CreateAsyncScope())
     }
     catch (Exception ex)
     {
-        migrateLogger.LogError(ex, "Database migration failed. Apply migrations manually if the site errors on load.");
+        migrateLogger.LogCritical(
+            ex,
+            "Database migration failed. Login and account features may return errors until migrations are applied.");
     }
 }
 

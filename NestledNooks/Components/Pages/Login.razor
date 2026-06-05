@@ -78,6 +78,8 @@
                 errorMessage = "User not found.";
             else if (error == "InvalidLogin")
                 errorMessage = "Invalid email or password.";
+            else if (error == "ServerError")
+                errorMessage = "Sign-in is temporarily unavailable. Please try again in a minute or contact support if this continues.";
         }
     }
 }

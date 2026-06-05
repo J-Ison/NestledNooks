@@ -9,49 +9,53 @@ namespace NestledNooks.Controllers
     {
         private readonly SignInManager<ApplicationUser> _signInManager;
         private readonly UserManager<ApplicationUser> _userManager;
+        private readonly ILogger<AccountController> _logger;
 
         public AccountController(
             SignInManager<ApplicationUser> signInManager,
-            UserManager<ApplicationUser> userManager)
+            UserManager<ApplicationUser> userManager,
+            ILogger<AccountController> logger)
         {
             _signInManager = signInManager;
             _userManager = userManager;
+            _logger = logger;
         }
 
         [HttpPost("login")]
         public async Task<IActionResult> Login(string email, string password)
         {
-            Console.WriteLine($"[LOGIN] Attempt: {email}");
+            if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(password))
+                return Redirect("/login?error=InvalidLogin");
 
-            var user = await _userManager.FindByEmailAsync(email);
-
-            if (user == null)
+            try
             {
-                Console.WriteLine("[LOGIN] User not found");
-                return Redirect("/login?error=UserNotFound");
+                var user = await _userManager.FindByEmailAsync(email.Trim()).ConfigureAwait(false);
+
+                if (user is null)
+                    return Redirect("/login?error=UserNotFound");
+
+                var result = await _signInManager.PasswordSignInAsync(
+                    user,
+                    password,
+                    isPersistent: true,
+                    lockoutOnFailure: false).ConfigureAwait(false);
+
+                if (result.Succeeded)
+                    return Redirect("/");
+
+                return Redirect("/login?error=InvalidLogin");
             }
-
-            var result = await _signInManager.PasswordSignInAsync(
-                user,
-                password,
-                isPersistent: true,
-                lockoutOnFailure: false
-            );
-
-            if (result.Succeeded)
+            catch (Exception ex)
             {
-                Console.WriteLine("[LOGIN] Success");
-                return Redirect("/");
+                _logger.LogError(ex, "Login failed for {Email}", email);
+                return Redirect("/login?error=ServerError");
             }
-
-            Console.WriteLine("[LOGIN] Invalid password");
-            return Redirect("/login?error=InvalidLogin");
         }
 
         [HttpPost("logout")]
         public async Task<IActionResult> Logout()
         {
-            await _signInManager.SignOutAsync();
+            await _signInManager.SignOutAsync().ConfigureAwait(false);
             return Redirect("/");
         }
     }
