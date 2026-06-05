@@ -1,0 +1,36 @@
+@using NestledNooks.Services
+
+@if (Tags.Count > 0)
+{
+    <span class="msg-tag-list @ListClass">
+        @foreach (var tag in Tags)
+        {
+            <span class="msg-user-badge @GetBadgeClass(tag)">@tag</span>
+        }
+    </span>
+}
+
+@code {
+    [Parameter]
+    public IReadOnlyList<string> Tags { get; set; } = [];
+
+    [Parameter]
+    public string ListClass { get; set; } = "";
+
+    private static string GetBadgeClass(string tag)
+    {
+        if (string.Equals(tag, SiteBranding.DefaultOwnerTag, StringComparison.OrdinalIgnoreCase))
+            return "msg-user-badge--host";
+
+        if (string.Equals(tag, "Guest", StringComparison.OrdinalIgnoreCase))
+            return "msg-user-badge--guest";
+
+        if (string.Equals(tag, "Co-Host", StringComparison.OrdinalIgnoreCase))
+            return "msg-user-badge--cohost";
+
+        if (string.Equals(tag, "Manager", StringComparison.OrdinalIgnoreCase))
+            return "msg-user-badge--manager";
+
+        return "msg-user-badge--custom";
+    }
+}

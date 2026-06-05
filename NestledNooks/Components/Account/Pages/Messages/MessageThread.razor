@@ -1,0 +1,277 @@
+@page "/account/messages/{ThreadId:int}"
+@layout NestledNooks.Components.Layout.MainLayout
+@rendermode InteractiveServer
+
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@using NestledNooks.Services
+
+@attribute [Authorize]
+
+@inject IMessagingService MessagingService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+<PageTitle>@(_threadTitle ?? "Conversation") · @SiteBranding.Name</PageTitle>
+
+<div class="msg-page msg-page--thread">
+    <header class="msg-thread-header">
+        <div class="msg-wrap">
+            <a href="/account/messages" class="msg-back-link">
+                <span aria-hidden="true">←</span> Inbox
+            </a>
+            <div class="msg-thread-head-main">
+                <span class="msg-avatar msg-avatar--lg @(_threadIsOwner ? "msg-avatar--host" : "")" aria-hidden="true">
+                    @GetInitials(_threadTitle ?? "Conversation")
+                </span>
+                <div class="msg-thread-head-text">
+                    <h1 class="msg-thread-title">@(_threadTitle ?? "Conversation")</h1>
+                    <div class="msg-thread-meta">
+                        @if (_threadTags.Count > 0)
+                        {
+                            <MessageTagBadges Tags="@_threadTags" />
+                        }
+                        @if (_threadIsOwner)
+                        {
+                            <span class="msg-thread-hint">Your host</span>
+                        }
+                        else if (_threadTags.Count == 0 && _messages.Count > 0)
+                        {
+                            <span class="msg-thread-hint">@_messages.Count message@(_messages.Count == 1 ? "" : "s")</span>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="msg-wrap msg-main msg-main--thread">
+        @if (_loading)
+        {
+            <div class="msg-chat-shell" aria-busy="true">
+                <div class="msg-skeleton-bubble msg-skeleton-bubble--theirs"></div>
+                <div class="msg-skeleton-bubble msg-skeleton-bubble--mine"></div>
+                <div class="msg-skeleton-bubble msg-skeleton-bubble--theirs"></div>
+            </div>
+        }
+        else if (_notFound)
+        {
+            <div class="msg-panel msg-panel--center">
+                <p class="nn-note nn-note--error">This conversation was not found or you do not have access.</p>
+                <a href="/account/messages" class="msg-btn-secondary">Back to inbox</a>
+            </div>
+        }
+        else
+        {
+            <div class="msg-chat-shell">
+                @if (_messages.Count == 0)
+                {
+                    <div class="msg-chat-empty">
+                        <p>No messages yet. Say hello below.</p>
+                    </div>
+                }
+                else
+                {
+                    DateOnly? lastDate = null;
+                    foreach (var message in _messages)
+                    {
+                        var msgDate = DateOnly.FromDateTime(message.CreatedAtUtc.ToLocalTime());
+                        if (lastDate != msgDate)
+                        {
+                            <div class="msg-date-divider">
+                                <span>@FormatDateDivider(msgDate)</span>
+                            </div>
+                            lastDate = msgDate;
+                        }
+
+                        <div class="msg-bubble-row @(message.IsMine ? "is-mine" : "is-theirs")">
+                            @if (!message.IsMine)
+                            {
+                                <span class="msg-avatar msg-avatar--sm @(message.SenderIsOwnerAccount ? "msg-avatar--host" : "")" aria-hidden="true">
+                                    @GetInitials(message.SenderName)
+                                </span>
+                            }
+                            <article class="msg-bubble @(message.IsMine ? "is-mine" : "is-theirs")">
+                                @if (!message.IsMine)
+                                {
+                                    <header class="msg-bubble-head">
+                                        <div class="msg-bubble-meta">
+                                            <span class="msg-bubble-sender">@message.SenderName</span>
+                                            @if (message.SenderTags.Count > 0)
+                                            {
+                                                <MessageTagBadges Tags="@message.SenderTags" ListClass="msg-tag-list--compact" />
+                                            }
+                                        </div>
+                                        <time datetime="@message.CreatedAtUtc.ToString("o")">
+                                            @message.CreatedAtUtc.ToLocalTime().ToString("h:mm tt")
+                                        </time>
+                                    </header>
+                                }
+                                else
+                                {
+                                    <time class="msg-bubble-time-solo" datetime="@message.CreatedAtUtc.ToString("o")">
+                                        @message.CreatedAtUtc.ToLocalTime().ToString("h:mm tt")
+                                    </time>
+                                }
+                                <p class="msg-bubble-body">@message.Body</p>
+                            </article>
+                        </div>
+                    }
+                }
+            </div>
+
+            <div class="msg-reply-panel">
+                @if (!string.IsNullOrEmpty(_error))
+                {
+                    <p class="nn-note nn-note--error msg-reply-error">@_error</p>
+                }
+
+                <EditForm Model="@_reply" OnValidSubmit="SendReplyAsync" class="msg-reply-form">
+                    <label class="msg-field-label" for="reply-body">Your reply</label>
+                    <div class="msg-reply-compose">
+                        <textarea id="reply-body"
+                                  class="msg-textarea"
+                                  rows="3"
+                                  maxlength="4000"
+                                  @bind="_reply.Body"
+                                  placeholder="Write your reply…"></textarea>
+                        <button type="submit" class="msg-btn-primary msg-reply-send" disabled="@_sending">
+                            @if (_sending)
+                            {
+                                <span>Sending…</span>
+                            }
+                            else
+                            {
+                                <span>Send</span>
+                                <span class="msg-btn-icon msg-btn-icon--send" aria-hidden="true"></span>
+                            }
+                        </button>
+                    </div>
+                </EditForm>
+            </div>
+        }
+    </main>
+</div>
+
+@code {
+    [Parameter]
+    public int ThreadId { get; set; }
+
+    private bool _loading = true;
+    private bool _notFound;
+    private bool _sending;
+    private string? _error;
+    private string? _userId;
+    private string? _threadTitle;
+    private bool _threadIsOwner;
+    private IReadOnlyList<string> _threadTags = [];
+    private IReadOnlyList<MessageParticipantInfo> _participants = [];
+    private IReadOnlyList<MessageItem> _messages = [];
+    private ReplyModel _reply = new();
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _loading = true;
+        _notFound = false;
+        _error = null;
+
+        var auth = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        _userId = auth.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+
+        if (string.IsNullOrEmpty(_userId))
+        {
+            _notFound = true;
+            _loading = false;
+            return;
+        }
+
+        try
+        {
+            var detail = await MessagingService.GetThreadAsync(ThreadId, _userId);
+            if (detail is null)
+            {
+                _notFound = true;
+                return;
+            }
+
+            _participants = detail.Participants;
+            _messages = detail.Messages;
+
+            var other = detail.Participants.FirstOrDefault(p => p.UserId != _userId);
+            if (detail.Participants.Count == 2 && other is not null)
+            {
+                _threadTitle = other.DisplayName;
+                _threadTags = other.Tags;
+                _threadIsOwner = other.IsOwnerAccount;
+            }
+            else
+            {
+                _threadTitle = "Group conversation";
+                _threadTags = [];
+                _threadIsOwner = false;
+            }
+        }
+        catch
+        {
+            _notFound = true;
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task SendReplyAsync()
+    {
+        if (string.IsNullOrEmpty(_userId) || _sending)
+            return;
+
+        _sending = true;
+        _error = null;
+
+        try
+        {
+            var result = await MessagingService.ReplyAsync(_userId, ThreadId, _reply.Body);
+            if (!result.Succeeded)
+            {
+                _error = result.ErrorMessage ?? "Could not send reply.";
+                return;
+            }
+
+            _reply = new ReplyModel();
+            var detail = await MessagingService.GetThreadAsync(ThreadId, _userId);
+            if (detail is not null)
+                _messages = detail.Messages;
+        }
+        finally
+        {
+            _sending = false;
+        }
+    }
+
+    private static string GetInitials(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+            return "?";
+
+        var parts = name.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length >= 2)
+            return $"{char.ToUpper(parts[0][0])}{char.ToUpper(parts[1][0])}";
+
+        return char.ToUpper(name[0]).ToString();
+    }
+
+    private static string FormatDateDivider(DateOnly date)
+    {
+        var today = DateOnly.FromDateTime(DateTime.Now);
+        if (date == today)
+            return "Today";
+        if (date == today.AddDays(-1))
+            return "Yesterday";
+        return date.ToString("MMMM d, yyyy");
+    }
+
+    private sealed class ReplyModel
+    {
+        public string Body { get; set; } = "";
+    }
+}

@@ -17,6 +17,7 @@
 @inject NavigationManager Navigation
 @inject IBookingRequestService BookingService
 @inject BookingPricingService PricingService
+@inject IUserAdminService UserAdminService
 
 <PageTitle>Settings</PageTitle>
 
@@ -56,6 +57,14 @@
                                   Required="true"
                                   Disabled="_savingProfile" />
 
+                    <MudTextField @bind-Value="_profile.Nickname"
+                                  For="@(() => _profile.Nickname)"
+                                  Label="Nickname"
+                                  Variant="Variant.Outlined"
+                                  Class="mb-3"
+                                  Disabled="_savingProfile"
+                                  HelperText="Shown in messages instead of your email when you chat with guests and hosts." />
+
                     <MudTextField @bind-Value="_profile.PhoneNumber"
                                   For="@(() => _profile.PhoneNumber)"
                                   Label="Phone number"
@@ -85,6 +94,42 @@
                 </EditForm>
             </MudCardContent>
         </MudCard>
+
+        @if (_isOwner)
+        {
+            <MudCard Class="mb-4">
+                <MudCardContent>
+                    <MudText Typo="Typo.h6" Class="mb-1">Message tags</MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-3">
+                        Tags appear next to your name in messages. Your role shows <strong>@string.Join(", ", UserMessageTags.TagsFromRoles(new[] { AppRoles.Owner }))</strong> by default.
+                        Add custom tags here to replace the role tag.
+                    </MudText>
+
+                    <MessageTagsEditor Tags="@_messageTags" TagsChanged="OnMessageTagsChanged" />
+
+                    @if (_tagsErrors.Count > 0)
+                    {
+                        @foreach (var err in _tagsErrors)
+                        {
+                            <MudText Typo="Typo.body2" Color="Color.Error" Class="mb-2">@err</MudText>
+                        }
+                    }
+
+                    @if (!string.IsNullOrEmpty(_tagsSuccess))
+                    {
+                        <MudText Typo="Typo.body2" Color="Color.Success" Class="mb-2">@_tagsSuccess</MudText>
+                    }
+
+                    <MudButton Variant="Variant.Filled"
+                               Color="Color.Primary"
+                               Class="mt-3"
+                               Disabled="_savingTags"
+                               OnClick="SaveMessageTagsAsync">
+                        @(_savingTags ? "Saving…" : "Save message tags")
+                    </MudButton>
+                </MudCardContent>
+            </MudCard>
+        }
 
         <MudCard Class="mb-4">
             <MudCardContent>
@@ -190,14 +235,19 @@
     private ApplicationUser? _user;
     private bool _loading = true;
     private bool _loadError;
+    private bool _isOwner;
     private bool _savingProfile;
+    private bool _savingTags;
     private bool _changingPassword;
 
+    private List<string> _messageTags = [];
     private readonly ProfileModel _profile = new();
     private readonly PasswordChangeModel _passwords = new();
     private readonly List<string> _profileErrors = new();
     private readonly List<string> _passwordErrors = new();
     private string _profileSuccess = string.Empty;
+    private string _tagsSuccess = string.Empty;
+    private readonly List<string> _tagsErrors = [];
     private string _passwordSuccess = string.Empty;
 
     private List<BookingRow> _bookings = [];
@@ -236,6 +286,8 @@
                 return;
             }
 
+            _isOwner = authState.User.IsInRole(AppRoles.Owner);
+
             _user = await UserManager.FindByIdAsync(userId);
             if (_user is null)
             {
@@ -244,7 +296,9 @@
             }
 
             _profile.Email = _user.Email ?? string.Empty;
+            _profile.Nickname = _user.Nickname ?? string.Empty;
             _profile.PhoneNumber = _user.PhoneNumber ?? string.Empty;
+            _messageTags = UserMessageTags.Parse(_user.MessageTagsJson).ToList();
         }
         finally
         {
@@ -283,6 +337,17 @@
                 return;
             }
 
+            _user.Nickname = string.IsNullOrWhiteSpace(_profile.Nickname)
+                ? null
+                : _profile.Nickname.Trim();
+
+            var updateResult = await UserManager.UpdateAsync(_user);
+            if (!updateResult.Succeeded)
+            {
+                _profileErrors.AddRange(updateResult.Errors.Select(e => e.Description));
+                return;
+            }
+
             _profileSuccess = "Profile saved. Refreshing…";
             await InvokeAsync(StateHasChanged);
             await Task.Delay(800);
@@ -296,6 +361,51 @@
         {
             _savingProfile = false;
             await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private Task OnMessageTagsChanged(List<string> tags)
+    {
+        _messageTags = tags;
+        StateHasChanged();
+        return Task.CompletedTask;
+    }
+
+    private async Task SaveMessageTagsAsync()
+    {
+        if (_user is null || _savingTags || !_isOwner)
+            return;
+
+        _tagsErrors.Clear();
+        _tagsSuccess = string.Empty;
+        _savingTags = true;
+
+        try
+        {
+            var result = await UserAdminService.UpdateMessagingProfileAsync(
+                _user.Id,
+                _user.Id,
+                nickname: null,
+                messageTags: _messageTags);
+
+            if (!result.Succeeded)
+            {
+                _tagsErrors.Add(result.ErrorMessage ?? "Could not save message tags.");
+                return;
+            }
+
+            _tagsSuccess = "Message tags saved.";
+            _user = await UserManager.FindByIdAsync(_user.Id);
+            if (_user is not null)
+                _messageTags = UserMessageTags.Parse(_user.MessageTagsJson).ToList();
+        }
+        catch (Exception ex)
+        {
+            _tagsErrors.Add($"Could not save message tags: {ex.Message}");
+        }
+        finally
+        {
+            _savingTags = false;
         }
     }
 
@@ -354,6 +464,10 @@
         [EmailAddress(ErrorMessage = "Enter a valid email.")]
         [Display(Name = "Email")]
         public string Email { get; set; } = "";
+
+        [StringLength(50, ErrorMessage = "Nickname cannot be longer than 50 characters.")]
+        [Display(Name = "Nickname")]
+        public string Nickname { get; set; } = "";
 
         [Required(ErrorMessage = "Phone number is required.")]
         [Phone(ErrorMessage = "Enter a valid phone number.")]

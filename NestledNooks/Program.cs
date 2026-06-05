@@ -64,6 +64,7 @@ builder.Services.AddScoped<ISiteThemePreviewAccessor, SiteThemePreviewAccessor>(
 builder.Services.AddScoped<ISiteThemeService, SiteThemeService>();
 builder.Services.AddScoped<IPropertyService, PropertyService>();
 builder.Services.AddScoped<IUserAdminService, UserAdminService>();
+builder.Services.AddScoped<IMessagingService, MessagingService>();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddDistributedMemoryCache();
 builder.Services.AddSession(options =>
@@ -121,7 +122,7 @@ _ = Task.Run(async () =>
             await SeedApplicationRolesAsync(scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>())
                 .ConfigureAwait(false);
 
-            await OwnerRoleSeedService.EnsureOwnerUsersAsync(
+            await OwnerRoleSeedService.EnsureRoleAssignmentsAsync(
                 scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>(),
                 scope.ServiceProvider.GetRequiredService<IOptions<AdminOptions>>(),
                 logger).ConfigureAwait(false);

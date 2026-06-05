@@ -95,6 +95,11 @@
 
                 <AuthorizeView>
                     <Authorized>
+                        <MudNavLink Href="/account/messages"
+                                    Icon="@Icons.Material.Filled.Mail"
+                                    OnClick="@CloseDrawerLocal">
+                            Messages
+                        </MudNavLink>
                         <MudNavLink Href="/account/manage/settings"
                                     Icon="@Icons.Material.Filled.Settings"
                                     OnClick="@CloseDrawerLocal">

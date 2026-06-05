@@ -1,0 +1,89 @@
+@using NestledNooks.Services
+
+<div class="msg-tags-editor">
+    <p class="msg-tags-editor-hint">
+        Up to @UserMessageTags.MaxTags custom tags. When set, these replace role-based tags in messages.
+    </p>
+
+    @if (Tags.Count > 0)
+    {
+        <ul class="msg-tags-chip-list">
+            @foreach (var tag in Tags)
+            {
+                <li class="msg-tags-chip">
+                    <span>@tag</span>
+                    <button type="button" class="msg-tags-chip-remove" @onclick="() => RemoveTag(tag)" aria-label="@($"Remove {tag}")">×</button>
+                </li>
+            }
+        </ul>
+    }
+    else
+    {
+        <p class="msg-tags-editor-empty">No custom tags yet.</p>
+    }
+
+    @if (Tags.Count < UserMessageTags.MaxTags)
+    {
+        <div class="msg-tags-add-row">
+            <input class="nn-form-control msg-tags-add-input"
+                   type="text"
+                   maxlength="@UserMessageTags.MaxTagLength"
+                   placeholder="Add a tag…"
+                   @bind="_newTag"
+                   @bind:event="oninput"
+                   @onkeydown="OnKeyDown" />
+            <button type="button" class="nn-btn-secondary msg-tags-add-btn" @onclick="AddTag" disabled="@string.IsNullOrWhiteSpace(_newTag)">
+                Add
+            </button>
+        </div>
+    }
+
+    @if (!string.IsNullOrEmpty(_error))
+    {
+        <p class="nn-note nn-note--error">@_error</p>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public List<string> Tags { get; set; } = [];
+
+    [Parameter]
+    public EventCallback<List<string>> TagsChanged { get; set; }
+
+    private string _newTag = "";
+    private string? _error;
+
+    private async Task AddTag()
+    {
+        _error = null;
+        var candidate = Tags.Append(_newTag).ToList();
+        var normalized = UserMessageTags.NormalizeInput(candidate);
+        if (!normalized.Succeeded)
+        {
+            _error = normalized.ErrorMessage;
+            return;
+        }
+
+        Tags = normalized.Tags!.ToList();
+        _newTag = "";
+        await TagsChanged.InvokeAsync(Tags);
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task RemoveTag(string tag)
+    {
+        _error = null;
+        Tags = Tags.Where(t => !string.Equals(t, tag, StringComparison.OrdinalIgnoreCase)).ToList();
+        await TagsChanged.InvokeAsync(Tags);
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task OnKeyDown(KeyboardEventArgs args)
+    {
+        if (args.Key == "Enter")
+        {
+            await AddTag();
+        }
+    }
+}

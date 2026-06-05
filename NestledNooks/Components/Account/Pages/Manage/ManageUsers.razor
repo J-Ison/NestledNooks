@@ -20,7 +20,7 @@
             <p class="mgmt-hero-eyebrow">@SiteBranding.Name · Owner tools</p>
             <h1 class="mgmt-hero-title">Manage users</h1>
             <p class="mgmt-hero-lead">
-                View accounts and reset passwords for guests who lost access. A new random password is emailed automatically.
+                View accounts, set message nicknames and tags, and reset passwords for guests who lost access.
             </p>
         </div>
     </header>
@@ -90,8 +90,8 @@
                         <thead>
                             <tr>
                                 <th>Email</th>
-                                <th>Username</th>
-                                <th>Phone</th>
+                                <th>Nickname</th>
+                                <th>Message tags</th>
                                 <th>Roles</th>
                                 <th>Status</th>
                                 <th></th>
@@ -102,13 +102,17 @@
                             {
                                 var isSelf = user.Id == _currentUserId;
                                 var confirming = _confirmUserId == user.Id;
+                                var editingTags = _editingTagsUserId == user.Id;
+                                var displayTags = DisplayTagsFor(user);
 
                                 <tr class="@(isSelf ? "user-admin-row--self" : "")">
                                     <td data-label="Email">
                                         <a class="mgmt-link" href="@($"mailto:{user.Email}")">@(user.Email ?? "—")</a>
                                     </td>
-                                    <td data-label="Username">@(user.UserName ?? "—")</td>
-                                    <td data-label="Phone">@(string.IsNullOrWhiteSpace(user.PhoneNumber) ? "—" : user.PhoneNumber)</td>
+                                    <td data-label="Nickname">@(string.IsNullOrWhiteSpace(user.Nickname) ? "—" : user.Nickname)</td>
+                                    <td data-label="Message tags">
+                                        <MessageTagBadges Tags="@displayTags" />
+                                    </td>
                                     <td data-label="Roles">
                                         <div class="user-admin-roles">
                                             @if (user.Roles.Count == 0)
@@ -163,15 +167,59 @@
                                         }
                                         else
                                         {
+                                            <a class="mgmt-link user-admin-message-link"
+                                               href="/account/messages/compose?to=@user.Id">Message</a>
                                             <button type="button"
                                                     class="nn-btn-secondary user-admin-reset-btn"
-                                                    disabled="@(_resettingUserId is not null)"
+                                                    disabled="@(_resettingUserId is not null || _savingTagsUserId is not null)"
+                                                    @onclick="() => StartEditTags(user)">
+                                                Tags
+                                            </button>
+                                            <button type="button"
+                                                    class="nn-btn-secondary user-admin-reset-btn"
+                                                    disabled="@(_resettingUserId is not null || _savingTagsUserId is not null)"
                                                     @onclick="() => StartConfirm(user.Id)">
                                                 Reset password
                                             </button>
                                         }
                                     </td>
                                 </tr>
+                                @if (editingTags)
+                                {
+                                    <tr class="user-admin-tags-row">
+                                        <td colspan="6">
+                                            <div class="user-admin-tags-panel">
+                                                <h3 class="user-admin-tags-title">Messaging profile · @(user.Email ?? user.UserName)</h3>
+                                                <div class="nn-form-group">
+                                                    <label for="@($"nickname-{user.Id}")">Nickname</label>
+                                                    <input id="@($"nickname-{user.Id}")"
+                                                           class="nn-form-control"
+                                                           type="text"
+                                                           maxlength="50"
+                                                           @bind="_editNickname" />
+                                                </div>
+                                                <p class="msg-tags-editor-hint">
+                                                    Role tags: @RoleTagsPreview(user). Custom tags replace these in messages.
+                                                </p>
+                                                <MessageTagsEditor Tags="@_editTags" TagsChanged="OnEditTagsChanged" />
+                                                <div class="user-admin-confirm-btns">
+                                                    <button type="button"
+                                                            class="nn-btn-primary user-admin-reset-btn"
+                                                            disabled="@(_savingTagsUserId == user.Id)"
+                                                            @onclick="() => SaveTagsAsync(user)">
+                                                        @(_savingTagsUserId == user.Id ? "Saving…" : "Save")
+                                                    </button>
+                                                    <button type="button"
+                                                            class="nn-btn-secondary user-admin-cancel-btn"
+                                                            disabled="@(_savingTagsUserId == user.Id)"
+                                                            @onclick="CancelEditTags">
+                                                        Cancel
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                }
                             }
                         </tbody>
                     </table>
@@ -188,7 +236,11 @@
     private string _search = "";
     private string _roleFilter = "all";
     private string? _confirmUserId;
+    private string? _editingTagsUserId;
+    private string? _savingTagsUserId;
     private string? _resettingUserId;
+    private string _editNickname = "";
+    private List<string> _editTags = [];
     private string? _success;
     private string? _error;
     private string? _manualPassword;
@@ -237,6 +289,7 @@
     private void StartConfirm(string userId)
     {
         _confirmUserId = userId;
+        _editingTagsUserId = null;
         _success = null;
         _error = null;
         _manualPassword = null;
@@ -246,6 +299,78 @@
     {
         _confirmUserId = null;
     }
+
+    private void StartEditTags(UserAdminListItem user)
+    {
+        _editingTagsUserId = user.Id;
+        _confirmUserId = null;
+        _editNickname = user.Nickname ?? "";
+        _editTags = user.MessageTags.ToList();
+        _success = null;
+        _error = null;
+    }
+
+    private void CancelEditTags()
+    {
+        _editingTagsUserId = null;
+        _editTags = [];
+        _editNickname = "";
+    }
+
+    private Task OnEditTagsChanged(List<string> tags)
+    {
+        _editTags = tags;
+        return Task.CompletedTask;
+    }
+
+    private async Task SaveTagsAsync(UserAdminListItem user)
+    {
+        if (_currentUserId is null)
+        {
+            _error = "Could not verify your signed-in account.";
+            return;
+        }
+
+        _savingTagsUserId = user.Id;
+        _success = null;
+        _error = null;
+
+        try
+        {
+            var result = await UserAdminService.UpdateMessagingProfileAsync(
+                user.Id,
+                _currentUserId,
+                _editNickname,
+                _editTags);
+
+            if (!result.Succeeded)
+            {
+                _error = result.ErrorMessage ?? "Could not save messaging profile.";
+                return;
+            }
+
+            _users = await UserAdminService.GetUsersAsync();
+            _success = $"Messaging profile updated for {user.Email ?? user.UserName}.";
+            CancelEditTags();
+        }
+        finally
+        {
+            _savingTagsUserId = null;
+        }
+    }
+
+    private static IReadOnlyList<string> DisplayTagsFor(UserAdminListItem user)
+    {
+        var roles = user.Roles.Count == 0 ? new[] { AppRoles.Client } : user.Roles;
+        var json = user.MessageTags.Count == 0
+            ? null
+            : System.Text.Json.JsonSerializer.Serialize(user.MessageTags);
+        return UserMessageTags.ResolveForDisplay(json, roles);
+    }
+
+    private static string RoleTagsPreview(UserAdminListItem user) =>
+        string.Join(", ", UserMessageTags.TagsFromRoles(
+            user.Roles.Count == 0 ? new[] { AppRoles.Client } : user.Roles));
 
     private async Task ConfirmResetAsync(UserAdminListItem user)
     {

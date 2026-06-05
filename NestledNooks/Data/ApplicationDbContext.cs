@@ -11,6 +11,9 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<ExternalCalendarEvent> ExternalCalendarEvents => Set<ExternalCalendarEvent>();
     public DbSet<SiteTheme> SiteThemes => Set<SiteTheme>();
     public DbSet<RentalProperty> RentalProperties => Set<RentalProperty>();
+    public DbSet<MessageThread> MessageThreads => Set<MessageThread>();
+    public DbSet<MessageThreadParticipant> MessageThreadParticipants => Set<MessageThreadParticipant>();
+    public DbSet<Message> Messages => Set<Message>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -91,6 +94,43 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             e.Property(x => x.BookingFinePrint).HasMaxLength(500);
             e.Property(x => x.AirbnbUrl).HasMaxLength(500);
             e.Property(x => x.VrboUrl).HasMaxLength(500);
+        });
+
+        builder.Entity<MessageThread>(e =>
+        {
+            e.HasIndex(x => x.UpdatedAtUtc);
+        });
+
+        builder.Entity<MessageThreadParticipant>(e =>
+        {
+            e.HasKey(x => new { x.ThreadId, x.UserId });
+            e.HasIndex(x => x.UserId);
+
+            e.HasOne(x => x.Thread)
+                .WithMany(t => t.Participants)
+                .HasForeignKey(x => x.ThreadId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            e.HasOne(x => x.User)
+                .WithMany()
+                .HasForeignKey(x => x.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<Message>(e =>
+        {
+            e.Property(x => x.Body).HasMaxLength(4000).IsRequired();
+            e.HasIndex(x => new { x.ThreadId, x.CreatedAtUtc });
+
+            e.HasOne(x => x.Thread)
+                .WithMany(t => t.Messages)
+                .HasForeignKey(x => x.ThreadId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            e.HasOne(x => x.Sender)
+                .WithMany()
+                .HasForeignKey(x => x.SenderUserId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
     }
 }

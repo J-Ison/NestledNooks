@@ -13,6 +13,13 @@ public interface IUserAdminService
         string userId,
         string actingUserId,
         CancellationToken cancellationToken = default);
+
+    Task<MessagingProfileUpdateResult> UpdateMessagingProfileAsync(
+        string userId,
+        string actingUserId,
+        string? nickname,
+        IReadOnlyList<string>? messageTags,
+        CancellationToken cancellationToken = default);
 }
 
 public sealed class UserAdminListItem
@@ -20,11 +27,15 @@ public sealed class UserAdminListItem
     public required string Id { get; init; }
     public string? Email { get; init; }
     public string? UserName { get; init; }
+    public string? Nickname { get; init; }
+    public IReadOnlyList<string> MessageTags { get; init; } = [];
     public string? PhoneNumber { get; init; }
     public bool EmailConfirmed { get; init; }
     public IReadOnlyList<string> Roles { get; init; } = [];
     public bool IsLockedOut { get; init; }
 }
+
+public sealed record MessagingProfileUpdateResult(bool Succeeded, string? ErrorMessage);
 
 public sealed record AdminPasswordResetResult(
     bool Succeeded,
@@ -55,6 +66,8 @@ public sealed class UserAdminService(
                 Id = user.Id,
                 Email = user.Email,
                 UserName = user.UserName,
+                Nickname = user.Nickname,
+                MessageTags = UserMessageTags.Parse(user.MessageTagsJson),
                 PhoneNumber = user.PhoneNumber,
                 EmailConfirmed = user.EmailConfirmed,
                 Roles = roles.OrderBy(r => r).ToList(),
@@ -121,6 +134,62 @@ public sealed class UserAdminService(
                 null,
                 $"Password was updated, but the email could not be sent ({ex.Message}). Share the temporary password with the user manually.");
         }
+    }
+
+    public async Task<MessagingProfileUpdateResult> UpdateMessagingProfileAsync(
+        string userId,
+        string actingUserId,
+        string? nickname,
+        IReadOnlyList<string>? messageTags,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(userId))
+            return new MessagingProfileUpdateResult(false, "User id is required.");
+
+        var actingUser = await userManager.FindByIdAsync(actingUserId).ConfigureAwait(false);
+        if (actingUser is null)
+            return new MessagingProfileUpdateResult(false, "Could not verify your signed-in account.");
+
+        var actingRoles = await userManager.GetRolesAsync(actingUser).ConfigureAwait(false);
+        var isOwner = actingRoles.Contains(AppRoles.Owner);
+        var editingSelf = string.Equals(userId, actingUserId, StringComparison.Ordinal);
+
+        if (!editingSelf && !isOwner)
+            return new MessagingProfileUpdateResult(false, "Only the owner can update other users.");
+
+        var user = await userManager.FindByIdAsync(userId).ConfigureAwait(false);
+        if (user is null)
+            return new MessagingProfileUpdateResult(false, "User not found.");
+
+        if (nickname is not null)
+        {
+            user.Nickname = string.IsNullOrWhiteSpace(nickname) ? null : nickname.Trim();
+            if (user.Nickname?.Length > 50)
+                return new MessagingProfileUpdateResult(false, "Nickname cannot be longer than 50 characters.");
+        }
+
+        if (messageTags is not null)
+        {
+            if (!isOwner)
+                return new MessagingProfileUpdateResult(false, "Only the owner can manage message tags.");
+
+            var normalized = UserMessageTags.NormalizeInput(messageTags);
+            if (!normalized.Succeeded)
+                return new MessagingProfileUpdateResult(false, normalized.ErrorMessage);
+
+            user.MessageTagsJson = UserMessageTags.Serialize(normalized.Tags!);
+        }
+
+        var result = await userManager.UpdateAsync(user).ConfigureAwait(false);
+        if (!result.Succeeded)
+            return new MessagingProfileUpdateResult(false, string.Join(" ", result.Errors.Select(e => e.Description)));
+
+        logger.LogInformation(
+            "User {ActingUserId} updated messaging profile for {UserId}",
+            actingUserId,
+            userId);
+
+        return new MessagingProfileUpdateResult(true, null);
     }
 }
 

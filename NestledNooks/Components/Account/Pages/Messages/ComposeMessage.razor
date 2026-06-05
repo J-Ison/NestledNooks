@@ -1,0 +1,240 @@
+@page "/account/messages/compose"
+@layout NestledNooks.Components.Layout.MainLayout
+@rendermode InteractiveServer
+
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@using NestledNooks.Data
+@using NestledNooks.Services
+
+@attribute [Authorize]
+
+@inject IMessagingService MessagingService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject NavigationManager Navigation
+
+<PageTitle>New message · @SiteBranding.Name</PageTitle>
+
+<div class="msg-page">
+    <header class="msg-hero msg-hero--compact">
+        <div class="msg-wrap">
+            <a href="/account/messages" class="msg-back-link msg-back-link--light">
+                <span aria-hidden="true">←</span> Inbox
+            </a>
+            <h1 class="msg-hero-title">New message</h1>
+            <p class="msg-hero-lead">
+                @if (_isOwner)
+                {
+                    <span>Reach one person or send the same note to every guest.</span>
+                }
+                else if (_isStaff)
+                {
+                    <span>Message a guest or your host.</span>
+                }
+                else
+                {
+                    <span>Ask your host a question or share an update about your stay.</span>
+                }
+            </p>
+        </div>
+    </header>
+
+    <main class="msg-wrap msg-main">
+        @if (_loading)
+        {
+            <div class="msg-panel msg-panel--compose" aria-busy="true">
+                <div class="msg-skeleton-line"></div>
+                <div class="msg-skeleton-line"></div>
+                <div class="msg-skeleton-line msg-skeleton-line--tall"></div>
+            </div>
+        }
+        else if (_forbidden)
+        {
+            <div class="msg-panel msg-panel--center">
+                <p class="nn-note nn-note--error">You do not have permission to start new messages.</p>
+                <a href="/account/messages" class="msg-btn-secondary">Back to inbox</a>
+            </div>
+        }
+        else
+        {
+            <div class="msg-panel msg-panel--compose">
+                @if (!string.IsNullOrEmpty(_error))
+                {
+                    <p class="nn-note nn-note--error">@_error</p>
+                }
+
+                @if (!string.IsNullOrEmpty(_success))
+                {
+                    <p class="nn-note nn-note--success">@_success</p>
+                }
+
+                <EditForm Model="@_form" OnValidSubmit="SendAsync" class="msg-compose-form">
+                    @if (_isOwner)
+                    {
+                        <div class="msg-field">
+                            <span class="msg-field-label">Send to</span>
+                            <div class="msg-segment" role="group" aria-label="Send to">
+                                <button type="button"
+                                        class="msg-segment-btn @(!_form.BroadcastToAllGuests ? "is-active" : "")"
+                                        @onclick="SetIndividualMode">
+                                    One person
+                                </button>
+                                <button type="button"
+                                        class="msg-segment-btn @(_form.BroadcastToAllGuests ? "is-active" : "")"
+                                        @onclick="SetBroadcastMode">
+                                    All guests
+                                </button>
+                            </div>
+                        </div>
+                    }
+
+                    @if (!_form.BroadcastToAllGuests)
+                    {
+                        <div class="msg-field">
+                            <label class="msg-field-label" for="recipient">Recipient</label>
+                            <select id="recipient" class="msg-select" @bind="_form.RecipientUserId" required>
+                                <option value="">Choose who to message…</option>
+                                @foreach (var option in _recipients)
+                                {
+                                    <option value="@option.UserId">@option.DisplayName (@option.RoleLabel)</option>
+                                }
+                            </select>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="msg-broadcast-note">
+                            <span class="msg-broadcast-icon" aria-hidden="true"></span>
+                            <div>
+                                <p class="msg-broadcast-title">Broadcast to all guests</p>
+                                <p>This sends one message to every guest account. Each guest gets their own private thread with you.</p>
+                            </div>
+                        </div>
+                    }
+
+                    <div class="msg-field">
+                        <label class="msg-field-label" for="body">Message</label>
+                        <textarea id="body"
+                                  class="msg-textarea msg-textarea--tall"
+                                  rows="8"
+                                  maxlength="4000"
+                                  @bind="_form.Body"
+                                  placeholder="Write your message…"
+                                  required></textarea>
+                        <p class="msg-field-hint">@(_form.Body?.Length ?? 0) / 4000 characters</p>
+                    </div>
+
+                    <div class="msg-compose-actions">
+                        <button type="submit" class="msg-btn-primary" disabled="@_sending">
+                            @(_sending ? "Sending…" : _form.BroadcastToAllGuests ? "Send to all guests" : "Send message")
+                        </button>
+                        <a href="/account/messages" class="msg-btn-secondary">Cancel</a>
+                    </div>
+                </EditForm>
+            </div>
+        }
+    </main>
+</div>
+
+@code {
+    [SupplyParameterFromQuery(Name = "to")]
+    public string? ToUserId { get; set; }
+
+    private bool _loading = true;
+    private bool _forbidden;
+    private bool _sending;
+    private bool _isOwner;
+    private bool _isStaff;
+    private string? _userId;
+    private string? _error;
+    private string? _success;
+    private IReadOnlyList<MessageRecipientOption> _recipients = [];
+    private ComposeModel _form = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        var auth = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        _userId = auth.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        var roles = auth.User.FindAll(System.Security.Claims.ClaimTypes.Role).Select(c => c.Value).ToList();
+
+        _isOwner = roles.Contains(AppRoles.Owner);
+        _isStaff = _isOwner || roles.Contains(AppRoles.CoHost) || roles.Contains(AppRoles.Manager);
+
+        if (string.IsNullOrEmpty(_userId) || !MessagingPermissions.CanUseMessaging(roles))
+        {
+            _forbidden = true;
+            _loading = false;
+            return;
+        }
+
+        _recipients = await MessagingService.GetRecipientOptionsAsync(_userId);
+        if (_recipients.Count == 0 && !_isOwner)
+        {
+            _forbidden = true;
+            _loading = false;
+            return;
+        }
+
+        if (!string.IsNullOrEmpty(ToUserId) && _recipients.Any(r => r.UserId == ToUserId))
+            _form.RecipientUserId = ToUserId;
+
+        _loading = false;
+    }
+
+    private void SetIndividualMode() => _form.BroadcastToAllGuests = false;
+
+    private void SetBroadcastMode() => _form.BroadcastToAllGuests = true;
+
+    private async Task SendAsync()
+    {
+        if (string.IsNullOrEmpty(_userId) || _sending)
+            return;
+
+        _sending = true;
+        _error = null;
+        _success = null;
+
+        try
+        {
+            SendMessageResult result;
+            if (_form.BroadcastToAllGuests && _isOwner)
+            {
+                result = await MessagingService.BroadcastToRoleAsync(_userId, AppRoles.Client, _form.Body);
+                if (result.Succeeded)
+                {
+                    _success = $"Message sent to {result.ThreadsCreated} guest(s).";
+                    _form = new ComposeModel();
+                    return;
+                }
+            }
+            else
+            {
+                if (string.IsNullOrWhiteSpace(_form.RecipientUserId))
+                {
+                    _error = "Choose a recipient.";
+                    return;
+                }
+
+                result = await MessagingService.SendToUserAsync(_userId, _form.RecipientUserId, _form.Body);
+                if (result.Succeeded && result.ThreadId.HasValue)
+                {
+                    Navigation.NavigateTo($"/account/messages/{result.ThreadId.Value}");
+                    return;
+                }
+            }
+
+            _error = result.ErrorMessage ?? "Could not send message.";
+        }
+        finally
+        {
+            _sending = false;
+        }
+    }
+
+    private sealed class ComposeModel
+    {
+        public string RecipientUserId { get; set; } = "";
+        public string Body { get; set; } = "";
+        public bool BroadcastToAllGuests { get; set; }
+    }
+}

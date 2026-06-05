@@ -6,10 +6,13 @@
 @using System.Text.Encodings.Web
 @using Microsoft.AspNetCore.Identity
 @using Microsoft.AspNetCore.WebUtilities
+@using Microsoft.Extensions.Options
 @using NestledNooks.Data
+@using NestledNooks.Services
 
 @inject SignInManager<ApplicationUser> SignInManager
 @inject UserManager<ApplicationUser> UserManager
+@inject IOptions<AdminOptions> AdminOptions
 @inject IUserStore<ApplicationUser> UserStore
 @inject IEmailSender<ApplicationUser> EmailSender
 @inject NavigationManager NavigationManager
@@ -139,7 +142,10 @@
             result = await UserManager.AddLoginAsync(user, externalLoginInfo);
             if (result.Succeeded)
             {
-                var roleResult = await UserManager.AddToRoleAsync(user, AppRoles.Client);
+                var roleName = OwnerRoleSeedService.IsConfiguredOwnerEmail(Input.Email, AdminOptions)
+                    ? AppRoles.Owner
+                    : AppRoles.Client;
+                var roleResult = await UserManager.AddToRoleAsync(user, roleName);
                 if (!roleResult.Succeeded)
                 {
                     Logger.LogWarning(

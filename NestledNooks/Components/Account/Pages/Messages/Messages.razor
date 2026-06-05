@@ -1,0 +1,205 @@
+@page "/account/messages"
+@layout NestledNooks.Components.Layout.MainLayout
+@rendermode InteractiveServer
+
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@using NestledNooks.Data
+@using NestledNooks.Services
+
+@attribute [Authorize]
+
+@inject IMessagingService MessagingService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+<PageTitle>Messages · @SiteBranding.Name</PageTitle>
+
+<div class="msg-page">
+    <header class="msg-hero">
+        <div class="msg-wrap">
+            <p class="msg-hero-eyebrow">@SiteBranding.Name · Messages</p>
+            <div class="msg-hero-row">
+                <div>
+                    <h1 class="msg-hero-title">Inbox</h1>
+                    <p class="msg-hero-lead">
+                        @if (_isStaff)
+                        {
+                            <span>Stay in touch with guests and your team — all in one place.</span>
+                        }
+                        else
+                        {
+                            <span>Chat with your host about your stay, questions, or updates.</span>
+                        }
+                    </p>
+                </div>
+                @if (_canCompose && !_loading && !_loadError)
+                {
+                    <a href="/account/messages/compose" class="msg-btn-primary msg-hero-action">
+                        <span class="msg-btn-icon msg-btn-icon--compose" aria-hidden="true"></span>
+                        New message
+                    </a>
+                }
+            </div>
+        </div>
+    </header>
+
+    <main class="msg-wrap msg-main">
+        @if (_loading)
+        {
+            <div class="msg-panel" aria-busy="true" aria-label="Loading messages">
+                @for (var i = 0; i < 4; i++)
+                {
+                    <div class="msg-skeleton-row">
+                        <div class="msg-skeleton-avatar"></div>
+                        <div class="msg-skeleton-lines">
+                            <div class="msg-skeleton-line msg-skeleton-line--short"></div>
+                            <div class="msg-skeleton-line"></div>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+        else if (_loadError)
+        {
+            <div class="msg-panel msg-panel--center">
+                <p class="nn-note nn-note--error">We could not load your messages. Please sign in again.</p>
+            </div>
+        }
+        else if (_threads.Count == 0)
+        {
+            <div class="msg-panel msg-empty-state">
+                <div class="msg-empty-icon" aria-hidden="true"></div>
+                <h2 class="msg-empty-title">No conversations yet</h2>
+                @if (_canCompose)
+                {
+                    <p class="msg-empty-text">Start a thread with a guest or team member whenever you need to reach out.</p>
+                    <a href="/account/messages/compose" class="msg-btn-primary">Compose message</a>
+                }
+                else
+                {
+                    <p class="msg-empty-text">When your host reaches out, the conversation will show up here so you can read and reply.</p>
+                    <a href="/account/messages/compose" class="msg-btn-primary">Message your host</a>
+                }
+            </div>
+        }
+        else
+        {
+            <div class="msg-panel">
+                <div class="msg-panel-head">
+                    <div>
+                        <h2 class="msg-panel-title">Conversations</h2>
+                        <p class="msg-panel-subtitle">@_threads.Count conversation@(_threads.Count == 1 ? "" : "s")</p>
+                    </div>
+                    @if (_unreadCount > 0)
+                    {
+                        <span class="msg-unread-pill">@_unreadCount unread</span>
+                    }
+                </div>
+
+                <ul class="msg-inbox">
+                    @foreach (var thread in _threads)
+                    {
+                        <li class="msg-inbox-item @(thread.HasUnread ? "is-unread" : "")">
+                            <a href="/account/messages/@thread.ThreadId" class="msg-inbox-link">
+                                <span class="msg-avatar @(thread.IsOwnerAccount ? "msg-avatar--host" : "")" aria-hidden="true">
+                                    @GetInitials(thread.DisplayName)
+                                </span>
+                                <span class="msg-inbox-body">
+                                    <span class="msg-inbox-top">
+                                        <span class="msg-inbox-name-block">
+                                            <span class="msg-inbox-name-row">
+                                                <span class="msg-inbox-name">@thread.DisplayName</span>
+                                                @if (thread.HasUnread)
+                                                {
+                                                    <span class="msg-unread-dot" aria-label="Unread"></span>
+                                                }
+                                            </span>
+                                            @if (thread.Tags.Count > 0)
+                                            {
+                                                <MessageTagBadges Tags="@thread.Tags" ListClass="msg-tag-list--compact" />
+                                            }
+                                        </span>
+                                        <time class="msg-inbox-time" datetime="@thread.UpdatedAtUtc.ToString("o")">
+                                            @FormatRelativeTime(thread.UpdatedAtUtc)
+                                        </time>
+                                    </span>
+                                    <span class="msg-inbox-preview @(thread.HasUnread ? "is-unread" : "")">@thread.Preview</span>
+                                </span>
+                                <span class="msg-inbox-chevron" aria-hidden="true"></span>
+                            </a>
+                        </li>
+                    }
+                </ul>
+            </div>
+        }
+    </main>
+</div>
+
+@code {
+    private bool _loading = true;
+    private bool _loadError;
+    private bool _canCompose;
+    private bool _isStaff;
+    private int _unreadCount;
+    private IReadOnlyList<MessageThreadSummary> _threads = [];
+    private string? _userId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var auth = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        _userId = auth.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+
+        if (string.IsNullOrEmpty(_userId))
+        {
+            _loadError = true;
+            _loading = false;
+            return;
+        }
+
+        var roles = auth.User.FindAll(System.Security.Claims.ClaimTypes.Role).Select(c => c.Value).ToList();
+        _isStaff = roles.Contains(AppRoles.Owner)
+            || roles.Contains(AppRoles.CoHost)
+            || roles.Contains(AppRoles.Manager);
+        _canCompose = _isStaff || roles.Contains(AppRoles.Client);
+
+        try
+        {
+            _threads = await MessagingService.GetInboxAsync(_userId);
+            _unreadCount = _threads.Count(t => t.HasUnread);
+        }
+        catch
+        {
+            _loadError = true;
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private static string GetInitials(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+            return "?";
+        var parts = name.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length >= 2)
+            return $"{char.ToUpper(parts[0][0])}{char.ToUpper(parts[1][0])}";
+
+        return char.ToUpper(name[0]).ToString();
+    }
+
+    private static string FormatRelativeTime(DateTime utc)
+    {
+        var local = utc.ToLocalTime();
+        var diff = DateTime.Now - local;
+        if (diff.TotalMinutes < 1)
+            return "Just now";
+        if (diff.TotalHours < 1)
+            return $"{(int)diff.TotalMinutes}m";
+        if (diff.TotalDays < 1)
+            return local.ToString("h:mm tt");
+        if (diff.TotalDays < 7)
+            return local.ToString("ddd");
+        return local.ToString("MMM d");
+    }
+}
