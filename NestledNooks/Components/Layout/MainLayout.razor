@@ -37,147 +37,162 @@
                OpenChanged="OnDrawerOpenChanged"
                Variant="DrawerVariant.Temporary"
                Anchor="Anchor.Left"
-               Elevation="8"
+               Elevation="0"
                Overlay="true"
                ClipMode="DrawerClipMode.Never"
-               Width="280px"
-               Class="nn-drawer-white">
+               Width="300px"
+               Class="nn-drawer">
 
-        <div class="nn-drawer-inner">
-            <div class="nn-drawer-header">
-                <MudText Typo="Typo.h6">Menu</MudText>
+        <div class="nn-drawer-shell">
+            <header class="nn-drawer-hero">
+                <div class="nn-drawer-brand">
+                    <img src="/images/apple5_blue.png" alt="" class="nn-drawer-logo" />
+                    <div class="nn-drawer-brand-text">
+                        <span class="nn-drawer-brand-title">@SiteBranding.Name</span>
+                        <span class="nn-drawer-brand-tag">@SiteBranding.Tagline</span>
+                    </div>
+                </div>
                 <MudIconButton Icon="@Icons.Material.Filled.Close"
-                               Color="Color.Inherit"
-                               OnClick="@CloseDrawerLocal" />
+                               Class="nn-drawer-close"
+                               OnClick="@CloseDrawerLocal"
+                               aria-label="Close menu" />
+            </header>
+
+            <div class="nn-drawer-scroll">
+                <MudNavMenu Class="nn-drawer-menu">
+                    <div class="nn-drawer-section-label">Explore</div>
+
+                    <MudNavLink Href="/"
+                                Match="NavLinkMatch.All"
+                                Icon="@Icons.Material.Filled.Home"
+                                OnClick="@CloseDrawerLocal">
+                        Deerfield Retreat
+                    </MudNavLink>
+
+                    <MudNavLink Href="/booking?property=deerfield-retreat"
+                                Icon="@Icons.Material.Filled.EventAvailable"
+                                OnClick="@CloseDrawerLocal">
+                        Request booking
+                    </MudNavLink>
+
+                    <MudNavLink Href="/properties/deerfield-retreat/guide"
+                                Icon="@Icons.Material.Filled.MenuBook"
+                                OnClick="@CloseDrawerLocal">
+                        Guest guide
+                    </MudNavLink>
+
+                    <MudNavLink Href="/contact"
+                                Icon="@Icons.Material.Filled.Email"
+                                OnClick="@CloseDrawerLocal">
+                        Contact
+                    </MudNavLink>
+
+                    <AuthorizeView>
+                        <NotAuthorized>
+                            <div class="nn-drawer-section-label">Account</div>
+
+                            <MudNavLink Href="/login"
+                                        Icon="@Icons.Material.Filled.Lock"
+                                        OnClick="@CloseDrawerLocal">
+                                Login
+                            </MudNavLink>
+
+                            <MudNavLink Href="/register"
+                                        Icon="@Icons.Material.Filled.PersonAdd"
+                                        OnClick="@CloseDrawerLocal">
+                                Register
+                            </MudNavLink>
+                        </NotAuthorized>
+                    </AuthorizeView>
+
+                    <AuthorizeView>
+                        <Authorized>
+                            <div class="nn-drawer-section-label">Your account</div>
+
+                            <MudNavLink Href="/account/messages"
+                                        Icon="@Icons.Material.Filled.Mail"
+                                        OnClick="@CloseDrawerLocal">
+                                Messages
+                            </MudNavLink>
+
+                            <MudNavLink Href="/account/manage/settings"
+                                        Icon="@Icons.Material.Filled.Settings"
+                                        OnClick="@CloseDrawerLocal">
+                                Settings
+                            </MudNavLink>
+                        </Authorized>
+                    </AuthorizeView>
+
+                    <AuthorizeView Roles="@($"{AppRoles.Owner},{AppRoles.Manager}")">
+                        <Authorized>
+                            <div class="nn-drawer-section-label">Host tools</div>
+
+                            <MudNavLink Href="/account/manage/bookings"
+                                        Icon="@Icons.Material.Filled.CalendarMonth"
+                                        OnClick="@CloseDrawerLocal">
+                                Manage bookings
+                            </MudNavLink>
+                        </Authorized>
+                    </AuthorizeView>
+
+                    <AuthorizeView Roles="@AppRoles.Owner">
+                        <Authorized>
+                            <div class="nn-drawer-section-label">Owner tools</div>
+
+                            <MudNavLink Href="/account/manage/site"
+                                        Icon="@Icons.Material.Filled.Palette"
+                                        OnClick="@CloseDrawerLocal">
+                                Manage site
+                            </MudNavLink>
+
+                            <MudNavLink Href="/account/manage/properties"
+                                        Icon="@Icons.Material.Filled.House"
+                                        OnClick="@CloseDrawerLocal">
+                                Manage properties
+                            </MudNavLink>
+
+                            <MudNavLink Href="/account/manage/users"
+                                        Icon="@Icons.Material.Filled.People"
+                                        OnClick="@CloseDrawerLocal">
+                                Manage users
+                            </MudNavLink>
+
+                            <MudNavLink Href="/account/manage/contact"
+                                        Icon="@Icons.Material.Filled.ContactMail"
+                                        OnClick="@CloseDrawerLocal">
+                                Contact inquiries
+                            </MudNavLink>
+
+                            <MudNavLink Href="/account/manage/qr-codes"
+                                        Icon="@Icons.Material.Filled.QrCode2"
+                                        OnClick="@CloseDrawerLocal">
+                                QR codes
+                            </MudNavLink>
+                        </Authorized>
+                    </AuthorizeView>
+                </MudNavMenu>
             </div>
 
-            <MudDivider />
-
-            <MudNavMenu>
-                <MudNavLink Href="/"
-                            Match="NavLinkMatch.All"
-                            Icon="@Icons.Material.Filled.Home"
-                            OnClick="@CloseDrawerLocal">
-                    Deerfield Retreat
-                </MudNavLink>
-
-                <MudNavLink Href="/booking?property=deerfield-retreat"
-                            Icon="@Icons.Material.Filled.EventAvailable"
-                            OnClick="@CloseDrawerLocal">
-                    Request booking
-                </MudNavLink>
-
-                <MudNavLink Href="/properties/deerfield-retreat/guide"
-                            Icon="@Icons.Material.Filled.MenuBook"
-                            OnClick="@CloseDrawerLocal">
-                    Guest guide
-                </MudNavLink>
-
-                <MudNavLink Href="/contact"
-                            Icon="@Icons.Material.Filled.Email"
-                            OnClick="@CloseDrawerLocal">
-                    Contact
-                </MudNavLink>
-
-                <MudDivider Class="my-2" />
-
-                <AuthorizeView>
-                    <NotAuthorized>
-                        <MudNavLink Href="/login"
-                                    Icon="@Icons.Material.Filled.Lock"
-                                    OnClick="@CloseDrawerLocal">
-                            Login
-                        </MudNavLink>
-
-                        <MudNavLink Href="/register"
-                                    Icon="@Icons.Material.Filled.PersonAdd"
-                                    OnClick="@CloseDrawerLocal">
-                            Register
-                        </MudNavLink>
-                    </NotAuthorized>
-                </AuthorizeView>
-
+            <footer class="nn-drawer-footer">
                 <AuthorizeView>
                     <Authorized>
-                        <MudNavLink Href="/account/messages"
-                                    Icon="@Icons.Material.Filled.Mail"
-                                    OnClick="@CloseDrawerLocal">
-                            Messages
-                        </MudNavLink>
-                        <MudNavLink Href="/account/manage/settings"
-                                    Icon="@Icons.Material.Filled.Settings"
-                                    OnClick="@CloseDrawerLocal">
-                            Settings
-                        </MudNavLink>
-                    </Authorized>
-                </AuthorizeView>
-
-                <AuthorizeView Roles="@($"{AppRoles.Owner},{AppRoles.Manager}")">
-                    <Authorized>
-                        <MudNavLink Href="/account/manage/bookings"
-                                    Icon="@Icons.Material.Filled.CalendarMonth"
-                                    OnClick="@CloseDrawerLocal">
-                            Manage bookings
-                        </MudNavLink>
-                    </Authorized>
-                </AuthorizeView>
-
-                <AuthorizeView Roles="@AppRoles.Owner">
-                    <Authorized>
-                        <MudNavLink Href="/account/manage/site"
-                                    Icon="@Icons.Material.Filled.Palette"
-                                    OnClick="@CloseDrawerLocal">
-                            Manage site
-                        </MudNavLink>
-                        <MudNavLink Href="/account/manage/properties"
-                                    Icon="@Icons.Material.Filled.House"
-                                    OnClick="@CloseDrawerLocal">
-                            Manage properties
-                        </MudNavLink>
-                        <MudNavLink Href="/account/manage/users"
-                                    Icon="@Icons.Material.Filled.People"
-                                    OnClick="@CloseDrawerLocal">
-                            Manage users
-                        </MudNavLink>
-                        <MudNavLink Href="/account/manage/contact"
-                                    Icon="@Icons.Material.Filled.ContactMail"
-                                    OnClick="@CloseDrawerLocal">
-                            Contact inquiries
-                        </MudNavLink>
-                        <MudNavLink Href="/account/manage/qr-codes"
-                                    Icon="@Icons.Material.Filled.QrCode2"
-                                    OnClick="@CloseDrawerLocal">
-                            QR codes
-                        </MudNavLink>
-                    </Authorized>
-                </AuthorizeView>
-
-                <MudDivider Class="my-2" />
-
-                <AuthorizeView>
-                    <Authorized>
-                        <div class="auth-status">
+                        <div class="auth-status auth-status--signed-in">
                             <span class="status-dot green"></span>
                             <span>Signed in</span>
                         </div>
-                    </Authorized>
-                    <NotAuthorized>
-                        <div class="auth-status">
-                            <span class="status-dot gray"></span>
-                            <span>Guest</span>
-                        </div>
-                    </NotAuthorized>
-                </AuthorizeView>
 
-                <AuthorizeView>
-                    <Authorized>
-                        <MudDivider Class="my-2" />
                         <form method="post" action="/api/account/logout" class="nn-drawer-logout">
                             <button type="submit" class="nn-drawer-logout-btn">Sign out</button>
                         </form>
                     </Authorized>
+                    <NotAuthorized>
+                        <div class="auth-status auth-status--guest">
+                            <span class="status-dot gray"></span>
+                            <span>Browsing as guest</span>
+                        </div>
+                    </NotAuthorized>
                 </AuthorizeView>
-            </MudNavMenu>
+            </footer>
         </div>
     </MudDrawer>
 

@@ -1,5 +1,7 @@
 @using NestledNooks.Services
 @inject ISiteThemeService SiteThemeService
+@inject NavigationManager Navigation
+@implements IDisposable
 
 @((MarkupString)_styleTag)
 
@@ -7,6 +9,18 @@
     private string _styleTag = string.Empty;
 
     protected override async Task OnInitializedAsync()
+    {
+        Navigation.LocationChanged += OnLocationChanged;
+        await RefreshCssAsync();
+    }
+
+    private async void OnLocationChanged(object? sender, LocationChangedEventArgs e)
+    {
+        await RefreshCssAsync();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task RefreshCssAsync()
     {
         try
         {
@@ -18,5 +32,10 @@
             var fallback = SiteThemeCss.BuildStyleBlock(SiteThemePresets.CreateTheme(SiteThemePresets.Default));
             _styleTag = $"<style id=\"nn-site-theme\">{fallback}</style>";
         }
+    }
+
+    public void Dispose()
+    {
+        Navigation.LocationChanged -= OnLocationChanged;
     }
 }

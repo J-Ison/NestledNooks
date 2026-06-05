@@ -19,12 +19,23 @@
 @inject BookingPricingService PricingService
 @inject IUserAdminService UserAdminService
 
-<PageTitle>Settings</PageTitle>
+<PageTitle>Settings · @SiteBranding.Name</PageTitle>
 
-<MudContainer MaxWidth="MaxWidth.Medium" Class="py-4">
+<div class="mgmt-page">
+    <header class="mgmt-hero">
+        <div class="mgmt-wrap">
+            <p class="mgmt-hero-eyebrow">@SiteBranding.Name · Your account</p>
+            <h1 class="mgmt-hero-title">Settings</h1>
+            <p class="mgmt-hero-lead">
+                Update your profile, password, and booking history.
+            </p>
+        </div>
+    </header>
+
+    <main class="mgmt-wrap mgmt-main nn-themed-surface">
     @if (_loadError)
     {
-        <MudCard Class="mb-4">
+        <MudCard Class="mb-4 nn-settings-card">
             <MudCardContent>
                 <MudText Typo="Typo.body1" Color="Color.Error">We could not load your account. Please sign in again.</MudText>
             </MudCardContent>
@@ -32,7 +43,7 @@
     }
     else if (_loading || _user is null)
     {
-        <MudCard>
+        <MudCard Class="nn-settings-card">
             <MudCardContent>
                 <MudText Typo="Typo.body1">Loading…</MudText>
             </MudCardContent>
@@ -40,11 +51,9 @@
     }
     else
     {
-        <MudText Typo="Typo.h4" Class="mb-4">Settings</MudText>
-
-        <MudCard Class="mb-4">
+        <MudCard Class="mb-4 nn-settings-card">
             <MudCardContent>
-                <MudText Typo="Typo.h6" Class="mb-3">Profile</MudText>
+                <MudText Typo="Typo.h6" Class="mb-3 nn-settings-section-title">Profile</MudText>
 
                 <EditForm Model="@_profile" OnValidSubmit="SaveProfileAsync">
                     <DataAnnotationsValidator />
@@ -97,9 +106,9 @@
 
         @if (_isOwner)
         {
-            <MudCard Class="mb-4">
+            <MudCard Class="mb-4 nn-settings-card">
                 <MudCardContent>
-                    <MudText Typo="Typo.h6" Class="mb-1">Message tags</MudText>
+                    <MudText Typo="Typo.h6" Class="mb-1 nn-settings-section-title">Message tags</MudText>
                     <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-3">
                         Tags appear next to your name in messages. Your role shows <strong>@string.Join(", ", UserMessageTags.TagsFromRoles(new[] { AppRoles.Owner }))</strong> by default.
                         Add custom tags here to replace the role tag.
@@ -131,9 +140,9 @@
             </MudCard>
         }
 
-        <MudCard Class="mb-4">
+        <MudCard Class="mb-4 nn-settings-card">
             <MudCardContent>
-                <MudText Typo="Typo.h6" Class="mb-3">Password</MudText>
+                <MudText Typo="Typo.h6" Class="mb-3 nn-settings-section-title">Password</MudText>
 
                 <EditForm Model="@_passwords" OnValidSubmit="ChangePasswordAsync">
                     <DataAnnotationsValidator />
@@ -188,9 +197,9 @@
             </MudCardContent>
         </MudCard>
 
-        <MudCard>
+        <MudCard Class="nn-settings-card">
             <MudCardContent>
-                <MudText Typo="Typo.h6" Class="mb-3">Bookings</MudText>
+                <MudText Typo="Typo.h6" Class="mb-3 nn-settings-section-title">Bookings</MudText>
 
                 @if (_bookings.Count == 0)
                 {
@@ -227,7 +236,8 @@
             </MudCardContent>
         </MudCard>
     }
-</MudContainer>
+    </main>
+</div>
 
 @code {
     private const string SettingsPath = "/account/manage/settings";
