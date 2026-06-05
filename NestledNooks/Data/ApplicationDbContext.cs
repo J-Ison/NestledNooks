@@ -9,6 +9,8 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
 {
     public DbSet<BookingRequest> BookingRequests => Set<BookingRequest>();
     public DbSet<ExternalCalendarEvent> ExternalCalendarEvents => Set<ExternalCalendarEvent>();
+    public DbSet<SiteTheme> SiteThemes => Set<SiteTheme>();
+    public DbSet<RentalProperty> RentalProperties => Set<RentalProperty>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -52,6 +54,43 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             e.Property(x => x.Source).HasMaxLength(40).IsRequired();
             e.Property(x => x.Summary).HasMaxLength(500);
             e.HasIndex(x => new { x.PropertySlug, x.StartDate, x.EndDate });
+        });
+
+        builder.Entity<SiteTheme>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.PresetKey).HasMaxLength(40).IsRequired();
+            e.Property(x => x.PrimaryColor).HasMaxLength(16).IsRequired();
+            e.Property(x => x.PrimaryLightColor).HasMaxLength(16).IsRequired();
+            e.Property(x => x.PrimarySoftBg).HasMaxLength(16).IsRequired();
+            e.Property(x => x.PrimaryBorderColor).HasMaxLength(16).IsRequired();
+            e.Property(x => x.PrimaryTextColor).HasMaxLength(16).IsRequired();
+            e.Property(x => x.AccentColor).HasMaxLength(16).IsRequired();
+            e.Property(x => x.AccentBorderColor).HasMaxLength(16).IsRequired();
+            e.Property(x => x.HeroStartColor).HasMaxLength(16).IsRequired();
+            e.Property(x => x.HeroMidColor).HasMaxLength(16).IsRequired();
+            e.Property(x => x.HeroEndColor).HasMaxLength(16).IsRequired();
+            e.Property(x => x.HeroBorderColor).HasMaxLength(16).IsRequired();
+            e.Property(x => x.BookingColor).HasMaxLength(16).IsRequired();
+            e.Property(x => x.BookingDarkColor).HasMaxLength(16).IsRequired();
+            e.Property(x => x.PageBgTop).HasMaxLength(16).IsRequired();
+            e.Property(x => x.PageBgBottom).HasMaxLength(16).IsRequired();
+        });
+
+        builder.Entity<RentalProperty>(e =>
+        {
+            e.Property(x => x.Slug).HasMaxLength(120).IsRequired();
+            e.HasIndex(x => x.Slug).IsUnique();
+            e.Property(x => x.DisplayName).HasMaxLength(200).IsRequired();
+            e.Property(x => x.MetaDescription).HasMaxLength(500);
+            e.Property(x => x.Subtitle).HasMaxLength(1000);
+            e.Property(x => x.TagsLine1).HasMaxLength(300);
+            e.Property(x => x.TagsLine2).HasMaxLength(300);
+            e.Property(x => x.BookingSubtext).HasMaxLength(500);
+            e.Property(x => x.BookingFinePrint).HasMaxLength(500);
+            e.Property(x => x.AirbnbUrl).HasMaxLength(500);
+            e.Property(x => x.VrboUrl).HasMaxLength(500);
         });
     }
 }

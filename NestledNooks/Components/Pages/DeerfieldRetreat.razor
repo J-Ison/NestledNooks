@@ -1,288 +1,281 @@
 ﻿@page "/"
-@page "/properties/deerfield-retreat"
+@page "/properties/{Slug}"
 @rendermode InteractiveServer
+@using NestledNooks.Data
+@using NestledNooks.Services
 @inject NavigationManager Nav
+@inject IPropertyService PropertyService
 
-<PageTitle>Deerfield Retreat · @SiteBranding.Name</PageTitle>
-<HeadContent>
-    <meta name="description" content="Peaceful vacation home near Rapid City, South Dakota — open fields, visiting deer, sleeps up to 12, 4 bedrooms, 3 baths. Relax and recharge at Deerfield Retreat." />
-</HeadContent>
+@if (_loading)
+{
+    <div class="listing-page">
+        <main class="wrap">
+            <p class="nn-loading">Loading…</p>
+        </main>
+    </div>
+}
+else if (_property is null)
+{
+    <div class="listing-page">
+        <main class="wrap">
+            <p class="nn-note nn-note--error">Property not found.</p>
+            <a class="guide-link" href="/properties">Browse properties</a>
+        </main>
+    </div>
+}
+else
+{
+    var photos = _photos;
+    var sidePhotos = photos.Skip(1).Take(4);
+    var lastWidePhoto = photos.Skip(5).FirstOrDefault();
+    var hasLastWidePhoto = lastWidePhoto is not null;
 
-<div class="listing-page">
-    <main class="wrap">
-        <header class="listing-header">
-            <p class="listing-eyebrow">@SiteBranding.RegionLine</p>
-            <h1 class="title">Deerfield Retreat</h1>
-            <p class="subtitle">
-                A peaceful getaway surrounded by open fields and visiting deer — the perfect spot to slow down,
-                recharge, and enjoy the quiet.
-            </p>
-            <ul class="listing-stats" aria-label="Property highlights">
-                <li>Sleeps 12</li>
-                <li>4 bedrooms</li>
-                <li>6 beds</li>
-                <li>3 baths</li>
-                <li>Rapid City</li>
-				<li>30m from Sturgis</li>
-            </ul>
-        </header>
+    <PageTitle>@_property.DisplayName · @SiteBranding.Name</PageTitle>
+    <HeadContent>
+        <meta name="description" content="@_property.MetaDescription" />
+    </HeadContent>
 
-        <section class="media-grid" aria-label="Listing photos">
-            <div class="media-main">
-                <img src="@Photos[0].Url" alt="@Photos[0].Alt" loading="lazy" />
-            </div>
-
-            <div class="media-side @(HasLastWidePhoto ? "has-wide" : "no-wide")">
-                @foreach (var p in SidePhotos)
+    <div class="listing-page">
+        <main class="wrap">
+            <header class="listing-header">
+                <p class="listing-eyebrow">@SiteBranding.RegionLine</p>
+                <h1 class="title">@_property.DisplayName</h1>
+                <p class="subtitle">@_property.Subtitle</p>
+                @if (_stats.Count > 0)
                 {
-                    <img src="@p.Url" alt="@p.Alt" loading="lazy" />
-                }
-
-                @if (HasLastWidePhoto)
-                {
-                    <div class="media-last">
-                        <img src="@LastWidePhoto!.Url" alt="@LastWidePhoto!.Alt" loading="lazy" />
-                        <button type="button"
-                                class="show-photos"
-                                @onclick="OpenGallery"
-                                @onclick:stopPropagation="true">
-                            Show all photos
-                        </button>
-                    </div>
-                }
-                else
-                {
-                    <div class="media-last no-photo">
-                        <button type="button"
-                                class="show-photos"
-                                @onclick="OpenGallery"
-                                @onclick:stopPropagation="true">
-                            Show all photos
-                        </button>
-                    </div>
-                }
-            </div>
-        </section>
-
-        <section class="content-grid">
-            <div class="left">
-                <div class="listing-intro-card">
-                    <div class="subhead">
-                        <div class="line-1">Entire home · Black Hills, South Dakota</div>
-                        <div class="line-2">Family-friendly · Prairie views · Quiet nights</div>
-                    </div>
-
-                    <div class="badges">
-                        <div class="badge">
-                            <div class="badge-title">Guest favorite</div>
-                            <div class="badge-sub">A relaxing, family-friendly stay</div>
-                        </div>
-                        <div class="badge">
-                            <div class="badge-title">Prairie view</div>
-                            <div class="badge-sub">Open fields + big skies</div>
-                        </div>
-                    </div>
-                </div>
-
-                <article class="listing-block">
-                    <h2 class="listing-block-title">About this property</h2>
-                    <p class="desc">
-                        Deerfield Retreat is a cozy escape tucked away from the noise, with wide-open views and
-                        frequent deer sightings right from the yard. Whether you're here with family, friends, or on
-                        a solo reset, it's designed to feel calm, comfortable, and easy.
-                    </p>
-                </article>
-
-                <article class="listing-block">
-                    <h2 class="listing-block-title">Amenities</h2>
-                    <ul class="listing-amenities">
-                        <li>4 comfortable bedrooms with scenic views</li>
-                        <li>Fully equipped kitchen with modern appliances</li>
-                        <li>Outdoor seating area with BBQ grill</li>
-                        <li>High-speed Wi‑Fi for work or streaming</li>
-                        <li>Washer &amp; dryer for longer stays</li>
-                        <li>Pet-friendly (with prior approval)</li>
+                    <ul class="listing-stats" aria-label="Property highlights">
+                        @foreach (var stat in _stats)
+                        {
+                            <li>@stat</li>
+                        }
                     </ul>
-                </article>
+                }
+            </header>
 
-                <article class="listing-block">
-                    <h2 class="listing-block-title">Location</h2>
-                    <p class="desc">
-                        Deerfield Retreat is in north Rapid City, so you're close to groceries,
-                        restaurants, and attractions — but far enough out that nights stay quiet and the stars stay
-                        bright.
-                    </p>
-                </article>
-
-                <article class="listing-block listing-block--guide">
-                    <div class="listing-guide-inner">
-                        <div>
-                            <h2 class="listing-block-title">Guest guide</h2>
-                            <p class="desc">
-                                House details, local recommendations, and stay resources. Wi‑Fi and access info are in your confirmation email.
-                            </p>
-                        </div>
-                        <a class="listing-guide-btn" href="/properties/deerfield-retreat/guide">Open guest guide</a>
-                    </div>
-                </article>
-            </div>
-
-            <aside class="right">
-                <div class="booking-card">
-                    <div class="booking-head">
-                        <div class="booking-title">Book your stay</div>
-                        <div class="booking-sub">Direct request, Airbnb, or Vrbo — calendars stay in sync.</div>
+            @if (photos.Count > 0)
+            {
+                <section class="media-grid" aria-label="Listing photos">
+                    <div class="media-main">
+                        <img src="@photos[0].Url" alt="@photos[0].Alt" loading="lazy" />
                     </div>
 
-                    <div class="cta-stack">
-                        <a class="primary-btn site-book"
-                           href="/booking?property=deerfield-retreat">
-                            Request booking
-                        </a>
-
-                        <a class="primary-btn airbnb"
-                           href="https://airbnb.com/h/mydeerfieldretreat"
-                           target="_blank"
-                           rel="noopener noreferrer">
-                            View on Airbnb
-                        </a>
-
-                        <a class="primary-btn vrbo"
-                           href="https://www.vrbo.com/4507873?dateless=true"
-                           target="_blank"
-                           rel="noopener noreferrer">
-                            View on Vrbo
-                        </a>
-                    </div>
-
-                    <div class="fineprint">
-                        Most accurate pricing and availability appear on each platform.
-                    </div>
-                </div>
-            </aside>
-        </section>
-    </main>
-
-    @if (IsGalleryOpen)
-    {
-        <div class="gallery-overlay" @onclick="CloseGallery">
-            <div class="gallery-modal" @onclick:stopPropagation>
-                <div class="gallery-header">
-                    <button class="gallery-close" type="button" @onclick="CloseGallery">✕</button>
-                    <div class="gallery-count">@($"{SelectedIndex + 1} / {Photos.Count}")</div>
-                </div>
-
-                <div class="gallery-body">
-                    <button class="gallery-nav prev" type="button" @onclick="Prev" disabled="@(!CanPrev)">‹</button>
-
-                    <div class="gallery-main">
-                        <img src="@Photos[SelectedIndex].Url" alt="@Photos[SelectedIndex].Alt" />
-                        <div class="gallery-caption">@Photos[SelectedIndex].Alt</div>
-                    </div>
-
-                    <button class="gallery-nav next" type="button" @onclick="Next" disabled="@(!CanNext)">›</button>
-                </div>
-
-                <div class="gallery-thumbs">
-                    @for (var i = 0; i < Photos.Count; i++)
-                    {
-                        var p = Photos[i];
-                        <button class="thumb @(i == SelectedIndex ? "active" : "")"
-                                type="button"
-                                @onclick="(() => Select(i))">
+                    <div class="media-side @(hasLastWidePhoto ? "has-wide" : "no-wide")">
+                        @foreach (var p in sidePhotos)
+                        {
                             <img src="@p.Url" alt="@p.Alt" loading="lazy" />
-                        </button>
+                        }
+
+                        @if (hasLastWidePhoto)
+                        {
+                            <div class="media-last">
+                                <img src="@lastWidePhoto!.Url" alt="@lastWidePhoto!.Alt" loading="lazy" />
+                                <button type="button"
+                                        class="show-photos"
+                                        @onclick="OpenGallery"
+                                        @onclick:stopPropagation="true">
+                                    Show all photos
+                                </button>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="media-last no-photo">
+                                <button type="button"
+                                        class="show-photos"
+                                        @onclick="OpenGallery"
+                                        @onclick:stopPropagation="true">
+                                    Show all photos
+                                </button>
+                            </div>
+                        }
+                    </div>
+                </section>
+            }
+
+            <section class="content-grid">
+                <div class="left">
+                    <div class="listing-intro-card">
+                        <div class="subhead">
+                            @if (!string.IsNullOrWhiteSpace(_property.TagsLine1))
+                            {
+                                <div class="line-1">@_property.TagsLine1</div>
+                            }
+                            @if (!string.IsNullOrWhiteSpace(_property.TagsLine2))
+                            {
+                                <div class="line-2">@_property.TagsLine2</div>
+                            }
+                        </div>
+
+                        @if (_badges.Count > 0)
+                        {
+                            <div class="badges">
+                                @foreach (var badge in _badges)
+                                {
+                                    <div class="badge">
+                                        <div class="badge-title">@badge.Title</div>
+                                        <div class="badge-sub">@badge.Subtitle</div>
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </div>
+
+                    @if (!string.IsNullOrWhiteSpace(_property.AboutText))
+                    {
+                        <article class="listing-block">
+                            <h2 class="listing-block-title">About this property</h2>
+                            <p class="desc">@_property.AboutText</p>
+                        </article>
                     }
+
+                    @if (_amenities.Count > 0)
+                    {
+                        <article class="listing-block">
+                            <h2 class="listing-block-title">Amenities</h2>
+                            <ul class="listing-amenities">
+                                @foreach (var amenity in _amenities)
+                                {
+                                    <li>@amenity</li>
+                                }
+                            </ul>
+                        </article>
+                    }
+
+                    @if (!string.IsNullOrWhiteSpace(_property.LocationText))
+                    {
+                        <article class="listing-block">
+                            <h2 class="listing-block-title">Location</h2>
+                            <p class="desc">@_property.LocationText</p>
+                        </article>
+                    }
+
+                    <article class="listing-block listing-block--guide">
+                        <div class="listing-guide-inner">
+                            <div>
+                                <h2 class="listing-block-title">Guest guide</h2>
+                                <p class="desc">@_property.GuideTeaserText</p>
+                            </div>
+                            <a class="listing-guide-btn" href="/properties/@_property.Slug/guide">Open guest guide</a>
+                        </div>
+                    </article>
+                </div>
+
+                <aside class="right">
+                    <div class="booking-card">
+                        <div class="booking-head">
+                            <div class="booking-title">Book your stay</div>
+                            <div class="booking-sub">@_property.BookingSubtext</div>
+                        </div>
+
+                        <div class="cta-stack">
+                            <a class="primary-btn site-book"
+                               href="/booking?property=@_property.Slug">
+                                Request booking
+                            </a>
+
+                            @if (!string.IsNullOrWhiteSpace(_property.AirbnbUrl))
+                            {
+                                <a class="primary-btn airbnb"
+                                   href="@_property.AirbnbUrl"
+                                   target="_blank"
+                                   rel="noopener noreferrer">
+                                    View on Airbnb
+                                </a>
+                            }
+
+                            @if (!string.IsNullOrWhiteSpace(_property.VrboUrl))
+                            {
+                                <a class="primary-btn vrbo"
+                                   href="@_property.VrboUrl"
+                                   target="_blank"
+                                   rel="noopener noreferrer">
+                                    View on Vrbo
+                                </a>
+                            }
+                        </div>
+
+                        @if (!string.IsNullOrWhiteSpace(_property.BookingFinePrint))
+                        {
+                            <div class="fineprint">@_property.BookingFinePrint</div>
+                        }
+                    </div>
+                </aside>
+            </section>
+        </main>
+
+        @if (IsGalleryOpen && photos.Count > 0)
+        {
+            <div class="gallery-overlay" @onclick="CloseGallery">
+                <div class="gallery-modal" @onclick:stopPropagation>
+                    <div class="gallery-header">
+                        <button class="gallery-close" type="button" @onclick="CloseGallery">✕</button>
+                        <div class="gallery-count">@($"{SelectedIndex + 1} / {photos.Count}")</div>
+                    </div>
+
+                    <div class="gallery-body">
+                        <button class="gallery-nav prev" type="button" @onclick="Prev" disabled="@(!CanPrev)">‹</button>
+
+                        <div class="gallery-main">
+                            <img src="@photos[SelectedIndex].Url" alt="@photos[SelectedIndex].Alt" />
+                            <div class="gallery-caption">@photos[SelectedIndex].Alt</div>
+                        </div>
+
+                        <button class="gallery-nav next" type="button" @onclick="Next" disabled="@(!CanNext)">›</button>
+                    </div>
+
+                    <div class="gallery-thumbs">
+                        @for (var i = 0; i < photos.Count; i++)
+                        {
+                            var p = photos[i];
+                            var thumbIndex = i;
+                            <button class="thumb @(i == SelectedIndex ? "active" : "")"
+                                    type="button"
+                                    @onclick="(() => Select(thumbIndex))">
+                                <img src="@p.Url" alt="@p.Alt" loading="lazy" />
+                            </button>
+                        }
+                    </div>
                 </div>
             </div>
-        </div>
-    }
-</div>
+        }
+    </div>
+}
 
 @code {
-    private readonly List<ListingPhoto> Photos =
-    [
-		new("/images/322EliFrontArial01.webp", "Front aerial view"),
-        new("/images/322EliBalcony_1.webp", "Back Balcony"),
-        new("/images/322EliLiving_Dining_1.webp", "Living Room view"),
-        new("/images/322EliKitchen_1.webp", "Kitchen View"),
-        new("/images/322DiningRoomView.webp", "Dining Room View"),
-        new("/images/322SwingView_1.webp", "Swing/Ground View"),
-        new("/images/322MasterBed_1.webp", "Master Bedroom"),
-		new("/images/322EliArialBack04.webp", "Exterior aerial view"),
-		new("/images/322EliFrontArial02.webp", "Front aerial view"),
-        new("/images/322EliBackArial01.webp", "Back aerial view"),
-        new("/images/322EliBackArial02.webp", "Back aerial view"),
-        new("/images/322EliBackArial03.webp", "Back aerial view"),
-        new("/images/322EliArial05.webp", "Aerial view"),
-        new("/images/322EliFront01.webp", "Front exterior"),
-        new("/images/322EliFront02.webp", "Front exterior"),
-        new("/images/322EliFront03.webp", "Front exterior"),
-        new("/images/322EliEntryway.webp", "Entryway"),
-        new("/images/322EliDrLiving1CouchBed_01.webp", "Living room with sofa bed"),
-        new("/images/322EliDrLiving1_01.webp", "Living room - Upstairs"),
-        new("/images/322EliDrLiving1_02.webp", "Living room - Upstairs"),
-        new("/images/322EliDrLiving1_03.webp", "Living room - Upstairs"),
-        new("/images/322EliDrLiving1_04.webp", "Living room - Upstairs"),
-        new("/images/322EliDrLiving1_05.webp", "Living room - Upstairs"),
-        new("/images/322EliLiving2_1.webp", "Living room - Downstairs"),
-        new("/images/322EliLiving2_2.webp", "Living room - Downstairs"),
-        new("/images/322EliLiving2_3.webp", "Living room - Downstairs"),
-        new("/images/322EliLiving2_4.webp", "Living room - Downstairs"),
-        new("/images/322EliLiving2_5.webp", "Living room - Downstairs"),
-        new("/images/322EliDining1_01.webp", "Dining area - Upstairs"),
-        new("/images/322EliDining2_1.webp", "Dining area - Downstairs"),
-        new("/images/322EliDining2_2.webp", "Dining area - Downstairs"),
-        new("/images/322EliDining2_3.webp", "Dining area - Downstairs"),
-        new("/images/322EliDining2_4.webp", "Dining area - Downstairs"),
-        new("/images/322EliKitchen_01.webp", "Kitchen"),
-        new("/images/322EliKitchen_02.webp", "Kitchen"),
-        new("/images/322EliKitchen_03.webp", "Kitchen"),
-        new("/images/322EliKitchen_04.webp", "Kitchen"),
-        new("/images/322EliKitchen_1.webp", "Kitchen"),
-        new("/images/322EliMasterBath_1.webp", "Master bathroom"),
-        new("/images/322EliMasterBath_1_alt.webp", "Master bathroom"),
-        new("/images/322EliMasterBedKing_1.webp", "Master bedroom"),
-        new("/images/322EliMasterBedKing_2.webp", "Master bedroom"),
-        new("/images/322EliMasterBedKing_3.webp", "Master bedroom"),
-        new("/images/322EliMasterBedKing_4.webp", "Master bedroom"),
-        new("/images/322EliMasterBedKing_5.webp", "Master bedroom"),
-        new("/images/322EliMasterCloset.webp", "Master closet"),
-        new("/images/322EliBed3wKing_1.webp", "Bedroom 3 with king bed"),
-        new("/images/322EliBed3wKing_2.webp", "Bedroom 3 with king bed"),
-        new("/images/322EliBed3wKing_3.webp", "Bedroom 3 with king bed"),
-        new("/images/322EliBed3wKing_4.webp", "Bedroom 3 with king bed"),
-        new("/images/322EliBed3wKing_5.webp", "Bedroom 3 with king bed"),
-        new("/images/322EliBed3wKing_6.webp", "Bedroom 3 with king bed"),
-        new("/images/322EliBed3wKing_7.webp", "Bedroom 3 with king bed"),
-        new("/images/322EliBed4_1.webp", "Bedroom 4"),
-        new("/images/322EliBed4_2.webp", "Bedroom 4"),
-        new("/images/322EliBed4_3.webp", "Bedroom 4"),
-        new("/images/322EliBed4_4.webp", "Bedroom 4"),
-        new("/images/322EliBedroom2_1.webp", "Bedroom 2"),
-        new("/images/322EliBedroom2_2.webp", "Bedroom 2"),
-        new("/images/322EliBedroom2_3.webp", "Bedroom 2"),
-        new("/images/322EliBedroom2_4.webp", "Bedroom 2"),
-        new("/images/322EliBedroom2_5.webp", "Bedroom 2"),
-        new("/images/322EliBath2_1.webp", "Bathroom 2"),
-        new("/images/322EliBathroom3.webp", "Bathroom 3"),
-        new("/images/322EliBalcony_2.webp", "Back balcony"),
-        new("/images/322EliBalcony_3.webp", "Back balcony"),
-        new("/images/322EliBalcony_4.webp", "Back balcony"),
-        new("/images/322EliBack01.webp", "Back yard"),
-        new("/images/322EliBackPorch_01.webp", "Back porch"),
-        new("/images/322EliGarage.webp", "Garage"),
-        new("/images/322EliLaundryRoom.webp", "Laundry room"),
-        new("/images/322EliRecordPlayer.webp", "Record player"),
-    ];
+    [Parameter]
+    public string? Slug { get; set; }
 
-    private IEnumerable<ListingPhoto> SidePhotos => Photos.Skip(1).Take(4);
-    private ListingPhoto? LastWidePhoto => Photos.Skip(5).FirstOrDefault();
-    private bool HasLastWidePhoto => LastWidePhoto is not null;
+    private RentalProperty? _property;
+    private IReadOnlyList<PropertyPhoto> _photos = [];
+    private IReadOnlyList<string> _stats = [];
+    private IReadOnlyList<PropertyBadge> _badges = [];
+    private IReadOnlyList<string> _amenities = [];
+    private bool _loading = true;
 
-    private sealed record ListingPhoto(string Url, string Alt);
     private bool IsGalleryOpen { get; set; }
     private int SelectedIndex { get; set; }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _loading = true;
+
+        _property = string.IsNullOrWhiteSpace(Slug)
+            ? await PropertyService.GetHomepageAsync()
+            : await PropertyService.GetBySlugAsync(Slug);
+
+        if (_property is not null)
+        {
+            _photos = PropertyContentJson.ParsePhotos(_property.PhotosJson);
+            _stats = PropertyContentJson.ParseStringList(_property.StatsJson);
+            _badges = PropertyContentJson.ParseBadges(_property.BadgesJson);
+            _amenities = PropertyContentJson.ParseStringList(_property.AmenitiesJson);
+        }
+
+        _loading = false;
+    }
+
+    private bool CanPrev => SelectedIndex > 0;
+    private bool CanNext => SelectedIndex < _photos.Count - 1;
 
     private void OpenGallery()
     {
@@ -291,9 +284,6 @@
     }
 
     private void CloseGallery() => IsGalleryOpen = false;
-
-    private bool CanPrev => SelectedIndex > 0;
-    private bool CanNext => SelectedIndex < Photos.Count - 1;
 
     private void Prev()
     {
@@ -307,6 +297,6 @@
 
     private void Select(int index)
     {
-        if (index >= 0 && index < Photos.Count) SelectedIndex = index;
+        if (index >= 0 && index < _photos.Count) SelectedIndex = index;
     }
 }

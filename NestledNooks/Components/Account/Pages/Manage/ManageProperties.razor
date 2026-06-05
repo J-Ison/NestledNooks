@@ -1,0 +1,97 @@
+@page "/account/manage/properties"
+@layout NestledNooks.Components.Layout.MainLayout
+@rendermode InteractiveServer
+
+@using Microsoft.AspNetCore.Authorization
+@using NestledNooks.Data
+@using NestledNooks.Services
+
+@attribute [Authorize(Roles = AppRoles.Owner)]
+
+@inject IPropertyService PropertyService
+
+<PageTitle>Manage properties · @SiteBranding.Name</PageTitle>
+
+<div class="mgmt-page">
+    <header class="mgmt-hero">
+        <div class="mgmt-wrap">
+            <p class="mgmt-hero-eyebrow">@SiteBranding.Name · Owner tools</p>
+            <h1 class="mgmt-hero-title">Manage properties</h1>
+            <p class="mgmt-hero-lead">
+                Edit listing copy, tags, amenities, and photos for each property. Booking rates stay in site configuration for now.
+            </p>
+        </div>
+    </header>
+
+    <main class="mgmt-wrap mgmt-main">
+        @if (_loading)
+        {
+            <p class="nn-loading">Loading properties…</p>
+        }
+        else if (_properties.Count == 0)
+        {
+            <p class="mgmt-empty">No properties found. Restart the app to seed Deerfield Retreat, or run database migrations.</p>
+        }
+        else
+        {
+            <div class="prop-manage-grid">
+                @foreach (var property in _properties)
+                {
+                    var photos = PropertyContentJson.ParsePhotos(property.PhotosJson);
+                    var hero = photos.FirstOrDefault();
+
+                    <article class="mgmt-card prop-manage-card">
+                        <div class="prop-manage-card-media">
+                            @if (hero is not null)
+                            {
+                                <img src="@hero.Url" alt="@hero.Alt" loading="lazy" />
+                            }
+                            else
+                            {
+                                <div class="prop-manage-card-placeholder">No photo</div>
+                            }
+                        </div>
+                        <div class="prop-manage-card-body">
+                            <div class="prop-manage-card-head">
+                                <div>
+                                    <h2 class="mgmt-card-title">@property.DisplayName</h2>
+                                    <p class="mgmt-card-subtitle">/@property.Slug</p>
+                                </div>
+                                <div class="mgmt-badges">
+                                    @if (property.IsHomepage)
+                                    {
+                                        <span class="mgmt-badge mgmt-badge--status">Homepage</span>
+                                    }
+                                    @if (property.IsPublished)
+                                    {
+                                        <span class="mgmt-badge mgmt-badge--published">Published</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="mgmt-badge mgmt-badge--status">Draft</span>
+                                    }
+                                </div>
+                            </div>
+                            <p class="prop-manage-card-desc">@property.Subtitle</p>
+                            <div class="prop-manage-card-actions">
+                                <a class="nn-btn-primary prop-manage-edit-btn" href="/account/manage/properties/@property.Slug">Edit listing</a>
+                                <a class="guide-link" href="/properties/@property.Slug" target="_blank" rel="noopener">View live page ↗</a>
+                            </div>
+                        </div>
+                    </article>
+                }
+            </div>
+        }
+    </main>
+</div>
+
+@code {
+    private IReadOnlyList<RentalProperty> _properties = [];
+    private bool _loading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _properties = await PropertyService.GetAllAsync();
+        _loading = false;
+    }
+}

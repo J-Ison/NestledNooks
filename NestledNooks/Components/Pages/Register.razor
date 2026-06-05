@@ -12,190 +12,206 @@
 @inject NavigationManager NavigationManager
 @inject ILogger<Register> Logger
 
-<EditForm Model="model" OnValidSubmit="HandleRegistrationAsync">
-	<DataAnnotationsValidator />
-	<ValidationSummary />
+<PageTitle>@SiteBranding.PageTitle("Create account")</PageTitle>
 
-	<div class="login-wrapper">
-		<div class="login-card">
-			@if (!isSubmitted)
-			{
-				<h2 class="login-title">Create an Account</h2>
-				<p class="login-subtitle">Enter your details to get started</p>
+<div class="guide-page auth-page">
+    <header class="guide-hero guide-hero--auth">
+        <div class="wrap guide-hero-inner">
+            <p class="guide-hero-eyebrow">@SiteBranding.Name · @SiteBranding.RegionLine</p>
+            <h1 class="guide-hero-title">Create an account</h1>
+            <p class="guide-hero-lead">Register to request stays and manage your profile with Nestled Nooks.</p>
+        </div>
+    </header>
 
-				<div class="form-group">
-					<label for="username">Username</label>
-					<InputText id="username" class="form-control" @bind-Value="model.Username" />
-				</div>
+    <main class="wrap guide-main auth-main">
+        <EditForm Model="model" OnValidSubmit="HandleRegistrationAsync">
+            <DataAnnotationsValidator />
 
-				<div class="form-group">
-					<label for="email">Email</label>
-					<InputText id="email" type="email" class="form-control" @bind-Value="model.Email" />
-				</div>
+            <article class="guide-card guide-card--auth">
+                <header class="guide-card-header">
+                    <span class="guide-card-icon" aria-hidden="true">✨</span>
+                    <div>
+                        <h2 class="guide-card-title">@(isSubmitted ? "You're all set" : "Account details")</h2>
+                        <p class="guide-card-subtitle">
+                            @(isSubmitted ? "You can sign in whenever you're ready." : "We use this for booking confirmations")
+                        </p>
+                    </div>
+                </header>
 
-				<div class="form-group">
-					<label for="phone">Phone Number</label>
-					<InputText id="phone"
-							   type="tel"
-							   class="form-control"
-							   @bind-Value="model.PhoneNumber" />
-				</div>
+                <div class="guide-card-body auth-card-body">
+                    @if (!isSubmitted)
+                    {
+                        <ValidationSummary class="nn-note nn-note--error auth-validation" />
 
-				<div class="form-group">
-					<label for="password">Password</label>
-					<InputText id="password" type="password" class="form-control" @bind-Value="model.Password" />
-				</div>
+                        <div class="nn-form-group">
+                            <label for="username">Username</label>
+                            <InputText id="username" class="nn-form-control" @bind-Value="model.Username" />
+                        </div>
 
-				<div class="form-group">
-					<label for="confirm">Confirm Password</label>
-					<InputText id="confirm" type="password" class="form-control" @bind-Value="model.ConfirmPassword" />
-				</div>
+                        <div class="nn-form-group">
+                            <label for="email">Email</label>
+                            <InputText id="email" type="email" class="nn-form-control" @bind-Value="model.Email" />
+                        </div>
 
-				<div class="mb-3">
-					@if (!string.IsNullOrEmpty(statusMessage))
-					{
-						<div class="@statusClass">@statusMessage</div>
-					}
-				</div>
+                        <div class="nn-form-group">
+                            <label for="phone">Phone number</label>
+                            <InputText id="phone" type="tel" class="nn-form-control" @bind-Value="model.PhoneNumber" />
+                        </div>
 
-				<button class="btn btn-login" type="submit" disabled="@isSending">
-					@(isSending ? "Creating..." : "Create Account")
-				</button>
+                        <div class="nn-form-group">
+                            <label for="password">Password</label>
+                            <InputText id="password" type="password" class="nn-form-control" @bind-Value="model.Password" />
+                        </div>
 
-				<p class="login-register">
-					Already have an account? <a href="/login">Login</a>
-				</p>
-			}
-			else
-			{
-				<h2 class="login-title">Account Created</h2>
-				<p class="login-subtitle">
-					You can now log in with your new account (after confirming your email if required).
-				</p>
+                        <div class="nn-form-group">
+                            <label for="confirm">Confirm password</label>
+                            <InputText id="confirm" type="password" class="nn-form-control" @bind-Value="model.ConfirmPassword" />
+                        </div>
 
-				<a href="/login" class="btn btn-login">Go to Login</a>
-			}
-		</div>
-	</div>
-</EditForm>
+                        @if (!string.IsNullOrEmpty(statusMessage))
+                        {
+                            <p class="nn-note @statusClass">@statusMessage</p>
+                        }
+
+                        <button class="nn-btn-primary" type="submit" disabled="@isSending">
+                            @(isSending ? "Creating…" : "Create account")
+                        </button>
+
+                        <p class="auth-switch">
+                            Already have an account? <a class="guide-link" href="/login">Sign in</a>
+                        </p>
+                    }
+                    else
+                    {
+                        <p class="guide-intro">
+                            Your account was created. Check your email for a confirmation link if required, then sign in.
+                        </p>
+                        <a href="/login" class="nn-btn-primary auth-inline-btn">Go to sign in</a>
+                    }
+                </div>
+            </article>
+        </EditForm>
+
+        <footer class="guide-footer">
+            <a class="guide-footer-btn guide-footer-btn--secondary" href="/">← Deerfield Retreat</a>
+            <a class="guide-footer-btn guide-footer-btn--primary" href="/booking?property=deerfield-retreat">Request booking</a>
+        </footer>
+    </main>
+</div>
 
 @code {
-	private bool isSubmitted = false;
-	private bool isSending = false;
-	private string statusMessage = "";
-	private string statusClass = "text-danger";
+    private bool isSubmitted;
+    private bool isSending;
+    private string statusMessage = string.Empty;
+    private string statusClass = "nn-note--error";
 
-	private RegisterModel model = new();
+    private RegisterModel model = new();
 
-	private sealed class RegisterModel
-	{
-		[Required]
-		public string? Username { get; set; }
+    private sealed class RegisterModel
+    {
+        [Required]
+        public string? Username { get; set; }
 
-		[Required, EmailAddress]
-		public string? Email { get; set; }
+        [Required, EmailAddress]
+        public string? Email { get; set; }
 
-		[Required, Phone]
-		public string? PhoneNumber { get; set; }
+        [Required, Phone]
+        public string? PhoneNumber { get; set; }
 
-		[Required, MinLength(6)]
-		public string? Password { get; set; }
+        [Required, MinLength(6)]
+        public string? Password { get; set; }
 
-		[Required, Compare(nameof(Password), ErrorMessage = "Passwords do not match.")]
-		public string? ConfirmPassword { get; set; }
-	}
+        [Required, Compare(nameof(Password), ErrorMessage = "Passwords do not match.")]
+        public string? ConfirmPassword { get; set; }
+    }
 
-	private async Task HandleRegistrationAsync()
-	{
-		statusMessage = string.Empty;
-		statusClass = "text-danger";
-		if (isSending) return;
+    private async Task HandleRegistrationAsync()
+    {
+        statusMessage = string.Empty;
+        statusClass = "nn-note--error";
+        if (isSending) return;
 
-		isSending = true;
+        isSending = true;
 
-		try
-		{
-			// email duplicate
-			if (await UserManager.FindByEmailAsync(model.Email!) != null)
-			{
-				statusMessage = "An account with that email already exists.";
-				return;
-			}
+        try
+        {
+            if (await UserManager.FindByEmailAsync(model.Email!) != null)
+            {
+                statusMessage = "An account with that email already exists.";
+                return;
+            }
 
-			// username duplicate
-			var usernameToUse = string.IsNullOrWhiteSpace(model.Username)
-				? model.Email!
-				: model.Username;
+            var usernameToUse = string.IsNullOrWhiteSpace(model.Username)
+                ? model.Email!
+                : model.Username;
 
-			if (await UserManager.FindByNameAsync(usernameToUse) != null)
-			{
-				statusMessage = "That username is already taken.";
-				return;
-			}
+            if (await UserManager.FindByNameAsync(usernameToUse) != null)
+            {
+                statusMessage = "That username is already taken.";
+                return;
+            }
 
-			// phone duplicate (recommended for rentals)
-			var phoneExists = UserManager.Users.Any(u => u.PhoneNumber == model.PhoneNumber);
-			if (phoneExists)
-			{
-				statusMessage = "An account with that phone number already exists.";
-				return;
-			}
+            var phoneExists = UserManager.Users.Any(u => u.PhoneNumber == model.PhoneNumber);
+            if (phoneExists)
+            {
+                statusMessage = "An account with that phone number already exists.";
+                return;
+            }
 
-			var user = new ApplicationUser
-			{
-				UserName = usernameToUse,
-				Email = model.Email,
-				PhoneNumber = model.PhoneNumber
-			};
+            var user = new ApplicationUser
+            {
+                UserName = usernameToUse,
+                Email = model.Email,
+                PhoneNumber = model.PhoneNumber
+            };
 
-			var createResult = await UserManager.CreateAsync(user, model.Password!);
-			if (!createResult.Succeeded)
-			{
-				statusMessage = string.Join(" ", createResult.Errors.Select(e => e.Description));
-				return;
-			}
+            var createResult = await UserManager.CreateAsync(user, model.Password!);
+            if (!createResult.Succeeded)
+            {
+                statusMessage = string.Join(" ", createResult.Errors.Select(e => e.Description));
+                return;
+            }
 
-			var roleName = OwnerRoleSeedService.IsConfiguredOwnerEmail(model.Email!, AdminOptions)
-				? Owner
-				: Client;
-			var roleResult = await UserManager.AddToRoleAsync(user, roleName);
-			if (!roleResult.Succeeded)
-			{
-				Logger.LogWarning(
-					"User registered but {Role} role was not assigned: {Errors}",
-					roleName,
-					string.Join("; ", roleResult.Errors.Select(e => e.Description)));
-			}
+            var roleName = OwnerRoleSeedService.IsConfiguredOwnerEmail(model.Email!, AdminOptions)
+                ? Owner
+                : Client;
+            var roleResult = await UserManager.AddToRoleAsync(user, roleName);
+            if (!roleResult.Succeeded)
+            {
+                Logger.LogWarning(
+                    "User registered but {Role} role was not assigned: {Errors}",
+                    roleName,
+                    string.Join("; ", roleResult.Errors.Select(e => e.Description)));
+            }
 
-			// email confirmation (best practice)
-			var token = await UserManager.GenerateEmailConfirmationTokenAsync(user);
-			var encodedToken = Uri.EscapeDataString(token);
-			var callbackUrl =
-				NavigationManager.BaseUri.TrimEnd('/') +
-				$"/identity/account/confirmemail?userId={Uri.EscapeDataString(user.Id)}&code={encodedToken}";
+            var token = await UserManager.GenerateEmailConfirmationTokenAsync(user);
+            var encodedToken = Uri.EscapeDataString(token);
+            var callbackUrl =
+                NavigationManager.BaseUri.TrimEnd('/') +
+                $"/identity/account/confirmemail?userId={Uri.EscapeDataString(user.Id)}&code={encodedToken}";
 
-			try
-			{
-				await EmailSender.SendConfirmationLinkAsync(user, user.Email!, callbackUrl);
-			}
-			catch
-			{
-				// registration succeeded even if email fails
-			}
+            try
+            {
+                await EmailSender.SendConfirmationLinkAsync(user, user.Email!, callbackUrl);
+            }
+            catch
+            {
+                // registration succeeded even if email fails
+            }
 
-			isSubmitted = true;
-			statusClass = "text-success";
-			statusMessage = "Account created. Check your email for a confirmation link if required.";
-		}
-		catch (Exception ex)
-		{
-			Logger.LogError(ex, "Registration failed");
-			statusMessage = ex.Message;
-		}
-		finally
-		{
-			isSending = false;
-			StateHasChanged();
-		}
-	}
+            isSubmitted = true;
+            statusClass = "nn-note--success";
+            statusMessage = "Account created. Check your email for a confirmation link if required.";
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Registration failed");
+            statusMessage = ex.Message;
+        }
+        finally
+        {
+            isSending = false;
+            StateHasChanged();
+        }
+    }
 }

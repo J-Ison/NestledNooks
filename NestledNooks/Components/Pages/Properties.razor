@@ -1,8 +1,12 @@
 ﻿@page "/properties"
+@rendermode InteractiveServer
+@using NestledNooks.Data
+@using NestledNooks.Services
+@inject IPropertyService PropertyService
 
 <PageTitle>@SiteBranding.PageTitle("Our properties")</PageTitle>
 <HeadContent>
-    <meta name="description" content="Browse Nestled Nooks getaways. Deerfield Retreat — a peaceful stay near Rapid City, South Dakota, with prairie views and room for the whole group." />
+    <meta name="description" content="Browse Nestled Nooks getaways in the Black Hills — peaceful stays with room for families and groups." />
 </HeadContent>
 
 <div class="guide-page">
@@ -17,20 +21,52 @@
     </header>
 
     <main class="wrap guide-main">
-        <div class="properties-grid">
-            <article class="property-card">
-                <h2 class="property-card-title">Deerfield Retreat</h2>
-                <p class="property-card-desc">
-                    A peaceful getaway surrounded by open fields and visiting deer near Rapid City.
-                    Sleeps up to 12 · 4 bedrooms · 3 baths · prairie views.
-                </p>
-                <a href="/properties/deerfield-retreat" class="guide-footer-btn guide-footer-btn--primary">View property</a>
-            </article>
-        </div>
+        @if (_loading)
+        {
+            <p class="nn-loading">Loading properties…</p>
+        }
+        else if (_properties.Count == 0)
+        {
+            <p class="mgmt-empty">No published properties yet.</p>
+        }
+        else
+        {
+            <div class="properties-grid">
+                @foreach (var property in _properties)
+                {
+                    var stats = PropertyContentJson.ParseStringList(property.StatsJson);
+                    var statsLine = stats.Count > 0 ? string.Join(" · ", stats.Take(4)) : property.Subtitle;
+
+                    <article class="property-card">
+                        <h2 class="property-card-title">@property.DisplayName</h2>
+                        <p class="property-card-desc">@property.Subtitle</p>
+                        @if (!string.IsNullOrWhiteSpace(statsLine))
+                        {
+                            <p class="property-card-stats">@statsLine</p>
+                        }
+                        <a href="/properties/@property.Slug" class="guide-footer-btn guide-footer-btn--primary">View property</a>
+                    </article>
+                }
+            </div>
+        }
 
         <footer class="guide-footer">
-            <a class="guide-footer-btn guide-footer-btn--secondary" href="/">← Deerfield Retreat</a>
-            <a class="guide-footer-btn guide-footer-btn--primary" href="/booking?property=deerfield-retreat">Request booking</a>
+            <a class="guide-footer-btn guide-footer-btn--secondary" href="/">← Home</a>
+            @if (_properties.Count == 1)
+            {
+                <a class="guide-footer-btn guide-footer-btn--primary" href="/booking?property=@_properties[0].Slug">Request booking</a>
+            }
         </footer>
     </main>
 </div>
+
+@code {
+    private IReadOnlyList<RentalProperty> _properties = [];
+    private bool _loading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _properties = await PropertyService.GetPublishedAsync();
+        _loading = false;
+    }
+}

@@ -9,4 +9,10 @@ public interface IEmailService
     Task SendBookingRequestGuestConfirmationEmail(BookingRequestEmailPayload payload);
 
     Task SendBookingStatusChangedEmailsAsync(BookingStatusEmailPayload payload);
+
+    Task SendTemporaryPasswordEmailAsync(
+        string toEmail,
+        string userName,
+        string temporaryPassword,
+        CancellationToken cancellationToken = default);
 }

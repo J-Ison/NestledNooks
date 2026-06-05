@@ -1,0 +1,274 @@
+@page "/account/manage/properties/{Slug}"
+@layout NestledNooks.Components.Layout.MainLayout
+@rendermode InteractiveServer
+
+@using Microsoft.AspNetCore.Authorization
+@using NestledNooks.Data
+@using NestledNooks.Models
+@using NestledNooks.Services
+
+@attribute [Authorize(Roles = AppRoles.Owner)]
+
+@inject IPropertyService PropertyService
+@inject NavigationManager Navigation
+
+<PageTitle>Edit @(_model.DisplayName) · @SiteBranding.Name</PageTitle>
+
+<div class="mgmt-page">
+    <header class="mgmt-hero">
+        <div class="mgmt-wrap">
+            <p class="mgmt-hero-eyebrow">@SiteBranding.Name · Owner tools</p>
+            <h1 class="mgmt-hero-title">@_model.DisplayName</h1>
+            <p class="mgmt-hero-lead">
+                Update descriptions, tags, amenities, and photos for this listing.
+                <a class="mgmt-link" href="/account/manage/properties">← All properties</a>
+            </p>
+        </div>
+    </header>
+
+    <main class="mgmt-wrap mgmt-main">
+        @if (_loading)
+        {
+            <p class="nn-loading">Loading property…</p>
+        }
+        else if (_notFound)
+        {
+            <p class="nn-note nn-note--error">Property not found.</p>
+            <a class="guide-link" href="/account/manage/properties">Back to properties</a>
+        }
+        else
+        {
+            @if (!string.IsNullOrEmpty(_error))
+            {
+                <p class="nn-note nn-note--error">@_error</p>
+            }
+
+            @if (!string.IsNullOrEmpty(_success))
+            {
+                <p class="nn-note nn-note--success">@_success</p>
+            }
+
+            <EditForm Model="_model" OnValidSubmit="SaveAsync">
+                <section class="theme-panel">
+                    <h2 class="theme-panel-title">Basics</h2>
+                    <div class="prop-edit-grid">
+                        <div class="nn-form-group">
+                            <label>Display name</label>
+                            <InputText class="nn-form-control" @bind-Value="_model.DisplayName" />
+                        </div>
+                        <div class="nn-form-group">
+                            <label>URL slug</label>
+                            <input class="nn-form-control" value="@_model.Slug" readonly disabled />
+                            <p class="prop-field-hint">Slug is fixed for now so booking links keep working.</p>
+                        </div>
+                        <div class="nn-form-group prop-edit-full">
+                            <label>SEO description</label>
+                            <InputTextArea class="nn-form-control" rows="2" @bind-Value="_model.MetaDescription" />
+                        </div>
+                        <div class="nn-form-group prop-edit-full">
+                            <label>Subtitle (under title)</label>
+                            <InputTextArea class="nn-form-control" rows="3" @bind-Value="_model.Subtitle" />
+                        </div>
+                        <label class="prop-check">
+                            <InputCheckbox @bind-Value="_model.IsPublished" />
+                            <span>Published (visible on site)</span>
+                        </label>
+                        <label class="prop-check">
+                            <InputCheckbox @bind-Value="_model.IsHomepage" />
+                            <span>Use as homepage (/) listing</span>
+                        </label>
+                    </div>
+                </section>
+
+                <section class="theme-panel">
+                    <h2 class="theme-panel-title">Highlight stats</h2>
+                    <p class="theme-panel-lead">Short pills under the title — e.g. “Sleeps 12”, “4 bedrooms”.</p>
+                    @for (var i = 0; i < _model.Stats.Count; i++)
+                    {
+                        var index = i;
+                        <div class="prop-list-row">
+                            <InputText class="nn-form-control" @bind-Value="_model.Stats[index]" placeholder="Stat label" />
+                            <button type="button" class="prop-list-remove" @onclick="() => RemoveStat(index)">Remove</button>
+                        </div>
+                    }
+                    <button type="button" class="nn-btn-secondary prop-list-add" @onclick="AddStat">+ Add stat</button>
+                </section>
+
+                <section class="theme-panel">
+                    <h2 class="theme-panel-title">Tags</h2>
+                    <div class="prop-edit-grid">
+                        <div class="nn-form-group prop-edit-full">
+                            <label>Intro line 1</label>
+                            <InputText class="nn-form-control" @bind-Value="_model.TagsLine1" placeholder="Entire home · Black Hills, South Dakota" />
+                        </div>
+                        <div class="nn-form-group prop-edit-full">
+                            <label>Intro line 2</label>
+                            <InputText class="nn-form-control" @bind-Value="_model.TagsLine2" placeholder="Family-friendly · Prairie views · Quiet nights" />
+                        </div>
+                    </div>
+                </section>
+
+                <section class="theme-panel">
+                    <h2 class="theme-panel-title">Badges</h2>
+                    <p class="theme-panel-lead">Highlight cards below the intro tags.</p>
+                    @for (var i = 0; i < _model.Badges.Count; i++)
+                    {
+                        var index = i;
+                        <div class="prop-badge-row">
+                            <InputText class="nn-form-control" @bind-Value="_model.Badges[index].Title" placeholder="Title" />
+                            <InputText class="nn-form-control" @bind-Value="_model.Badges[index].Subtitle" placeholder="Subtitle" />
+                            <button type="button" class="prop-list-remove" @onclick="() => RemoveBadge(index)">Remove</button>
+                        </div>
+                    }
+                    <button type="button" class="nn-btn-secondary prop-list-add" @onclick="AddBadge">+ Add badge</button>
+                </section>
+
+                <section class="theme-panel">
+                    <h2 class="theme-panel-title">About &amp; location</h2>
+                    <div class="prop-edit-grid">
+                        <div class="nn-form-group prop-edit-full">
+                            <label>About this property</label>
+                            <InputTextArea class="nn-form-control" rows="4" @bind-Value="_model.AboutText" />
+                        </div>
+                        <div class="nn-form-group prop-edit-full">
+                            <label>Location</label>
+                            <InputTextArea class="nn-form-control" rows="3" @bind-Value="_model.LocationText" />
+                        </div>
+                        <div class="nn-form-group prop-edit-full">
+                            <label>Guest guide teaser</label>
+                            <InputTextArea class="nn-form-control" rows="2" @bind-Value="_model.GuideTeaserText" />
+                        </div>
+                    </div>
+                </section>
+
+                <section class="theme-panel">
+                    <h2 class="theme-panel-title">Amenities</h2>
+                    @for (var i = 0; i < _model.Amenities.Count; i++)
+                    {
+                        var index = i;
+                        <div class="prop-list-row">
+                            <InputText class="nn-form-control" @bind-Value="_model.Amenities[index]" placeholder="Amenity" />
+                            <button type="button" class="prop-list-remove" @onclick="() => RemoveAmenity(index)">Remove</button>
+                        </div>
+                    }
+                    <button type="button" class="nn-btn-secondary prop-list-add" @onclick="AddAmenity">+ Add amenity</button>
+                </section>
+
+                <section class="theme-panel">
+                    <h2 class="theme-panel-title">Booking sidebar</h2>
+                    <div class="prop-edit-grid">
+                        <div class="nn-form-group prop-edit-full">
+                            <label>Booking card subtext</label>
+                            <InputText class="nn-form-control" @bind-Value="_model.BookingSubtext" />
+                        </div>
+                        <div class="nn-form-group prop-edit-full">
+                            <label>Fine print</label>
+                            <InputText class="nn-form-control" @bind-Value="_model.BookingFinePrint" />
+                        </div>
+                        <div class="nn-form-group prop-edit-full">
+                            <label>Airbnb URL</label>
+                            <InputText class="nn-form-control" @bind-Value="_model.AirbnbUrl" />
+                        </div>
+                        <div class="nn-form-group prop-edit-full">
+                            <label>Vrbo URL</label>
+                            <InputText class="nn-form-control" @bind-Value="_model.VrboUrl" />
+                        </div>
+                    </div>
+                </section>
+
+                <section class="theme-panel">
+                    <h2 class="theme-panel-title">Photos</h2>
+                    <p class="theme-panel-lead">First photo is the hero. Order matches the listing grid and gallery.</p>
+                    @for (var i = 0; i < _model.Photos.Count; i++)
+                    {
+                        var index = i;
+                        <div class="prop-photo-row">
+                            <span class="prop-photo-index">@(index + 1)</span>
+                            <InputText class="nn-form-control" @bind-Value="_model.Photos[index].Url" placeholder="/images/photo.webp" />
+                            <InputText class="nn-form-control" @bind-Value="_model.Photos[index].Alt" placeholder="Alt text" />
+                            <button type="button" class="prop-list-remove" @onclick="() => RemovePhoto(index)">Remove</button>
+                        </div>
+                    }
+                    <button type="button" class="nn-btn-secondary prop-list-add" @onclick="AddPhoto">+ Add photo</button>
+                </section>
+
+                <div class="theme-actions">
+                    <button type="submit" class="nn-btn-primary theme-save-btn" disabled="@_saving">
+                        @(_saving ? "Saving…" : "Save changes")
+                    </button>
+                    <a class="guide-link" href="/properties/@_model.Slug" target="_blank" rel="noopener">Preview live page ↗</a>
+                </div>
+            </EditForm>
+        }
+    </main>
+</div>
+
+@code {
+    [Parameter]
+    public string Slug { get; set; } = "";
+
+    private PropertyEditModel _model = new();
+    private bool _loading = true;
+    private bool _notFound;
+    private bool _saving;
+    private string? _error;
+    private string? _success;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _loading = true;
+        _notFound = false;
+        _error = null;
+        _success = null;
+
+        var property = await PropertyService.GetBySlugAsync(Slug);
+        if (property is null)
+        {
+            _notFound = true;
+            _loading = false;
+            return;
+        }
+
+        _model = PropertyEditModel.FromEntity(property);
+        _loading = false;
+    }
+
+    private async Task SaveAsync()
+    {
+        _saving = true;
+        _error = null;
+        _success = null;
+
+        try
+        {
+            if (string.IsNullOrWhiteSpace(_model.DisplayName))
+            {
+                _error = "Display name is required.";
+                return;
+            }
+
+            await PropertyService.SaveAsync(_model.ToEntity());
+            _success = "Property saved.";
+        }
+        catch (Exception ex)
+        {
+            _error = $"Could not save property: {ex.Message}";
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private void AddStat() => _model.Stats.Add("");
+    private void RemoveStat(int index) => _model.Stats.RemoveAt(index);
+
+    private void AddBadge() => _model.Badges.Add(new PropertyBadge());
+    private void RemoveBadge(int index) => _model.Badges.RemoveAt(index);
+
+    private void AddAmenity() => _model.Amenities.Add("");
+    private void RemoveAmenity(int index) => _model.Amenities.RemoveAt(index);
+
+    private void AddPhoto() => _model.Photos.Add(new PropertyPhoto());
+    private void RemovePhoto(int index) => _model.Photos.RemoveAt(index);
+}

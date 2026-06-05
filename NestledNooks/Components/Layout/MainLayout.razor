@@ -31,6 +31,8 @@
         <MudSpacer />
     </MudAppBar>
 
+    <ThemePreviewBanner />
+
     <MudDrawer Open="@_drawerOpen"
                OpenChanged="OnDrawerOpenChanged"
                Variant="DrawerVariant.Temporary"
@@ -107,6 +109,26 @@
                                     Icon="@Icons.Material.Filled.CalendarMonth"
                                     OnClick="@CloseDrawerLocal">
                             Manage bookings
+                        </MudNavLink>
+                    </Authorized>
+                </AuthorizeView>
+
+                <AuthorizeView Roles="@AppRoles.Owner">
+                    <Authorized>
+                        <MudNavLink Href="/account/manage/site"
+                                    Icon="@Icons.Material.Filled.Palette"
+                                    OnClick="@CloseDrawerLocal">
+                            Manage site
+                        </MudNavLink>
+                        <MudNavLink Href="/account/manage/properties"
+                                    Icon="@Icons.Material.Filled.House"
+                                    OnClick="@CloseDrawerLocal">
+                            Manage properties
+                        </MudNavLink>
+                        <MudNavLink Href="/account/manage/users"
+                                    Icon="@Icons.Material.Filled.People"
+                                    OnClick="@CloseDrawerLocal">
+                            Manage users
                         </MudNavLink>
                     </Authorized>
                 </AuthorizeView>

@@ -1,0 +1,13 @@
+@inject ISiteThemeService SiteThemeService
+
+@((MarkupString)_styleTag)
+
+@code {
+    private string _styleTag = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var css = await SiteThemeService.GetEffectiveCssAsync();
+        _styleTag = $"<style id=\"nn-site-theme\">{css}</style>";
+    }
+}

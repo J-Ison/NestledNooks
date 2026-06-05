@@ -1,0 +1,87 @@
+@using NestledNooks.Data
+@using NestledNooks.Services
+@inject ISiteThemeService SiteThemeService
+@inject NavigationManager Navigation
+@implements IDisposable
+@rendermode InteractiveServer
+
+@if (_status.IsActive)
+{
+    <div class="nn-preview-banner" role="status">
+        <span>
+            <strong>Preview mode</strong> — only you see these colors.
+            @if (_remainingSeconds > 0)
+            {
+                <span> Reverts in @_remainingSeconds second@(_remainingSeconds == 1 ? "" : "s").</span>
+            }
+        </span>
+        <div class="nn-preview-banner-actions">
+            <a class="nn-preview-banner-link" href="/account/manage/site">Back to Manage site</a>
+            <form method="post" action="/api/site-theme/preview/end" class="nn-preview-end-form">
+                <input type="hidden" name="returnUrl" value="@_returnPath" />
+                <button type="submit" class="nn-preview-banner-btn">End preview</button>
+            </form>
+        </div>
+    </div>
+}
+
+@code {
+    private SiteThemePreviewStatus _status = new(false, null);
+    private int _remainingSeconds;
+    private string _returnPath = "/";
+    private PeriodicTimer? _timer;
+    private CancellationTokenSource? _cts;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _returnPath = new Uri(Navigation.Uri).PathAndQuery;
+        await RefreshStatusAsync();
+        if (_status.IsActive)
+            StartCountdown();
+    }
+
+    private async Task RefreshStatusAsync()
+    {
+        _status = await SiteThemeService.GetPreviewStatusAsync();
+        _remainingSeconds = (int)Math.Ceiling((_status.Remaining ?? TimeSpan.Zero).TotalSeconds);
+    }
+
+    private void StartCountdown()
+    {
+        _cts?.Cancel();
+        _cts = new CancellationTokenSource();
+        _timer?.Dispose();
+        _timer = new PeriodicTimer(TimeSpan.FromSeconds(1));
+
+        _ = RunCountdownAsync(_cts.Token);
+    }
+
+    private async Task RunCountdownAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            while (await _timer!.WaitForNextTickAsync(cancellationToken).ConfigureAwait(false))
+            {
+                await RefreshStatusAsync().ConfigureAwait(false);
+                if (!_status.IsActive)
+                {
+                    await InvokeAsync(() => Navigation.NavigateTo(Navigation.Uri, forceLoad: true));
+                    return;
+                }
+
+                await InvokeAsync(StateHasChanged).ConfigureAwait(false);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // expected on dispose
+        }
+    }
+
+    public void Dispose()
+    {
+        _cts?.Cancel();
+        _cts?.Dispose();
+        _timer?.Dispose();
+    }
+}

@@ -1,0 +1,23 @@
+@using NestledNooks.Data
+
+<input type="hidden" name="PresetKey" value="@Theme.PresetKey" />
+<input type="hidden" name="PrimaryColor" value="@Theme.PrimaryColor" />
+<input type="hidden" name="PrimaryLightColor" value="@Theme.PrimaryLightColor" />
+<input type="hidden" name="PrimarySoftBg" value="@Theme.PrimarySoftBg" />
+<input type="hidden" name="PrimaryBorderColor" value="@Theme.PrimaryBorderColor" />
+<input type="hidden" name="PrimaryTextColor" value="@Theme.PrimaryTextColor" />
+<input type="hidden" name="AccentColor" value="@Theme.AccentColor" />
+<input type="hidden" name="AccentBorderColor" value="@Theme.AccentBorderColor" />
+<input type="hidden" name="HeroStartColor" value="@Theme.HeroStartColor" />
+<input type="hidden" name="HeroMidColor" value="@Theme.HeroMidColor" />
+<input type="hidden" name="HeroEndColor" value="@Theme.HeroEndColor" />
+<input type="hidden" name="HeroBorderColor" value="@Theme.HeroBorderColor" />
+<input type="hidden" name="BookingColor" value="@Theme.BookingColor" />
+<input type="hidden" name="BookingDarkColor" value="@Theme.BookingDarkColor" />
+<input type="hidden" name="PageBgTop" value="@Theme.PageBgTop" />
+<input type="hidden" name="PageBgBottom" value="@Theme.PageBgBottom" />
+
+@code {
+    [Parameter, EditorRequired]
+    public SiteTheme Theme { get; set; } = new();
+}

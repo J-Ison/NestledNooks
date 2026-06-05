@@ -131,6 +131,32 @@ public sealed class SmtpEmailService : IEmailService
         await SendMimeAsync(guestMime, "booking status email (guest)").ConfigureAwait(false);
     }
 
+    public Task SendTemporaryPasswordEmailAsync(
+        string toEmail,
+        string userName,
+        string temporaryPassword,
+        CancellationToken cancellationToken = default)
+    {
+        var mime = new MimeMessage();
+        mime.From.Add(new MailboxAddress(_options.FromName, _options.FromEmail));
+        mime.To.Add(MailboxAddress.Parse(toEmail));
+        mime.Subject = "Your Nestled Nooks password was reset";
+
+        var bodyBuilder = new BodyBuilder
+        {
+            TextBody =
+                $"Hello {userName},\r\n\r\n" +
+                "An administrator reset your Nestled Nooks account password.\r\n\r\n" +
+                $"Temporary password: {temporaryPassword}\r\n\r\n" +
+                "Sign in with your email and this password, then change it under Account → Settings when you are ready.\r\n\r\n" +
+                "If you did not expect this message, contact us right away.\r\n\r\n" +
+                "— Nestled Nooks"
+        };
+
+        mime.Body = bodyBuilder.ToMessageBody();
+        return SendMimeAsync(mime, "temporary password email");
+    }
+
     private async Task SendMimeAsync(MimeMessage mime, string contextLabel)
     {
         if (!string.IsNullOrEmpty(_options.Username) && string.IsNullOrEmpty(_options.Password))

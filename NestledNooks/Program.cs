@@ -59,6 +59,19 @@ builder.Services.AddScoped<BookingPricingService>();
 builder.Services.AddScoped<IBookingAvailabilityService, BookingAvailabilityService>();
 builder.Services.AddScoped<IBookingRequestService, BookingRequestService>();
 builder.Services.AddScoped<BookingIcalExportService>();
+builder.Services.AddSingleton<SiteThemeCache>();
+builder.Services.AddScoped<ISiteThemePreviewAccessor, SiteThemePreviewAccessor>();
+builder.Services.AddScoped<ISiteThemeService, SiteThemeService>();
+builder.Services.AddScoped<IPropertyService, PropertyService>();
+builder.Services.AddScoped<IUserAdminService, UserAdminService>();
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddDistributedMemoryCache();
+builder.Services.AddSession(options =>
+{
+    options.IdleTimeout = TimeSpan.FromHours(2);
+    options.Cookie.HttpOnly = true;
+    options.Cookie.IsEssential = true;
+});
 builder.Services.AddHostedService<CalendarSyncHostedService>();
 
 builder.Services.AddMudServices();
@@ -107,6 +120,28 @@ _ = Task.Run(async () =>
 
         try
         {
+            await scope.ServiceProvider.GetRequiredService<IPropertyService>()
+                .EnsureSeededAsync()
+                .ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Property seed skipped.");
+        }
+
+        try
+        {
+            await scope.ServiceProvider.GetRequiredService<ISiteThemeService>()
+                .EnsureSeededAsync()
+                .ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Site theme seed skipped.");
+        }
+
+        try
+        {
             await scope.ServiceProvider.GetRequiredService<IBookingAvailabilityService>()
                 .SyncExternalCalendarsAsync()
                 .ConfigureAwait(false);
@@ -135,13 +170,15 @@ else
 }
 
 app.UseHttpsRedirection();
-app.MapControllers();
 app.UseRouting();
+app.UseSession();
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseAntiforgery();
 
 app.UseStaticFiles();
+
+app.MapControllers();
 
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();

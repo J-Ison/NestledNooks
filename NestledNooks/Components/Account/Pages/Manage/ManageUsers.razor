@@ -1,0 +1,290 @@
+@page "/account/manage/users"
+@layout NestledNooks.Components.Layout.MainLayout
+@rendermode InteractiveServer
+
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@using NestledNooks.Data
+@using NestledNooks.Services
+
+@attribute [Authorize(Roles = AppRoles.Owner)]
+
+@inject IUserAdminService UserAdminService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+<PageTitle>Manage users · @SiteBranding.Name</PageTitle>
+
+<div class="mgmt-page">
+    <header class="mgmt-hero">
+        <div class="mgmt-wrap">
+            <p class="mgmt-hero-eyebrow">@SiteBranding.Name · Owner tools</p>
+            <h1 class="mgmt-hero-title">Manage users</h1>
+            <p class="mgmt-hero-lead">
+                View accounts and reset passwords for guests who lost access. A new random password is emailed automatically.
+            </p>
+        </div>
+    </header>
+
+    <main class="mgmt-wrap mgmt-main">
+        @if (_loading)
+        {
+            <p class="nn-loading">Loading users…</p>
+        }
+        else
+        {
+            @if (!string.IsNullOrEmpty(_success))
+            {
+                <p class="nn-note nn-note--success">@_success</p>
+            }
+
+            @if (!string.IsNullOrEmpty(_manualPassword))
+            {
+                <p class="nn-note nn-note--warn">
+                    Email failed — share this temporary password with the user manually:
+                    <strong class="user-admin-temp-password">@_manualPassword</strong>
+                </p>
+            }
+
+            @if (!string.IsNullOrEmpty(_error))
+            {
+                <p class="nn-note nn-note--error">@_error</p>
+            }
+
+            <section class="theme-panel user-admin-toolbar">
+                <div class="user-admin-filters">
+                    <div class="nn-form-group user-admin-search">
+                        <label for="user-search">Search</label>
+                        <input id="user-search"
+                               class="nn-form-control"
+                               type="search"
+                               placeholder="Email, username, or phone"
+                               @bind="_search"
+                               @bind:event="oninput" />
+                    </div>
+                    <div class="nn-form-group user-admin-role-filter">
+                        <label for="user-role">Role</label>
+                        <select id="user-role" class="nn-form-control" @bind="_roleFilter">
+                            <option value="all">All roles</option>
+                            @foreach (var role in _roleOptions)
+                            {
+                                <option value="@role">@role</option>
+                            }
+                        </select>
+                    </div>
+                </div>
+                <p class="user-admin-count">
+                    Showing @FilteredUsers.Count() of @_users.Count user@(_users.Count == 1 ? "" : "s")
+                </p>
+            </section>
+
+            @if (FilteredUsers.Count() == 0)
+            {
+                <div class="mgmt-empty">
+                    <p>No users match your filters.</p>
+                </div>
+            }
+            else
+            {
+                <div class="user-admin-table-wrap">
+                    <table class="user-admin-table">
+                        <thead>
+                            <tr>
+                                <th>Email</th>
+                                <th>Username</th>
+                                <th>Phone</th>
+                                <th>Roles</th>
+                                <th>Status</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var user in FilteredUsers)
+                            {
+                                var isSelf = user.Id == _currentUserId;
+                                var confirming = _confirmUserId == user.Id;
+
+                                <tr class="@(isSelf ? "user-admin-row--self" : "")">
+                                    <td data-label="Email">
+                                        <a class="mgmt-link" href="@($"mailto:{user.Email}")">@(user.Email ?? "—")</a>
+                                    </td>
+                                    <td data-label="Username">@(user.UserName ?? "—")</td>
+                                    <td data-label="Phone">@(string.IsNullOrWhiteSpace(user.PhoneNumber) ? "—" : user.PhoneNumber)</td>
+                                    <td data-label="Roles">
+                                        <div class="user-admin-roles">
+                                            @if (user.Roles.Count == 0)
+                                            {
+                                                <span class="mgmt-badge mgmt-badge--status">No role</span>
+                                            }
+                                            else
+                                            {
+                                                @foreach (var role in user.Roles)
+                                                {
+                                                    <span class="mgmt-badge mgmt-badge--status">@role</span>
+                                                }
+                                            }
+                                        </div>
+                                    </td>
+                                    <td data-label="Status">
+                                        @if (user.IsLockedOut)
+                                        {
+                                            <span class="mgmt-badge mgmt-badge--payment">Locked</span>
+                                        }
+                                        else if (user.EmailConfirmed)
+                                        {
+                                            <span class="mgmt-badge mgmt-badge--published">Active</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="mgmt-badge mgmt-badge--status">Unconfirmed</span>
+                                        }
+                                    </td>
+                                    <td data-label="Actions" class="user-admin-actions">
+                                        @if (confirming)
+                                        {
+                                            <div class="user-admin-confirm">
+                                                <p class="user-admin-confirm-text">
+                                                    Email a new random password to <strong>@user.Email</strong>?
+                                                </p>
+                                                <div class="user-admin-confirm-btns">
+                                                    <button type="button"
+                                                            class="nn-btn-primary user-admin-reset-btn"
+                                                            disabled="@(_resettingUserId == user.Id)"
+                                                            @onclick="() => ConfirmResetAsync(user)">
+                                                        @(_resettingUserId == user.Id ? "Sending…" : "Yes, reset & email")
+                                                    </button>
+                                                    <button type="button"
+                                                            class="nn-btn-secondary user-admin-cancel-btn"
+                                                            disabled="@(_resettingUserId == user.Id)"
+                                                            @onclick="CancelConfirm">
+                                                        Cancel
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            <button type="button"
+                                                    class="nn-btn-secondary user-admin-reset-btn"
+                                                    disabled="@(_resettingUserId is not null)"
+                                                    @onclick="() => StartConfirm(user.Id)">
+                                                Reset password
+                                            </button>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        }
+    </main>
+</div>
+
+@code {
+    private IReadOnlyList<UserAdminListItem> _users = [];
+    private string? _currentUserId;
+    private bool _loading = true;
+    private string _search = "";
+    private string _roleFilter = "all";
+    private string? _confirmUserId;
+    private string? _resettingUserId;
+    private string? _success;
+    private string? _error;
+    private string? _manualPassword;
+
+    private static readonly string[] _roleOptions =
+    [
+        AppRoles.Owner,
+        AppRoles.CoHost,
+        AppRoles.Manager,
+        AppRoles.Client,
+    ];
+
+    private IEnumerable<UserAdminListItem> FilteredUsers =>
+        _users.Where(MatchesFilters).OrderBy(u => u.Email).ThenBy(u => u.UserName);
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        _currentUserId = authState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+
+        _users = await UserAdminService.GetUsersAsync();
+        _loading = false;
+    }
+
+    private bool MatchesFilters(UserAdminListItem user)
+    {
+        if (!string.Equals(_roleFilter, "all", StringComparison.OrdinalIgnoreCase)
+            && !user.Roles.Any(r => string.Equals(r, _roleFilter, StringComparison.OrdinalIgnoreCase)))
+        {
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(_search))
+            return true;
+
+        var q = _search.Trim();
+        return Contains(user.Email, q)
+            || Contains(user.UserName, q)
+            || Contains(user.PhoneNumber, q);
+    }
+
+    private static bool Contains(string? value, string query) =>
+        !string.IsNullOrEmpty(value)
+        && value.Contains(query, StringComparison.OrdinalIgnoreCase);
+
+    private void StartConfirm(string userId)
+    {
+        _confirmUserId = userId;
+        _success = null;
+        _error = null;
+        _manualPassword = null;
+    }
+
+    private void CancelConfirm()
+    {
+        _confirmUserId = null;
+    }
+
+    private async Task ConfirmResetAsync(UserAdminListItem user)
+    {
+        if (_currentUserId is null)
+        {
+            _error = "Could not verify your signed-in account.";
+            return;
+        }
+
+        _resettingUserId = user.Id;
+        _success = null;
+        _error = null;
+        _manualPassword = null;
+
+        try
+        {
+            var result = await UserAdminService.ResetPasswordAndNotifyAsync(user.Id, _currentUserId);
+
+            if (!result.Succeeded)
+            {
+                _error = result.ErrorMessage ?? "Password reset failed.";
+                return;
+            }
+
+            if (result.EmailSent)
+            {
+                _success = result.Message;
+            }
+            else
+            {
+                _error = result.ErrorMessage;
+                _manualPassword = result.TemporaryPassword;
+            }
+
+            _confirmUserId = null;
+        }
+        finally
+        {
+            _resettingUserId = null;
+        }
+    }
+}

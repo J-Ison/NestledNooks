@@ -1,0 +1,249 @@
+@page "/account/manage/site"
+@layout NestledNooks.Components.Layout.MainLayout
+@rendermode InteractiveServer
+
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.WebUtilities
+@using NestledNooks.Data
+@using NestledNooks.Services
+
+@attribute [Authorize(Roles = AppRoles.Owner)]
+
+@inject ISiteThemeService SiteThemeService
+@inject NavigationManager Navigation
+
+<PageTitle>Manage site · @SiteBranding.Name</PageTitle>
+
+<div class="mgmt-page">
+    <header class="mgmt-hero">
+        <div class="mgmt-wrap">
+            <p class="mgmt-hero-eyebrow">@SiteBranding.Name · Owner tools</p>
+            <h1 class="mgmt-hero-title">Manage site</h1>
+            <p class="mgmt-hero-lead">
+                Choose colors for the whole website. Preview on your browser for one minute, or save to apply for everyone.
+            </p>
+        </div>
+    </header>
+
+    <main class="mgmt-wrap mgmt-main">
+        @if (_loading)
+        {
+            <p class="nn-loading">Loading theme…</p>
+        }
+        else
+        {
+            @if (_previewStatus.IsActive)
+            {
+                <p class="nn-note nn-note--warn">
+                    You are previewing colors on the site right now.
+                    @if (_previewRemainingSeconds > 0)
+                    {
+                        <span> Reverts in @_previewRemainingSeconds second@(_previewRemainingSeconds == 1 ? "" : "s") unless you save.</span>
+                    }
+                </p>
+            }
+
+            <section class="theme-panel">
+                <h2 class="theme-panel-title">Presets</h2>
+                <p class="theme-panel-lead">Start with a palette, then fine-tune individual colors below.</p>
+                <div class="theme-preset-grid">
+                    @foreach (var preset in SiteThemePresets.All)
+                    {
+                        <button type="button"
+                                class="theme-preset-card @(_theme.PresetKey == preset.Key ? "is-selected" : "")"
+                                @onclick="() => ApplyPreset(preset.Key)">
+                            <span class="theme-preset-swatch" style="@PresetSwatchStyle(preset.Key)"></span>
+                            <span class="theme-preset-name">@preset.Title</span>
+                            <span class="theme-preset-desc">@preset.Description</span>
+                        </button>
+                    }
+                </div>
+            </section>
+
+            <section class="theme-panel">
+                <h2 class="theme-panel-title">Mini preview</h2>
+                <p class="theme-panel-lead">Quick sample of the colors above — use <strong>Preview on site</strong> to browse the real pages.</p>
+                <div class="theme-preview" style="@PreviewStyle()">
+                    <div class="theme-preview-bar">App bar</div>
+                    <div class="theme-preview-hero">Page hero gradient</div>
+                    <button type="button" class="theme-preview-btn">Booking button</button>
+                    <span class="theme-preview-pill">Highlight pill</span>
+                </div>
+            </section>
+
+            <section class="theme-panel">
+                <h2 class="theme-panel-title">Custom colors</h2>
+                <div class="theme-color-grid">
+                    @foreach (var field in _colorFields)
+                    {
+                        <label class="theme-color-field">
+                            <span>@field.Label</span>
+                            <input type="color"
+                                   value="@GetColor(field.Name)"
+                                   @onchange="e => SetColor(field.Name, e.Value?.ToString())" />
+                        </label>
+                    }
+                </div>
+            </section>
+
+            @if (!string.IsNullOrEmpty(_error))
+            {
+                <p class="nn-note nn-note--error">@_error</p>
+            }
+
+            @if (!string.IsNullOrEmpty(_success))
+            {
+                <p class="nn-note nn-note--success">@_success</p>
+            }
+
+            <div class="theme-actions">
+                <form method="post" action="/api/site-theme/preview" class="theme-preview-form">
+                    <SiteThemeHiddenFields Theme="_theme" />
+                    <input type="hidden" name="returnUrl" value="/" />
+                    <button type="submit" class="nn-btn-primary theme-preview-on-site-btn">
+                        Preview on site (1 min)
+                    </button>
+                </form>
+                <form method="post" action="/api/site-theme/save" class="theme-save-form">
+                    <SiteThemeHiddenFields Theme="_theme" />
+                    <input type="hidden" name="returnUrl" value="/account/manage/site" />
+                    <button type="submit" class="nn-btn-primary theme-save-btn">
+                        Save for all visitors
+                    </button>
+                </form>
+                <form method="post" action="/api/site-theme/reset" class="theme-reset-form">
+                    <input type="hidden" name="returnUrl" value="/account/manage/site" />
+                    <button type="submit" class="nn-btn-secondary">
+                        Reset to default (permanent)
+                    </button>
+                </form>
+            </div>
+        }
+    </main>
+</div>
+
+@code {
+    private SiteTheme _theme = SiteThemePresets.CreateTheme(SiteThemePresets.Default);
+    private SiteThemePreviewStatus _previewStatus = new(false, null);
+    private int _previewRemainingSeconds;
+    private bool _loading = true;
+    private string? _error;
+    private string? _success;
+
+    private readonly (string Name, string Label)[] _colorFields =
+    [
+        (nameof(SiteTheme.PrimaryColor), "Primary"),
+        (nameof(SiteTheme.PrimaryLightColor), "Primary light"),
+        (nameof(SiteTheme.PrimarySoftBg), "Soft background"),
+        (nameof(SiteTheme.PrimaryBorderColor), "Borders"),
+        (nameof(SiteTheme.PrimaryTextColor), "Primary text"),
+        (nameof(SiteTheme.AccentColor), "App bar"),
+        (nameof(SiteTheme.AccentBorderColor), "App bar border"),
+        (nameof(SiteTheme.HeroStartColor), "Hero start"),
+        (nameof(SiteTheme.HeroMidColor), "Hero middle"),
+        (nameof(SiteTheme.HeroEndColor), "Hero end"),
+        (nameof(SiteTheme.HeroBorderColor), "Hero border"),
+        (nameof(SiteTheme.BookingColor), "Booking button"),
+        (nameof(SiteTheme.BookingDarkColor), "Booking hover"),
+        (nameof(SiteTheme.PageBgTop), "Page background top"),
+        (nameof(SiteTheme.PageBgBottom), "Page background bottom"),
+    ];
+
+    protected override async Task OnInitializedAsync()
+    {
+        _theme = await SiteThemeService.GetCurrentAsync();
+        await RefreshPreviewStatusAsync();
+        ApplyStatusFromQuery();
+        _loading = false;
+    }
+
+    private void ApplyStatusFromQuery()
+    {
+        var uri = new Uri(Navigation.Uri);
+        var query = QueryHelpers.ParseQuery(uri.Query);
+
+        if (query.TryGetValue("saved", out _))
+            _success = "Site theme saved. All visitors will see the new colors.";
+        else if (query.TryGetValue("reset", out _))
+            _success = "Site theme reset to default for all visitors.";
+        else if (query.TryGetValue("error", out var error))
+        {
+            _error = error.ToString() switch
+            {
+                "save" => "Could not save theme. Please try again.",
+                "reset" => "Could not reset theme. Please try again.",
+                _ => "Something went wrong. Please try again.",
+            };
+        }
+    }
+
+    private async Task RefreshPreviewStatusAsync()
+    {
+        _previewStatus = await SiteThemeService.GetPreviewStatusAsync();
+        _previewRemainingSeconds = (int)Math.Ceiling((_previewStatus.Remaining ?? TimeSpan.Zero).TotalSeconds);
+    }
+
+    private void ApplyPreset(string key)
+    {
+        _theme = SiteThemePresets.CreateTheme(key);
+        _success = null;
+        _error = null;
+    }
+
+    private string GetColor(string propertyName) =>
+        propertyName switch
+        {
+            nameof(SiteTheme.PrimaryColor) => _theme.PrimaryColor,
+            nameof(SiteTheme.PrimaryLightColor) => _theme.PrimaryLightColor,
+            nameof(SiteTheme.PrimarySoftBg) => _theme.PrimarySoftBg,
+            nameof(SiteTheme.PrimaryBorderColor) => _theme.PrimaryBorderColor,
+            nameof(SiteTheme.PrimaryTextColor) => _theme.PrimaryTextColor,
+            nameof(SiteTheme.AccentColor) => _theme.AccentColor,
+            nameof(SiteTheme.AccentBorderColor) => _theme.AccentBorderColor,
+            nameof(SiteTheme.HeroStartColor) => _theme.HeroStartColor,
+            nameof(SiteTheme.HeroMidColor) => _theme.HeroMidColor,
+            nameof(SiteTheme.HeroEndColor) => _theme.HeroEndColor,
+            nameof(SiteTheme.HeroBorderColor) => _theme.HeroBorderColor,
+            nameof(SiteTheme.BookingColor) => _theme.BookingColor,
+            nameof(SiteTheme.BookingDarkColor) => _theme.BookingDarkColor,
+            nameof(SiteTheme.PageBgTop) => _theme.PageBgTop,
+            nameof(SiteTheme.PageBgBottom) => _theme.PageBgBottom,
+            _ => "#000000",
+        };
+
+    private void SetColor(string propertyName, string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return;
+
+        _theme.PresetKey = "custom";
+
+        switch (propertyName)
+        {
+            case nameof(SiteTheme.PrimaryColor): _theme.PrimaryColor = value; break;
+            case nameof(SiteTheme.PrimaryLightColor): _theme.PrimaryLightColor = value; break;
+            case nameof(SiteTheme.PrimarySoftBg): _theme.PrimarySoftBg = value; break;
+            case nameof(SiteTheme.PrimaryBorderColor): _theme.PrimaryBorderColor = value; break;
+            case nameof(SiteTheme.PrimaryTextColor): _theme.PrimaryTextColor = value; break;
+            case nameof(SiteTheme.AccentColor): _theme.AccentColor = value; break;
+            case nameof(SiteTheme.AccentBorderColor): _theme.AccentBorderColor = value; break;
+            case nameof(SiteTheme.HeroStartColor): _theme.HeroStartColor = value; break;
+            case nameof(SiteTheme.HeroMidColor): _theme.HeroMidColor = value; break;
+            case nameof(SiteTheme.HeroEndColor): _theme.HeroEndColor = value; break;
+            case nameof(SiteTheme.HeroBorderColor): _theme.HeroBorderColor = value; break;
+            case nameof(SiteTheme.BookingColor): _theme.BookingColor = value; break;
+            case nameof(SiteTheme.BookingDarkColor): _theme.BookingDarkColor = value; break;
+            case nameof(SiteTheme.PageBgTop): _theme.PageBgTop = value; break;
+            case nameof(SiteTheme.PageBgBottom): _theme.PageBgBottom = value; break;
+        }
+    }
+
+    private string PreviewStyle() =>
+        $"--preview-accent:{_theme.AccentColor};--preview-hero-start:{_theme.HeroStartColor};--preview-hero-mid:{_theme.HeroMidColor};--preview-hero-end:{_theme.HeroEndColor};--preview-booking:{_theme.BookingColor};--preview-booking-dark:{_theme.BookingDarkColor};--preview-soft:{_theme.PrimarySoftBg};--preview-border:{_theme.PrimaryBorderColor};--preview-text:{_theme.PrimaryTextColor};";
+
+    private static string PresetSwatchStyle(string key)
+    {
+        var t = SiteThemePresets.CreateTheme(key);
+        return $"background: linear-gradient(135deg, {t.HeroStartColor}, {t.HeroMidColor}, {t.HeroEndColor});";
+    }
+}
