@@ -694,6 +694,11 @@ footer {
     border-color: #059669;
 }
 
+.guide-nav-pill--wifi.is-active {
+    background: #dbeafe;
+    border-color: #2563eb;
+}
+
 .guide-nav-pill--house {
     background: var(--nn-primary-soft);
     color: var(--nn-primary-text);
@@ -710,6 +715,12 @@ footer {
     background: #ecfdf5;
     color: #047857;
     border-color: #a7f3d0;
+}
+
+.guide-nav-pill--wifi {
+    background: #eff6ff;
+    color: #1d4ed8;
+    border-color: #bfdbfe;
 }
 
 .guide-nav-pill--neutral {
@@ -740,6 +751,10 @@ footer {
     border-top: 4px solid #10b981;
 }
 
+.guide-card--wifi {
+    border-top: 4px solid #3b82f6;
+}
+
 .guide-card-header {
     display: flex;
     align-items: flex-start;
@@ -761,6 +776,11 @@ footer {
 .guide-card--resources .guide-card-header {
     background: linear-gradient(90deg, #ecfdf5 0%, var(--nn-surface) 100%);
     border-bottom-color: #a7f3d0;
+}
+
+.guide-card--wifi .guide-card-header {
+    background: linear-gradient(90deg, #eff6ff 0%, var(--nn-surface) 100%);
+    border-bottom-color: #bfdbfe;
 }
 
 .guide-card-icon {
@@ -875,6 +895,83 @@ footer {
     .guide-link:hover {
         color: var(--nn-primary-text);
     }
+
+.guide-inline-link {
+    appearance: none;
+    border: none;
+    padding: 0;
+    background: none;
+    color: var(--nn-primary);
+    font: inherit;
+    font-weight: 800;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    cursor: pointer;
+}
+
+.guide-inline-link:hover {
+    color: var(--nn-primary-text);
+}
+
+.guide-wifi-details {
+    margin: 0 0 20px;
+}
+
+.guide-wifi-row {
+    display: grid;
+    grid-template-columns: 140px 1fr;
+    gap: 8px 16px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--nn-line);
+}
+
+.guide-wifi-row:last-child {
+    border-bottom: none;
+}
+
+.guide-wifi-row dt {
+    margin: 0;
+    font-weight: 800;
+    color: var(--nn-ink-secondary);
+}
+
+.guide-wifi-row dd {
+    margin: 0;
+    font-weight: 700;
+    color: var(--nn-ink);
+}
+
+.guide-wifi-password {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 1rem;
+    padding: 4px 8px;
+    background: var(--nn-surface-muted);
+    border-radius: 6px;
+}
+
+.guide-wifi-qr-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+}
+
+.guide-wifi-qr-image {
+    display: block;
+    width: 180px;
+    height: 180px;
+    image-rendering: pixelated;
+    background: #fff;
+    padding: 8px;
+    border-radius: 8px;
+    border: 1px solid var(--nn-line);
+}
+
+.guide-wifi-qr-caption {
+    margin: 0;
+    font-size: 14px;
+    color: var(--nn-ink-secondary);
+}
 
 .guide-disclaimer {
     margin: 18px 0 0;
@@ -2794,56 +2891,7 @@ footer {
     justify-content: center;
 }
 
-.guide-qr-card {
-    display: grid;
-    grid-template-columns: 1fr auto;
-    gap: 20px;
-    align-items: center;
-    margin-bottom: 24px;
-    padding: 18px 20px;
-    border-radius: 14px;
-    background: var(--nn-surface);
-    border: 1px solid var(--nn-line);
-    box-shadow: var(--nn-shadow-soft);
-}
-
-.guide-qr-card-title {
-    margin: 0 0 8px;
-    font-size: 1.15rem;
-}
-
-.guide-qr-card-lead,
-.guide-qr-card-url {
-    margin: 0 0 8px;
-    color: var(--nn-ink-secondary);
-    line-height: 1.5;
-}
-
-.guide-qr-card-url {
-    font-size: 13px;
-    word-break: break-all;
-}
-
-.guide-qr-card-image {
-    display: block;
-    width: 180px;
-    height: 180px;
-    image-rendering: pixelated;
-    background: #fff;
-    padding: 8px;
-    border-radius: 8px;
-    border: 1px solid var(--nn-line);
-}
-
 @media (max-width: 900px) {
-    .guide-qr-card {
-        grid-template-columns: 1fr;
-    }
-
-    .guide-qr-card-image {
-        justify-self: start;
-    }
-
     .contact-inquiry-layout {
         grid-template-columns: 1fr;
     }

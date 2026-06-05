@@ -9,6 +9,7 @@
 @attribute [Authorize(Roles = AppRoles.Owner)]
 
 @inject IQrCodeService QrCodes
+@inject IGuestWifiService GuestWifi
 @inject NavigationManager Navigation
 
 <PageTitle>QR codes · @SiteBranding.Name</PageTitle>
@@ -88,7 +89,7 @@
             <section class="theme-panel qr-panel">
                 <h2 class="theme-panel-title">Deerfield Retreat guest guide QR</h2>
                 <p class="theme-panel-lead">
-                    Shown at the top of the guest guide page and for in-house printouts. Guests scan to open
+                    For in-house printouts. Guests scan to open
                     <code>/properties/deerfield-retreat/guide</code>.
                 </p>
 
@@ -134,6 +135,49 @@
             </section>
 
             <section class="theme-panel qr-panel">
+                <h2 class="theme-panel-title">Deerfield Retreat Wi‑Fi QR</h2>
+                <p class="theme-panel-lead">
+                    Encodes the guest Wi‑Fi network so phones can join automatically when scanned.
+                    Print for the kitchen, entryway, or welcome binder.
+                </p>
+
+                @if (_wifiConfigured)
+                {
+                    <div class="qr-main-summary">
+                        <p><strong>Network:</strong> @_wifiSsid</p>
+                        <p class="qr-meta">
+                            <strong>Stable PNG link:</strong>
+                            <a class="guide-link" href="@_wifiPublicPath" target="_blank" rel="noopener">@GetAbsoluteUrl(_wifiPublicPath)</a>
+                        </p>
+                    </div>
+
+                    <div class="qr-preview-wrap">
+                        <img src="@_wifiPreviewDataUrl"
+                             alt="Deerfield Retreat Wi-Fi QR code"
+                             class="qr-preview-image"
+                             width="240"
+                             height="240" />
+                    </div>
+
+                    <div class="qr-actions">
+                        <a class="nn-btn-primary qr-download-btn"
+                           href="@_wifiPublicPath"
+                           download="deerfield-retreat-wifi-qrcode.png"
+                           target="_blank"
+                           rel="noopener">
+                            Download Wi‑Fi PNG
+                        </a>
+                    </div>
+                }
+                else
+                {
+                    <p class="nn-note">
+                        Wi‑Fi is not configured. Add <code>GuestWifi:DeerfieldRetreat</code> in appsettings.
+                    </p>
+                }
+            </section>
+
+            <section class="theme-panel qr-panel">
                 <h2 class="theme-panel-title">Generate a QR code</h2>
                 <p class="theme-panel-lead">Enter any http or https URL. Preview first, then save it as your main site QR or the Deerfield guest guide QR.</p>
 
@@ -143,7 +187,7 @@
                            class="nn-form-control"
                            @bind="_draftUrl"
                            @bind:event="oninput"
-                           placeholder="https://backhillsnestlednooks.com/properties/deerfield-retreat/guide" />
+                           placeholder="https://blackhillsnestlednooks.com/properties/deerfield-retreat/guide" />
                     <p class="nn-field-hint">You can paste a full URL or just a domain — we will add https:// when needed.</p>
                 </div>
 
@@ -217,6 +261,10 @@
     private string _error = "";
     private readonly string _mainPublicPath = IQrCodeService.MainQrCodePublicPath;
     private readonly string _guestGuidePublicPath = IQrCodeService.DeerfieldGuestGuideQrCodePublicPath;
+    private readonly string _wifiPublicPath = IGuestWifiService.DeerfieldRetreatWifiQrCodePublicPath;
+    private bool _wifiConfigured;
+    private string _wifiSsid = "";
+    private string? _wifiPreviewDataUrl;
 
     protected override async Task OnInitializedAsync()
     {
@@ -250,6 +298,15 @@
             else if (!string.IsNullOrEmpty(_mainUrl))
             {
                 _draftUrl = _mainUrl;
+            }
+
+            var wifiSettings = GuestWifi.GetDeerfieldRetreatSettings();
+            _wifiConfigured = wifiSettings.IsConfigured;
+            _wifiSsid = wifiSettings.Ssid;
+            if (_wifiConfigured)
+            {
+                var wifiPng = GuestWifi.GenerateDeerfieldRetreatWifiQrPng();
+                _wifiPreviewDataUrl = QrCodes.ToDataUrl(wifiPng);
             }
         }
         catch (Exception ex)

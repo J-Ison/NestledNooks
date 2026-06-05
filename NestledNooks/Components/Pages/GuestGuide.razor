@@ -1,7 +1,11 @@
 @page "/properties/deerfield-retreat/guide"
 @rendermode InteractiveServer
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.WebUtilities
 @using NestledNooks.Services
-@inject IQrCodeService QrCodes
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IGuestWifiService GuestWifi
+@inject NavigationManager Navigation
 
 <PageTitle>@SiteBranding.PageTitle("Guest guide — Deerfield Retreat")</PageTitle>
 <HeadContent>
@@ -15,36 +19,12 @@
             <h1 class="guide-hero-title">Guest guide</h1>
             <p class="guide-hero-lead">
                 House details, local favorites, and stay resources — all in one place.
-                Wi‑Fi and access codes are in your confirmation email.
+                Sign in to view Wi‑Fi details in the guide.
             </p>
         </div>
     </header>
 
     <main class="wrap guide-main">
-        @if (!string.IsNullOrEmpty(_guestGuideQrPath))
-        {
-            <aside class="guide-qr-card" aria-label="Guest guide QR code">
-                <div class="guide-qr-card-copy">
-                    <h2 class="guide-qr-card-title">Scan this guide</h2>
-                    <p class="guide-qr-card-lead">
-                        Save or share this QR so guests can open the Deerfield Retreat guest guide on their phone.
-                    </p>
-                    @if (!string.IsNullOrEmpty(_guestGuideQrUrl))
-                    {
-                        <p class="guide-qr-card-url">
-                            <a class="guide-link" href="@_guestGuideQrUrl" target="_blank" rel="noopener">@_guestGuideQrUrl</a>
-                        </p>
-                    }
-                </div>
-                <img src="@_guestGuideQrPath"
-                     alt="QR code linking to the Deerfield Retreat guest guide"
-                     class="guide-qr-card-image"
-                     width="180"
-                     height="180"
-                     loading="lazy" />
-            </aside>
-        }
-
         <nav class="guide-nav" aria-label="Guide sections">
             <button type="button"
                     class="@NavPillClass("house", "guide-nav-pill--house")"
@@ -57,6 +37,12 @@
                     aria-pressed="@(_section == "local")"
                     @onclick='() => SelectSection("local")'>
                 Local picks
+            </button>
+            <button type="button"
+                    class="@NavPillClass("wifi", "guide-nav-pill--wifi")"
+                    aria-pressed="@(_section == "wifi")"
+                    @onclick='() => SelectSection("wifi")'>
+                Wi‑Fi
             </button>
             <button type="button"
                     class="@NavPillClass("resources", "guide-nav-pill--resources")"
@@ -80,7 +66,8 @@
             <div class="guide-card-body">
                 <p class="guide-intro">
                     Deerfield Retreat is a full home near Rapid City. Check your booking confirmation email for
-                    Wi‑Fi, door codes, and any arrival notes specific to your stay.
+                    door codes and any arrival notes specific to your stay. Wi‑Fi details are in the
+                    <button type="button" class="guide-inline-link" @onclick='() => SelectSection("wifi")'>Wi‑Fi section</button>.
                 </p>
                 <ul class="guide-list">
                     <li><strong>Check-in:</strong> 4:00 PM · <strong>Check-out:</strong> 10:00 AM (unless we agree otherwise)</li>
@@ -165,6 +152,62 @@
         </article>
         }
 
+        @if (_section == "wifi")
+        {
+        <article id="wifi" class="guide-card guide-card--wifi">
+            <header class="guide-card-header">
+                <span class="guide-card-icon" aria-hidden="true">📶</span>
+                <div>
+                    <h2 class="guide-card-title">Wi‑Fi</h2>
+                    <p class="guide-card-subtitle">Connect at Deerfield Retreat</p>
+                </div>
+            </header>
+            <div class="guide-card-body">
+                @if (!_wifiConfigured)
+                {
+                    <p class="guide-intro">Wi‑Fi details are not available right now. Check your confirmation email or contact us.</p>
+                }
+                else if (_isSignedIn)
+                {
+                    <p class="guide-intro">
+                        Use the network details below, or scan the QR code with your phone camera to join automatically.
+                    </p>
+                    <dl class="guide-wifi-details">
+                        <div class="guide-wifi-row">
+                            <dt>Network name</dt>
+                            <dd>@_wifiSsid</dd>
+                        </div>
+                        <div class="guide-wifi-row">
+                            <dt>Password</dt>
+                            <dd><code class="guide-wifi-password">@_wifiPassword</code></dd>
+                        </div>
+                    </dl>
+                    <div class="guide-wifi-qr-wrap">
+                        <img src="@_wifiQrPath"
+                             alt="QR code to join Deerfield Retreat Wi-Fi"
+                             class="guide-wifi-qr-image"
+                             width="180"
+                             height="180"
+                             loading="lazy" />
+                        <p class="guide-wifi-qr-caption">Scan to join Wi‑Fi</p>
+                    </div>
+                }
+                else
+                {
+                    <p class="guide-intro">
+                        Please log in to view the Wi‑Fi password.
+                    </p>
+                    <div class="nn-note">
+                        <a class="guide-link" href="@_wifiLoginUrl">Sign in</a>
+                        or
+                        <a class="guide-link" href="@_wifiRegisterUrl">create an account</a>
+                        to see network details here.
+                    </div>
+                }
+            </div>
+        </article>
+        }
+
         @if (_section == "resources")
         {
         <article id="resources" class="guide-card guide-card--resources">
@@ -202,14 +245,32 @@
 
 @code {
     private string _section = "house";
-    private string? _guestGuideQrPath;
-    private string? _guestGuideQrUrl;
+    private bool _isSignedIn;
+    private bool _wifiConfigured;
+    private string _wifiSsid = "";
+    private string _wifiPassword = "";
+    private readonly string _wifiQrPath = IGuestWifiService.DeerfieldRetreatWifiQrCodePublicPath;
+    private readonly string _wifiLoginUrl = "/Account/Login?ReturnUrl=%2Fproperties%2Fdeerfield-retreat%2Fguide%3Fsection%3Dwifi";
+    private readonly string _wifiRegisterUrl = "/Account/Register?ReturnUrl=%2Fproperties%2Fdeerfield-retreat%2Fguide%3Fsection%3Dwifi";
 
     protected override async Task OnInitializedAsync()
     {
-        _guestGuideQrUrl = await QrCodes.GetDeerfieldGuestGuideUrlAsync();
-        if (!string.IsNullOrEmpty(_guestGuideQrUrl))
-            _guestGuideQrPath = IQrCodeService.DeerfieldGuestGuideQrCodePublicPath;
+        var settings = GuestWifi.GetDeerfieldRetreatSettings();
+        _wifiConfigured = settings.IsConfigured;
+        _wifiSsid = settings.Ssid;
+        _wifiPassword = settings.Password;
+
+        var auth = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        _isSignedIn = auth.User.Identity?.IsAuthenticated == true;
+
+        var uri = Navigation.ToAbsoluteUri(Navigation.Uri);
+        if (QueryHelpers.ParseQuery(uri.Query)
+            .TryGetValue("section", out var sectionValues))
+        {
+            var section = sectionValues.ToString();
+            if (section is "house" or "local" or "wifi" or "resources")
+                _section = section;
+        }
     }
 
     private void SelectSection(string section)

@@ -9,10 +9,10 @@ public sealed class QrCodeService(ApplicationDbContext db, ILogger<QrCodeService
     private const int SettingsRowId = 1;
     private const int MaxUrlLength = 500;
 
-    public static readonly string DefaultMainQrCodeUrl = "http://backhillsnestlednooks.com/";
+    public static readonly string DefaultMainQrCodeUrl = "https://blackhillsnestlednooks.com/";
 
     public static readonly string DefaultDeerfieldGuestGuideQrCodeUrl =
-        "https://backhillsnestlednooks.com/properties/deerfield-retreat/guide";
+        "https://blackhillsnestlednooks.com/properties/deerfield-retreat/guide";
 
     public QrCodeUrlResult NormalizeUrl(string? raw)
     {
@@ -28,7 +28,7 @@ public sealed class QrCodeService(ApplicationDbContext db, ILogger<QrCodeService
             : $"https://{trimmed}";
 
         if (!Uri.TryCreate(candidate, UriKind.Absolute, out var uri))
-            return QrCodeUrlResult.Fail("Enter a valid website URL (for example, https://backhillsnestlednooks.com/).");
+            return QrCodeUrlResult.Fail("Enter a valid website URL (for example, https://blackhillsnestlednooks.com/).");
 
         if (uri.Scheme is not ("http" or "https"))
             return QrCodeUrlResult.Fail("Only http and https URLs are supported.");
@@ -144,18 +144,36 @@ public sealed class QrCodeService(ApplicationDbContext db, ILogger<QrCodeService
                 row.MainQrCodeUrl = DefaultMainQrCodeUrl;
                 changed = true;
             }
+            else
+            {
+                var fixedMain = FixLegacyQrUrl(row.MainQrCodeUrl);
+                if (!string.Equals(fixedMain, row.MainQrCodeUrl, StringComparison.Ordinal))
+                {
+                    row.MainQrCodeUrl = fixedMain;
+                    changed = true;
+                }
+            }
 
             if (string.IsNullOrWhiteSpace(row.DeerfieldGuestGuideQrCodeUrl))
             {
                 row.DeerfieldGuestGuideQrCodeUrl = DefaultDeerfieldGuestGuideQrCodeUrl;
                 changed = true;
             }
+            else
+            {
+                var fixedGuide = FixLegacyQrUrl(row.DeerfieldGuestGuideQrCodeUrl);
+                if (!string.Equals(fixedGuide, row.DeerfieldGuestGuideQrCodeUrl, StringComparison.Ordinal))
+                {
+                    row.DeerfieldGuestGuideQrCodeUrl = fixedGuide;
+                    changed = true;
+                }
+            }
 
             if (!changed)
                 return;
 
             row.UpdatedAtUtc = DateTime.UtcNow;
-            logger.LogInformation("Backfilled missing QR code URLs on SiteSettings.");
+            logger.LogInformation("Backfilled or corrected QR code URLs on SiteSettings.");
         }
 
         await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
@@ -173,5 +191,19 @@ public sealed class QrCodeService(ApplicationDbContext db, ILogger<QrCodeService
         row = new SiteSettings { Id = SettingsRowId };
         db.SiteSettings.Add(row);
         return row;
+    }
+
+    /// <summary>Corrects the old backhillsnestlednooks.com typo and upgrades http to https for our domain.</summary>
+    public static string FixLegacyQrUrl(string url)
+    {
+        var fixedUrl = url.Replace(
+            "backhillsnestlednooks.com",
+            "blackhillsnestlednooks.com",
+            StringComparison.OrdinalIgnoreCase);
+
+        if (fixedUrl.StartsWith("http://blackhillsnestlednooks.com", StringComparison.OrdinalIgnoreCase))
+            fixedUrl = "https://" + fixedUrl["http://".Length..];
+
+        return fixedUrl;
     }
 }

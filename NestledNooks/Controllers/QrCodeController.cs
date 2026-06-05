@@ -5,7 +5,7 @@ namespace NestledNooks.Controllers;
 
 [ApiController]
 [Route("api/qrcode")]
-public sealed class QrCodeController(IQrCodeService qrCodeService) : ControllerBase
+public sealed class QrCodeController(IQrCodeService qrCodeService, IGuestWifiService guestWifi) : ControllerBase
 {
     [HttpGet("main.png")]
     [ResponseCache(Duration = 300, Location = ResponseCacheLocation.Any)]
@@ -29,5 +29,17 @@ public sealed class QrCodeController(IQrCodeService qrCodeService) : ControllerB
 
         var png = qrCodeService.GeneratePng(url);
         return File(png, "image/png", "deerfield-retreat-guest-guide-qrcode.png");
+    }
+
+    [HttpGet("deerfield-retreat-wifi.png")]
+    [ResponseCache(Duration = 300, Location = ResponseCacheLocation.Any)]
+    public IActionResult DeerfieldRetreatWifiPng()
+    {
+        var payload = guestWifi.GetDeerfieldRetreatWifiQrPayload();
+        if (string.IsNullOrWhiteSpace(payload))
+            return NotFound("Deerfield Retreat WiFi is not configured.");
+
+        var png = guestWifi.GenerateDeerfieldRetreatWifiQrPng();
+        return File(png, "image/png", "deerfield-retreat-wifi-qrcode.png");
     }
 }
