@@ -735,20 +735,55 @@ footer {
    ========================= */
 
 .guide-page {
-    background: linear-gradient(180deg, var(--nn-page-bg-top) 0%, var(--nn-page-bg-bottom) 220px, var(--nn-page-bg-deep) 100%);
+    background:
+        radial-gradient(ellipse 90% 55% at 8% -5%, color-mix(in srgb, var(--nn-hero-start) 38%, transparent), transparent 58%),
+        radial-gradient(ellipse 70% 45% at 95% 8%, color-mix(in srgb, var(--nn-hero-end) 28%, transparent), transparent 52%),
+        linear-gradient(
+            180deg,
+            color-mix(in srgb, var(--nn-primary-soft) 75%, var(--nn-page-bg-top)) 0%,
+            color-mix(in srgb, var(--nn-accent) 18%, var(--nn-page-bg-bottom)) 45%,
+            color-mix(in srgb, var(--nn-primary-soft) 35%, var(--nn-page-bg-deep)) 100%);
     color: var(--ink);
     min-height: 60vh;
 }
 
 .guide-hero {
+    position: relative;
+    overflow: hidden;
     background: linear-gradient(135deg, var(--nn-hero-start) 0%, var(--nn-hero-mid) 45%, var(--nn-hero-end) 100%);
     color: var(--nn-hero-text);
-    padding: 18px 18px 20px;
+    padding: 22px 18px 26px;
     border-bottom: 2px solid var(--nn-hero-border);
-    box-shadow: 0 4px 16px color-mix(in srgb, var(--nn-hero-border) 14%, transparent);
+    box-shadow: 0 6px 24px color-mix(in srgb, var(--nn-hero-border) 18%, transparent);
 }
 
+    .guide-hero::before {
+        content: "";
+        position: absolute;
+        top: -45%;
+        right: -6%;
+        width: min(320px, 55vw);
+        height: min(320px, 55vw);
+        border-radius: 50%;
+        background: color-mix(in srgb, var(--nn-hero-end) 42%, transparent);
+        pointer-events: none;
+    }
+
+    .guide-hero::after {
+        content: "";
+        position: absolute;
+        bottom: -55%;
+        left: -4%;
+        width: min(240px, 45vw);
+        height: min(240px, 45vw);
+        border-radius: 50%;
+        background: color-mix(in srgb, var(--nn-surface) 35%, transparent);
+        pointer-events: none;
+    }
+
 .guide-hero-inner {
+    position: relative;
+    z-index: 1;
     max-width: 1120px;
     margin: 0 auto;
     padding: 0;
@@ -780,9 +815,30 @@ footer {
     margin: 0;
     max-width: 640px;
     font-size: 15px;
-    line-height: 1.45;
+    line-height: 1.5;
     color: var(--nn-hero-lead);
 }
+
+.guide-hero-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 16px 0 0;
+    padding: 0;
+    list-style: none;
+}
+
+    .guide-hero-chips li {
+        padding: 7px 13px;
+        border-radius: 999px;
+        background: color-mix(in srgb, var(--nn-surface) 58%, transparent);
+        border: 1px solid color-mix(in srgb, var(--nn-hero-border) 28%, transparent);
+        backdrop-filter: blur(6px);
+        font-size: 12px;
+        font-weight: 800;
+        color: var(--nn-hero-text);
+        box-shadow: 0 2px 8px color-mix(in srgb, var(--nn-hero-border) 10%, transparent);
+    }
 
 .guide-main {
     max-width: 1120px;
@@ -793,113 +849,132 @@ footer {
 .guide-nav {
     display: flex;
     flex-wrap: wrap;
-    gap: 10px;
-    margin: 0 0 24px;
-    padding: 14px 16px;
-    background: var(--nn-surface);
-    border: 1px solid var(--nn-line);
-    border-radius: 14px;
+    gap: 6px;
+    margin: 0 0 22px;
+    padding: 8px;
+    background: linear-gradient(
+        135deg,
+        color-mix(in srgb, var(--nn-primary-soft) 72%, var(--nn-surface)),
+        color-mix(in srgb, var(--nn-accent) 28%, var(--nn-surface)));
+    border: 1px solid var(--nn-primary-border);
+    border-radius: 16px;
     box-shadow: var(--nn-shadow-soft);
 }
 
 .guide-nav-pill {
     display: inline-flex;
     align-items: center;
-    padding: 9px 16px;
-    border-radius: 999px;
-    font-weight: 800;
-    font-size: 14px;
+    padding: 8px 14px;
+    border-radius: 10px;
+    font-weight: 700;
+    font-size: 13px;
     text-decoration: none;
-    border: 2px solid transparent;
+    border: 1px solid transparent;
     cursor: pointer;
     font-family: inherit;
-    transition: transform 0.15s ease, box-shadow 0.15s ease;
+    background: transparent;
+    color: var(--nn-ink-secondary);
+    transition: background-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
 }
 
     .guide-nav-pill:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 4px 12px rgba(15, 23, 42, 0.1);
+        background: color-mix(in srgb, var(--nn-surface) 72%, var(--nn-primary-soft));
+        color: var(--nn-primary-text);
+        border-color: color-mix(in srgb, var(--nn-primary-border) 60%, transparent);
     }
 
     .guide-nav-pill.is-active {
-        box-shadow: 0 4px 14px rgba(15, 23, 42, 0.14);
-        transform: translateY(-1px);
+        background: var(--nn-surface);
+        border-color: var(--nn-primary-border);
+        color: var(--nn-primary-text);
+        font-weight: 800;
+        box-shadow: 0 2px 10px color-mix(in srgb, var(--nn-primary) 12%, transparent);
     }
 
 .guide-nav-pill--house.is-active {
     background: var(--nn-primary-soft);
-    border-color: var(--nn-primary);
+    border-color: var(--nn-primary-border);
+    color: var(--nn-primary-text);
 }
 
 .guide-nav-pill--local.is-active {
-    background: #fde68a;
-    border-color: #d97706;
-}
-
-.guide-nav-pill--resources.is-active {
-    background: #a7f3d0;
-    border-color: #059669;
+    background: color-mix(in srgb, var(--nn-hero-start) 50%, var(--nn-surface));
+    border-color: color-mix(in srgb, var(--nn-hero-end) 30%, var(--nn-primary-border));
+    color: var(--nn-primary-text);
+    box-shadow: 0 2px 10px color-mix(in srgb, var(--nn-hero-end) 14%, transparent);
 }
 
 .guide-nav-pill--wifi.is-active {
-    background: #dbeafe;
-    border-color: #2563eb;
-}
-
-.guide-nav-pill--house {
-    background: var(--nn-primary-soft);
+    background: color-mix(in srgb, var(--nn-accent) 55%, var(--nn-surface));
+    border-color: var(--nn-accent-border);
     color: var(--nn-primary-text);
-    border-color: var(--nn-primary-border);
+    box-shadow: 0 2px 10px color-mix(in srgb, var(--nn-accent) 18%, transparent);
 }
 
-.guide-nav-pill--local {
-    background: #fffbeb;
-    color: #b45309;
-    border-color: #fde68a;
+.guide-nav-pill--resources.is-active {
+    background: color-mix(in srgb, var(--nn-booking) 16%, var(--nn-surface));
+    border-color: color-mix(in srgb, var(--nn-booking) 32%, var(--nn-line));
+    color: var(--nn-booking-dark);
+    box-shadow: 0 2px 10px color-mix(in srgb, var(--nn-booking) 14%, transparent);
 }
 
+.guide-nav-pill--house,
+.guide-nav-pill--local,
+.guide-nav-pill--wifi,
 .guide-nav-pill--resources {
-    background: #ecfdf5;
-    color: #047857;
-    border-color: #a7f3d0;
-}
-
-.guide-nav-pill--wifi {
-    background: #eff6ff;
-    color: #1d4ed8;
-    border-color: #bfdbfe;
+    background: color-mix(in srgb, var(--nn-surface) 55%, transparent);
+    color: var(--nn-primary-text);
+    border-color: color-mix(in srgb, var(--nn-primary-border) 45%, transparent);
 }
 
 .guide-nav-pill--neutral {
-    background: var(--nn-surface-muted);
-    color: var(--nn-ink-secondary);
-    border-color: var(--nn-line);
+    background: color-mix(in srgb, var(--nn-booking) 12%, var(--nn-surface));
+    color: var(--nn-booking-dark);
+    border-color: color-mix(in srgb, var(--nn-booking) 28%, var(--nn-line));
 }
+
+    .guide-nav-pill--neutral:hover {
+        color: var(--nn-booking-dark);
+        background: color-mix(in srgb, var(--nn-booking) 20%, var(--nn-surface));
+    }
 
 .guide-card {
     scroll-margin-top: 88px;
-    margin-bottom: 24px;
+    margin-bottom: 20px;
     background: var(--nn-surface);
-    border-radius: 16px;
-    border: 1px solid var(--nn-line);
-    box-shadow: var(--nn-shadow-soft);
+    border-radius: 20px;
+    border: 1px solid var(--nn-primary-border);
+    box-shadow: 0 10px 28px color-mix(in srgb, var(--nn-primary) 10%, transparent);
     overflow: hidden;
+    animation: guide-card-in 0.22s ease-out;
+}
+
+@keyframes guide-card-in {
+    from {
+        opacity: 0;
+        transform: translateY(5px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 .guide-card--house {
-    border-top: 4px solid var(--nn-primary-light);
+    border-top: 4px solid var(--nn-primary);
 }
 
 .guide-card--local {
-    border-top: 4px solid #f59e0b;
+    border-top: 4px solid var(--nn-hero-end);
 }
 
 .guide-card--resources {
-    border-top: 4px solid #10b981;
+    border-top: 4px solid var(--nn-booking);
 }
 
 .guide-card--wifi {
-    border-top: 4px solid #3b82f6;
+    border-top: 4px solid var(--nn-primary-light);
 }
 
 .guide-card-header {
@@ -907,57 +982,151 @@ footer {
     align-items: flex-start;
     gap: 14px;
     padding: 20px 22px;
-    border-bottom: 2px solid var(--nn-line);
+    border-bottom: 1px solid color-mix(in srgb, var(--nn-primary-border) 70%, var(--nn-line));
+    background: linear-gradient(
+        90deg,
+        color-mix(in srgb, var(--nn-primary-soft) 80%, var(--nn-surface)),
+        color-mix(in srgb, var(--nn-primary-soft) 25%, var(--nn-surface)));
 }
 
 .guide-card--house .guide-card-header {
-    background: linear-gradient(90deg, var(--nn-primary-soft) 0%, var(--nn-surface) 100%);
-    border-bottom-color: var(--nn-primary-border);
+    background: linear-gradient(
+        90deg,
+        color-mix(in srgb, var(--nn-primary-soft) 90%, var(--nn-surface)),
+        color-mix(in srgb, var(--nn-primary) 8%, var(--nn-surface)));
 }
 
 .guide-card--local .guide-card-header {
-    background: linear-gradient(90deg, #fffbeb 0%, var(--nn-surface) 100%);
-    border-bottom-color: #fde68a;
+    background: linear-gradient(
+        90deg,
+        color-mix(in srgb, var(--nn-hero-start) 55%, var(--nn-surface)),
+        color-mix(in srgb, var(--nn-hero-end) 18%, var(--nn-surface)));
+    border-bottom-color: color-mix(in srgb, var(--nn-hero-end) 30%, var(--nn-line));
 }
 
 .guide-card--resources .guide-card-header {
-    background: linear-gradient(90deg, #ecfdf5 0%, var(--nn-surface) 100%);
-    border-bottom-color: #a7f3d0;
+    background: linear-gradient(
+        90deg,
+        color-mix(in srgb, var(--nn-booking) 22%, var(--nn-surface)),
+        color-mix(in srgb, var(--nn-booking) 8%, var(--nn-surface)));
+    border-bottom-color: color-mix(in srgb, var(--nn-booking) 25%, var(--nn-line));
 }
 
 .guide-card--wifi .guide-card-header {
-    background: linear-gradient(90deg, #eff6ff 0%, var(--nn-surface) 100%);
-    border-bottom-color: #bfdbfe;
+    background: linear-gradient(
+        90deg,
+        color-mix(in srgb, var(--nn-accent) 45%, var(--nn-surface)),
+        color-mix(in srgb, var(--nn-primary-soft) 40%, var(--nn-surface)));
 }
 
 .guide-card-icon {
-    font-size: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 46px;
+    height: 46px;
+    border-radius: 14px;
+    font-size: 22px;
     line-height: 1;
     flex-shrink: 0;
+    background: color-mix(in srgb, var(--nn-surface) 70%, var(--nn-primary-soft));
+    border: 1px solid var(--nn-primary-border);
+    box-shadow: 0 3px 10px color-mix(in srgb, var(--nn-primary) 12%, transparent);
+}
+
+.guide-card--local .guide-card-icon {
+    background: color-mix(in srgb, var(--nn-surface) 55%, var(--nn-hero-start));
+    border-color: color-mix(in srgb, var(--nn-hero-end) 35%, var(--nn-line));
+    box-shadow: 0 3px 10px color-mix(in srgb, var(--nn-hero-end) 18%, transparent);
+}
+
+.guide-card--resources .guide-card-icon {
+    background: color-mix(in srgb, var(--nn-surface) 60%, var(--nn-booking));
+    border-color: color-mix(in srgb, var(--nn-booking) 35%, var(--nn-line));
+    box-shadow: 0 3px 10px color-mix(in srgb, var(--nn-booking) 18%, transparent);
+}
+
+.guide-card--wifi .guide-card-icon {
+    background: color-mix(in srgb, var(--nn-surface) 55%, var(--nn-accent));
+    box-shadow: 0 3px 10px color-mix(in srgb, var(--nn-accent) 22%, transparent);
 }
 
 .guide-card-title {
-    margin: 0 0 4px;
-    font-size: 22px;
-    font-weight: 900;
+    margin: 0 0 2px;
+    font-size: 20px;
+    font-weight: 800;
     color: var(--nn-ink);
+    letter-spacing: -0.01em;
 }
 
 .guide-card-subtitle {
     margin: 0;
-    font-size: 14px;
-    font-weight: 700;
-    color: var(--muted);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--nn-ink-muted);
 }
 
 .guide-card-body {
-    padding: 20px 22px 22px;
+    padding: 20px 22px 24px;
+    background: linear-gradient(
+        180deg,
+        color-mix(in srgb, var(--nn-primary-soft) 28%, var(--nn-surface)) 0%,
+        color-mix(in srgb, var(--nn-surface-muted) 40%, var(--nn-surface)) 100%);
+}
+
+.guide-card--house .guide-card-body {
+    background: linear-gradient(
+        180deg,
+        color-mix(in srgb, var(--nn-primary-soft) 42%, var(--nn-surface)) 0%,
+        color-mix(in srgb, var(--nn-primary-soft) 12%, var(--nn-surface)) 100%);
+}
+
+.guide-card--local .guide-card-body {
+    background: linear-gradient(
+        180deg,
+        color-mix(in srgb, var(--nn-hero-start) 32%, var(--nn-surface)) 0%,
+        color-mix(in srgb, var(--nn-accent) 10%, var(--nn-surface)) 100%);
+}
+
+.guide-card--resources .guide-card-body {
+    background: linear-gradient(
+        180deg,
+        color-mix(in srgb, var(--nn-booking) 14%, var(--nn-surface)) 0%,
+        color-mix(in srgb, var(--nn-booking) 5%, var(--nn-surface)) 100%);
+}
+
+.guide-card--wifi .guide-card-body {
+    background: linear-gradient(
+        180deg,
+        color-mix(in srgb, var(--nn-accent) 28%, var(--nn-surface)) 0%,
+        color-mix(in srgb, var(--nn-primary-soft) 18%, var(--nn-surface)) 100%);
 }
 
 .guide-intro {
-    margin: 0 0 16px;
+    margin: 0 0 18px;
+    padding: 14px 16px;
     color: var(--nn-ink-secondary);
     line-height: 1.6;
+    font-size: 15px;
+    border-radius: 12px;
+    border-left: 4px solid var(--nn-primary);
+    background: color-mix(in srgb, var(--nn-surface) 55%, var(--nn-primary-soft));
+    box-shadow: inset 0 1px 0 color-mix(in srgb, var(--nn-surface) 80%, transparent);
+}
+
+.guide-card--local .guide-intro {
+    border-left-color: var(--nn-hero-end);
+    background: color-mix(in srgb, var(--nn-surface) 50%, var(--nn-hero-start));
+}
+
+.guide-card--resources .guide-intro {
+    border-left-color: var(--nn-booking);
+    background: color-mix(in srgb, var(--nn-surface) 55%, color-mix(in srgb, var(--nn-booking) 18%, var(--nn-surface)));
+}
+
+.guide-card--wifi .guide-intro {
+    border-left-color: var(--nn-primary-light);
+    background: color-mix(in srgb, var(--nn-surface) 50%, var(--nn-accent));
 }
 
 .guide-list {
@@ -968,68 +1137,124 @@ footer {
 
     .guide-list li {
         position: relative;
-        margin: 0 0 10px;
-        padding: 10px 12px 10px 28px;
-        background: var(--nn-surface-muted);
-        border: 1px solid var(--nn-line);
-        border-radius: 10px;
+        margin: 0;
+        padding: 12px 12px 12px 20px;
+        border-bottom: 1px solid color-mix(in srgb, var(--nn-primary-border) 45%, transparent);
         color: var(--nn-ink-secondary);
-        line-height: 1.5;
+        line-height: 1.55;
+        font-size: 15px;
+        border-radius: 10px;
     }
+
+        .guide-list li:nth-child(odd) {
+            background: color-mix(in srgb, var(--nn-surface) 72%, var(--nn-primary-soft));
+        }
+
+        .guide-list li:last-child {
+            border-bottom: none;
+        }
 
         .guide-list li::before {
             content: "";
             position: absolute;
-            left: 12px;
-            top: 16px;
-            width: 8px;
-            height: 8px;
+            left: 8px;
+            top: 20px;
+            width: 7px;
+            height: 7px;
             border-radius: 50%;
-            background: #94a3b8;
+            background: var(--nn-primary);
+            opacity: 0.85;
+            box-shadow: 0 0 0 3px color-mix(in srgb, var(--nn-primary) 18%, transparent);
         }
 
 .guide-card--house .guide-list li::before {
-    background: var(--nn-primary-light);
+    background: var(--nn-primary);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--nn-primary) 22%, transparent);
 }
 
 .guide-card--local .guide-list li::before {
-    background: #f59e0b;
+    background: var(--nn-hero-end);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--nn-hero-end) 22%, transparent);
+}
+
+.guide-card--local .guide-list li:nth-child(odd) {
+    background: color-mix(in srgb, var(--nn-surface) 68%, var(--nn-hero-start));
 }
 
 .guide-card--resources .guide-list li::before {
-    background: #10b981;
+    background: var(--nn-booking);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--nn-booking) 22%, transparent);
+}
+
+.guide-card--resources .guide-list li:nth-child(odd) {
+    background: color-mix(in srgb, var(--nn-surface) 70%, color-mix(in srgb, var(--nn-booking) 12%, var(--nn-surface)));
+}
+
+.guide-card--wifi .guide-list li::before {
+    background: var(--nn-primary-light);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--nn-primary-light) 22%, transparent);
+}
+
+.guide-card--wifi .guide-list li:nth-child(odd) {
+    background: color-mix(in srgb, var(--nn-surface) 68%, var(--nn-accent));
 }
 
 .guide-subblock {
-    margin-top: 20px;
-    padding-top: 18px;
-    border-top: 1px dashed #cbd5e1;
+    margin-top: 18px;
+    padding: 14px 16px 8px;
+    border-radius: 14px;
+    border: 1px solid var(--nn-primary-border);
+    background: color-mix(in srgb, var(--nn-surface) 45%, var(--nn-primary-soft));
+    box-shadow: inset 0 1px 0 color-mix(in srgb, var(--nn-surface) 75%, transparent);
+}
+
+.guide-card--local .guide-subblock {
+    border-color: color-mix(in srgb, var(--nn-hero-end) 30%, var(--nn-line));
+    background: color-mix(in srgb, var(--nn-surface) 40%, var(--nn-hero-start));
+}
+
+.guide-card--resources .guide-subblock {
+    border-color: color-mix(in srgb, var(--nn-booking) 28%, var(--nn-line));
+    background: color-mix(in srgb, var(--nn-surface) 42%, color-mix(in srgb, var(--nn-booking) 16%, var(--nn-surface)));
+}
+
+.guide-card--wifi .guide-subblock {
+    border-color: var(--nn-accent-border);
+    background: color-mix(in srgb, var(--nn-surface) 42%, var(--nn-accent));
 }
 
 .guide-subblock-title {
-    margin: 0 0 12px;
-    padding: 8px 12px;
-    font-size: 15px;
-    font-weight: 900;
-    color: #0f172a;
-    background: #f1f5f9;
-    border-left: 4px solid #64748b;
-    border-radius: 0 8px 8px 0;
+    margin: 0 0 10px;
+    padding: 0 0 8px 10px;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--nn-ink-muted);
+    background: none;
+    border-left: 3px solid var(--nn-line);
+    border-bottom: none;
+    border-radius: 0;
 }
 
 .guide-card--house .guide-subblock-title {
-    background: #eff6ff;
-    border-left-color: #3b82f6;
+    color: var(--nn-primary-text);
+    border-left-color: var(--nn-primary);
 }
 
 .guide-card--local .guide-subblock-title {
-    background: #fffbeb;
-    border-left-color: #f59e0b;
+    color: color-mix(in srgb, var(--nn-hero-end) 55%, var(--nn-ink));
+    border-left-color: var(--nn-hero-end);
 }
 
 .guide-card--resources .guide-subblock-title {
-    background: #ecfdf5;
-    border-left-color: #10b981;
+    color: var(--nn-booking-dark);
+    border-left-color: var(--nn-booking);
+}
+
+.guide-card--wifi .guide-subblock-title {
+    color: var(--nn-primary-text);
+    border-left-color: var(--nn-primary-light);
 }
 
 .guide-link {
@@ -1042,6 +1267,17 @@ footer {
     .guide-link:hover {
         color: var(--nn-primary-text);
     }
+
+.guide-page .nn-note {
+    border-color: var(--nn-primary-border);
+    background: linear-gradient(
+        135deg,
+        color-mix(in srgb, var(--nn-primary-soft) 70%, var(--nn-surface)),
+        color-mix(in srgb, var(--nn-accent) 30%, var(--nn-surface)));
+    color: var(--nn-primary-text);
+    border-radius: 12px;
+    padding: 14px 16px;
+}
 
 .guide-inline-link {
     appearance: none;
@@ -1061,7 +1297,12 @@ footer {
 }
 
 .guide-wifi-details {
-    margin: 0 0 20px;
+    margin: 0 0 18px;
+    padding: 14px 16px;
+    background: color-mix(in srgb, var(--nn-surface) 40%, var(--nn-accent));
+    border: 1px solid var(--nn-accent-border);
+    border-radius: 12px;
+    box-shadow: inset 0 1px 0 color-mix(in srgb, var(--nn-surface) 70%, transparent);
 }
 
 .guide-wifi-row {
@@ -1108,10 +1349,10 @@ footer {
     width: 180px;
     height: 180px;
     image-rendering: pixelated;
-    background: #fff;
+    background: var(--nn-surface);
     padding: 8px;
-    border-radius: 8px;
-    border: 1px solid var(--nn-line);
+    border-radius: 12px;
+    border: 1px solid var(--nn-primary-border);
 }
 
 .guide-wifi-qr-caption {
@@ -1121,44 +1362,52 @@ footer {
 }
 
 .guide-disclaimer {
-    margin: 18px 0 0;
-    padding: 12px 14px;
+    margin: 20px 0 0;
+    padding: 14px 16px;
     font-size: 14px;
-    line-height: 1.5;
-    color: var(--nn-ink-muted);
-    background: var(--nn-surface-muted);
-    border: 1px solid var(--nn-line);
-    border-radius: 10px;
+    line-height: 1.55;
+    color: var(--nn-ink-secondary);
+    background: color-mix(in srgb, var(--nn-booking) 10%, var(--nn-surface));
+    border: 1px solid color-mix(in srgb, var(--nn-booking) 22%, var(--nn-line));
+    border-radius: 12px;
 }
 
-.guide-footer {
+.guide-page .guide-footer {
     display: flex;
     flex-wrap: wrap;
-    gap: 12px;
-    margin-top: 8px;
-    padding-top: 8px;
+    gap: 10px;
+    margin-top: 28px;
+    padding: 16px 18px;
+    border-top: none;
+    border-radius: 16px;
+    background: linear-gradient(
+        135deg,
+        color-mix(in srgb, var(--nn-primary-soft) 65%, var(--nn-surface)),
+        color-mix(in srgb, var(--nn-hero-start) 35%, var(--nn-surface)));
+    border: 1px solid var(--nn-primary-border);
+    box-shadow: var(--nn-shadow-soft);
 }
 
 .guide-footer-btn {
     display: inline-flex;
     align-items: center;
-    padding: 12px 18px;
+    padding: 11px 18px;
     border-radius: 12px;
-    font-weight: 900;
+    font-weight: 800;
+    font-size: 14px;
     text-decoration: none;
-    border: 2px solid transparent;
-    transition: transform 0.15s ease, box-shadow 0.15s ease;
+    border: 1px solid transparent;
+    transition: background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
     .guide-footer-btn:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 6px 16px rgba(15, 23, 42, 0.12);
+        box-shadow: var(--nn-shadow-soft);
     }
 
 .guide-footer-btn--primary {
-    background: linear-gradient(135deg, var(--nn-primary-light), var(--nn-primary));
+    background: linear-gradient(135deg, var(--nn-booking), var(--nn-booking-dark));
     color: #fff;
-    border-color: var(--nn-primary);
+    border-color: var(--nn-booking-dark);
 }
 
 .guide-footer-btn--secondary {
@@ -1166,6 +1415,11 @@ footer {
     color: var(--nn-ink-secondary);
     border-color: var(--nn-line);
 }
+
+    .guide-footer-btn--secondary:hover {
+        border-color: var(--nn-primary-border);
+        color: var(--nn-primary-text);
+    }
 
 @media (max-width: 640px) {
     .guide-hero {

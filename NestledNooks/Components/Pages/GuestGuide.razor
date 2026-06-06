@@ -21,31 +21,37 @@
                 House details, local favorites, and stay resources — all in one place.
                 Sign in to view Wi‑Fi details in the guide.
             </p>
+            <ul class="guide-hero-chips" aria-label="What's in this guide">
+                <li>🏠 House info</li>
+                <li>⛰️ Local picks</li>
+                <li>📶 Wi‑Fi</li>
+                <li>📋 Resources</li>
+            </ul>
         </div>
     </header>
 
     <main class="wrap guide-main">
         <nav class="guide-nav" aria-label="Guide sections">
             <button type="button"
-                    class="@NavPillClass("house", "guide-nav-pill--house")"
+                    class="@NavPillClass("house")"
                     aria-pressed="@(_section == "house")"
                     @onclick='() => SelectSection("house")'>
                 House info
             </button>
             <button type="button"
-                    class="@NavPillClass("local", "guide-nav-pill--local")"
+                    class="@NavPillClass("local")"
                     aria-pressed="@(_section == "local")"
                     @onclick='() => SelectSection("local")'>
                 Local picks
             </button>
             <button type="button"
-                    class="@NavPillClass("wifi", "guide-nav-pill--wifi")"
+                    class="@NavPillClass("wifi")"
                     aria-pressed="@(_section == "wifi")"
                     @onclick='() => SelectSection("wifi")'>
                 Wi‑Fi
             </button>
             <button type="button"
-                    class="@NavPillClass("resources", "guide-nav-pill--resources")"
+                    class="@NavPillClass("resources")"
                     aria-pressed="@(_section == "resources")"
                     @onclick='() => SelectSection("resources")'>
                 Resources
@@ -295,6 +301,6 @@
         _section = section;
     }
 
-    private string NavPillClass(string section, string colorClass) =>
-        $"guide-nav-pill {colorClass}{(_section == section ? " is-active" : "")}";
+    private string NavPillClass(string section) =>
+        $"guide-nav-pill guide-nav-pill--{section}{(_section == section ? " is-active" : "")}";
 }
