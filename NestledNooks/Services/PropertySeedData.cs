@@ -6,6 +6,12 @@ public static class PropertySeedData
 {
     public const string DeerfieldSlug = "deerfield-retreat";
 
+    public const string DefaultGuideTeaserText =
+        "House details, local recommendations, Wi‑Fi, and stay resources — open the guide anytime during your stay.";
+
+    public const string LegacyGuideTeaserText =
+        "House details, local recommendations, and stay resources. Wi‑Fi and access info are in your confirmation email.";
+
     public static RentalProperty CreateDeerfieldRetreat()
     {
         var photos = new[]
@@ -124,8 +130,7 @@ public static class PropertySeedData
             ]),
             LocationText =
                 "Deerfield Retreat is in north Rapid City, so you're close to groceries, restaurants, and attractions — but far enough out that nights stay quiet and the stars stay bright.",
-            GuideTeaserText =
-                "House details, local recommendations, and stay resources. Wi‑Fi and access info are in your confirmation email.",
+            GuideTeaserText = DefaultGuideTeaserText,
             BookingSubtext = "Direct request, Airbnb, or Vrbo — calendars stay in sync.",
             BookingFinePrint = "Most accurate pricing and availability appear on each platform.",
             AirbnbUrl = "https://airbnb.com/h/mydeerfieldretreat",

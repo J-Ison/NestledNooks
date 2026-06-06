@@ -1,15 +1,13 @@
 @page "/properties/deerfield-retreat/guide"
 @rendermode InteractiveServer
-@using Microsoft.AspNetCore.Components.Authorization
 @using Microsoft.AspNetCore.WebUtilities
 @using NestledNooks.Services
-@inject AuthenticationStateProvider AuthenticationStateProvider
 @inject IGuestWifiService GuestWifi
 @inject NavigationManager Navigation
 
 <PageTitle>@SiteBranding.PageTitle("Guest guide — Deerfield Retreat")</PageTitle>
 <HeadContent>
-    <meta name="description" content="House information, local recommendations, and helpful resources for guests staying at Deerfield Retreat in the Black Hills near Rapid City." />
+    <meta name="description" content="House information, local recommendations, Wi‑Fi, and helpful resources for guests staying at Deerfield Retreat in the Black Hills near Rapid City." />
 </HeadContent>
 
 <div class="guide-page">
@@ -18,8 +16,7 @@
             <p class="guide-hero-eyebrow">Deerfield Retreat · @SiteBranding.RegionLine</p>
             <h1 class="guide-hero-title">Guest guide</h1>
             <p class="guide-hero-lead">
-                House details, local favorites, and stay resources — all in one place.
-                Sign in to view Wi‑Fi details in the guide.
+                House details, local favorites, Wi‑Fi, and stay resources — all in one place.
             </p>
             <ul class="guide-hero-chips" aria-label="What's in this guide">
                 <li>🏠 House info</li>
@@ -190,7 +187,7 @@
                 {
                     <p class="guide-intro">Wi‑Fi details are not available right now. Check your confirmation email or contact us.</p>
                 }
-                else if (_isSignedIn)
+                else
                 {
                     <p class="guide-intro">
                         Use the network details below, or scan the QR code with your phone camera to join automatically.
@@ -213,18 +210,6 @@
                              height="180"
                              loading="lazy" />
                         <p class="guide-wifi-qr-caption">Scan to join Wi‑Fi</p>
-                    </div>
-                }
-                else
-                {
-                    <p class="guide-intro">
-                        Please log in to view the Wi‑Fi password.
-                    </p>
-                    <div class="nn-note">
-                        <a class="guide-link" href="@_wifiLoginUrl">Sign in</a>
-                        or
-                        <a class="guide-link" href="@_wifiRegisterUrl">create an account</a>
-                        to see network details here.
                     </div>
                 }
             </div>
@@ -268,23 +253,17 @@
 
 @code {
     private string _section = "house";
-    private bool _isSignedIn;
     private bool _wifiConfigured;
     private string _wifiSsid = "";
     private string _wifiPassword = "";
     private readonly string _wifiQrPath = IGuestWifiService.DeerfieldRetreatWifiQrCodePublicPath;
-    private readonly string _wifiLoginUrl = "/Account/Login?ReturnUrl=%2Fproperties%2Fdeerfield-retreat%2Fguide%3Fsection%3Dwifi";
-    private readonly string _wifiRegisterUrl = "/Account/Register?ReturnUrl=%2Fproperties%2Fdeerfield-retreat%2Fguide%3Fsection%3Dwifi";
 
-    protected override async Task OnInitializedAsync()
+    protected override void OnInitialized()
     {
         var settings = GuestWifi.GetDeerfieldRetreatSettings();
         _wifiConfigured = settings.IsConfigured;
         _wifiSsid = settings.Ssid;
         _wifiPassword = settings.Password;
-
-        var auth = await AuthenticationStateProvider.GetAuthenticationStateAsync();
-        _isSignedIn = auth.User.Identity?.IsAuthenticated == true;
 
         var uri = Navigation.ToAbsoluteUri(Navigation.Uri);
         if (QueryHelpers.ParseQuery(uri.Query)

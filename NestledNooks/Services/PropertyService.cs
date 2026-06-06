@@ -106,10 +106,23 @@ public sealed class PropertyService(ApplicationDbContext db) : IPropertyService
 
     public async Task EnsureSeededAsync(CancellationToken cancellationToken = default)
     {
-        if (await db.RentalProperties.AnyAsync(cancellationToken).ConfigureAwait(false))
+        if (!await db.RentalProperties.AnyAsync(cancellationToken).ConfigureAwait(false))
+        {
+            db.RentalProperties.Add(PropertySeedData.CreateDeerfieldRetreat());
+            await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
             return;
+        }
 
-        db.RentalProperties.Add(PropertySeedData.CreateDeerfieldRetreat());
-        await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        var deerfield = await db.RentalProperties
+            .FirstOrDefaultAsync(p => p.Slug == PropertySeedData.DeerfieldSlug, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (deerfield is not null &&
+            string.Equals(deerfield.GuideTeaserText, PropertySeedData.LegacyGuideTeaserText, StringComparison.Ordinal))
+        {
+            deerfield.GuideTeaserText = PropertySeedData.DefaultGuideTeaserText;
+            deerfield.UpdatedAtUtc = DateTime.UtcNow;
+            await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        }
     }
 }
