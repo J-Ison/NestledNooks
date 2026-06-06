@@ -7,9 +7,9 @@ public sealed class WifiQrEncodingTests
     [Fact]
     public void BuildPayload_EncodesDeerfieldRetreatWifi()
     {
-        var payload = WifiQrEncoding.BuildPayload("Apple5Wifi", "enjoyYourStay25");
+        var payload = WifiQrEncoding.BuildPayload("Apple5Wifi_Guest", "EnjoyYourStay88");
 
-        Assert.Equal("WIFI:T:WPA;S:Apple5Wifi;P:enjoyYourStay25;;", payload);
+        Assert.Equal("WIFI:T:WPA;S:Apple5Wifi_Guest;P:EnjoyYourStay88;;", payload);
     }
 
     [Fact]
