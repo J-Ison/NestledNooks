@@ -24,6 +24,9 @@ public static class SiteThemeCss
         AppendVar(sb, "--nn-hero-border", theme.HeroBorderColor);
         AppendVar(sb, "--nn-booking", theme.BookingColor);
         AppendVar(sb, "--nn-booking-dark", theme.BookingDarkColor);
+        AppendVar(sb, "--nn-link", theme.PrimaryColor);
+        AppendVar(sb, "--nn-on-booking", ContrastTextOn(theme.BookingColor));
+        AppendVar(sb, "--nn-on-primary", ContrastTextOn(theme.PrimaryColor));
         AppendVar(sb, "--nn-page-bg-top", theme.PageBgTop);
         AppendVar(sb, "--nn-page-bg-bottom", theme.PageBgBottom);
         AppendVar(sb, "--nn-page-bg-deep", theme.PageBgBottom);
@@ -73,6 +76,15 @@ public static class SiteThemeCss
         g = (rgb >> 8) & 0xFF;
         b = rgb & 0xFF;
         return true;
+    }
+
+    private static string ContrastTextOn(string hex)
+    {
+        if (!TryParseHex(hex, out var r, out var g, out var b))
+            return "#ffffff";
+
+        var luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255d;
+        return luminance < 0.55 ? "#ffffff" : "#0f172a";
     }
 
     private static void AppendVar(StringBuilder sb, string name, string value) =>
