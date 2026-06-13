@@ -31,7 +31,11 @@ public sealed class BookingAvailabilityService : IBookingAvailabilityService
         int? excludeBookingId = null,
         CancellationToken cancellationToken = default)
     {
-        var ranges = await GetBlockedRangesAsync(propertySlug, excludeBookingId, cancellationToken).ConfigureAwait(false);
+        var slug = NormalizeSlug(propertySlug);
+        if (slug is null)
+            return [];
+
+        var ranges = await GetBlockedRangesAsync(slug, excludeBookingId, cancellationToken).ConfigureAwait(false);
         var dates = new HashSet<DateOnly>();
 
         foreach (var (start, end) in ranges)
@@ -81,30 +85,42 @@ public sealed class BookingAvailabilityService : IBookingAvailabilityService
             if (string.IsNullOrWhiteSpace(property.Slug))
                 continue;
 
-            var existing = await _db.ExternalCalendarEvents
-                .Where(e => e.PropertySlug == property.Slug)
-                .ToListAsync(cancellationToken)
-                .ConfigureAwait(false);
-            _db.ExternalCalendarEvents.RemoveRange(existing);
-
+            var slug = NormalizeSlug(property.Slug)!;
             var imported = new List<ExternalCalendarEvent>();
 
             if (!string.IsNullOrWhiteSpace(property.AirbnbIcalUrl))
             {
                 var events = await FetchIcalEventsAsync(
-                    client, property.Slug, "Airbnb", property.AirbnbIcalUrl, syncedAt, cancellationToken);
+                    client, slug, "Airbnb", property.AirbnbIcalUrl, syncedAt, cancellationToken);
                 imported.AddRange(events);
             }
 
             if (!string.IsNullOrWhiteSpace(property.VrboIcalUrl))
             {
                 var events = await FetchIcalEventsAsync(
-                    client, property.Slug, "Vrbo", property.VrboIcalUrl, syncedAt, cancellationToken);
+                    client, slug, "Vrbo", property.VrboIcalUrl, syncedAt, cancellationToken);
                 imported.AddRange(events);
             }
 
-            if (imported.Count > 0)
-                _db.ExternalCalendarEvents.AddRange(imported);
+            if (imported.Count == 0)
+            {
+                _logger.LogWarning(
+                    "No external calendar blocks imported for {Property}. Keeping existing cached blocks.",
+                    slug);
+                continue;
+            }
+
+            var existing = await _db.ExternalCalendarEvents
+                .Where(e => e.PropertySlug == slug)
+                .ToListAsync(cancellationToken)
+                .ConfigureAwait(false);
+            _db.ExternalCalendarEvents.RemoveRange(existing);
+            _db.ExternalCalendarEvents.AddRange(imported);
+
+            _logger.LogInformation(
+                "Imported {Count} external calendar blocks for {Property} (Airbnb/Vrbo).",
+                imported.Count,
+                slug);
         }
 
         await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
@@ -157,27 +173,36 @@ public sealed class BookingAvailabilityService : IBookingAvailabilityService
 
             foreach (var evt in calendar.Events)
             {
-                if (evt.Start.Value == default)
+                if (evt.Start is null)
                     continue;
 
-                var start = DateOnly.FromDateTime(evt.Start.Value);
-                var end = evt.End.Value != default
-                    ? DateOnly.FromDateTime(evt.End.Value)
-                    : start.AddDays(1);
+                var start = ToBlockedDate(evt.Start);
+                if (start is null)
+                    continue;
+
+                var end = evt.End is not null
+                    ? ToBlockedDate(evt.End) ?? start.Value.AddDays(1)
+                    : start.Value.AddDays(1);
 
                 if (end <= start)
-                    end = start.AddDays(1);
+                    end = start.Value.AddDays(1);
 
                 results.Add(new ExternalCalendarEvent
                 {
                     PropertySlug = propertySlug,
                     Source = source,
-                    StartDate = start,
+                    StartDate = start.Value,
                     EndDate = end,
                     Summary = evt.Summary,
                     SyncedAtUtc = syncedAt
                 });
             }
+
+            _logger.LogInformation(
+                "Parsed {Count} {Source} iCal events for {Property}.",
+                results.Count,
+                source,
+                propertySlug);
 
             return results;
         }
@@ -186,5 +211,26 @@ public sealed class BookingAvailabilityService : IBookingAvailabilityService
             _logger.LogWarning(ex, "Failed to sync {Source} iCal for {Property}", source, propertySlug);
             return [];
         }
+    }
+
+    private static string? NormalizeSlug(string? slug)
+    {
+        if (string.IsNullOrWhiteSpace(slug))
+            return null;
+
+        return slug.Trim().ToLowerInvariant();
+    }
+
+    private static DateOnly? ToBlockedDate(Ical.Net.DataTypes.IDateTime dateTime)
+    {
+        if (dateTime is null)
+            return null;
+
+        // All-day Airbnb/Vrbo events use DATE values; use the calendar date without timezone drift.
+        if (!dateTime.HasTime)
+            return DateOnly.FromDateTime(dateTime.Date);
+
+        var local = dateTime.AsSystemLocal;
+        return DateOnly.FromDateTime(local.Date);
     }
 }

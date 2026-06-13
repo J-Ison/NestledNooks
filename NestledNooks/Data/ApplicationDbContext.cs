@@ -16,6 +16,10 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<Message> Messages => Set<Message>();
     public DbSet<ContactInquiry> ContactInquiries => Set<ContactInquiry>();
     public DbSet<SiteSettings> SiteSettings => Set<SiteSettings>();
+    public DbSet<PropertyContact> PropertyContacts => Set<PropertyContact>();
+    public DbSet<PropertyEquipmentItem> PropertyEquipmentItems => Set<PropertyEquipmentItem>();
+    public DbSet<PropertyCustomField> PropertyCustomFields => Set<PropertyCustomField>();
+    public DbSet<PropertyNightlyRate> PropertyNightlyRates => Set<PropertyNightlyRate>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -96,6 +100,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             e.Property(x => x.BookingFinePrint).HasMaxLength(500);
             e.Property(x => x.AirbnbUrl).HasMaxLength(500);
             e.Property(x => x.VrboUrl).HasMaxLength(500);
+            e.Property(x => x.CleaningFee).HasPrecision(18, 2);
         });
 
         builder.Entity<MessageThread>(e =>
@@ -158,6 +163,43 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             e.Property(x => x.Id).ValueGeneratedNever();
             e.Property(x => x.MainQrCodeUrl).HasMaxLength(500);
             e.Property(x => x.DeerfieldGuestGuideQrCodeUrl).HasMaxLength(500);
+        });
+
+        builder.Entity<PropertyContact>(e =>
+        {
+            e.Property(x => x.PropertySlug).HasMaxLength(120).IsRequired();
+            e.Property(x => x.Name).HasMaxLength(200).IsRequired();
+            e.Property(x => x.Role).HasMaxLength(120);
+            e.Property(x => x.Phone).HasMaxLength(60);
+            e.Property(x => x.Email).HasMaxLength(256);
+            e.Property(x => x.Notes).HasMaxLength(2000);
+            e.HasIndex(x => x.PropertySlug);
+            e.HasIndex(x => new { x.PropertySlug, x.SortOrder });
+        });
+
+        builder.Entity<PropertyEquipmentItem>(e =>
+        {
+            e.Property(x => x.PropertySlug).HasMaxLength(120).IsRequired();
+            e.Property(x => x.Item).HasMaxLength(200);
+            e.Property(x => x.Value).HasMaxLength(1000);
+            e.HasIndex(x => x.PropertySlug);
+            e.HasIndex(x => new { x.PropertySlug, x.SortOrder });
+        });
+
+        builder.Entity<PropertyCustomField>(e =>
+        {
+            e.Property(x => x.PropertySlug).HasMaxLength(120).IsRequired();
+            e.Property(x => x.Label).HasMaxLength(200);
+            e.Property(x => x.Value).HasMaxLength(1000);
+            e.HasIndex(x => x.PropertySlug);
+            e.HasIndex(x => new { x.PropertySlug, x.SortOrder });
+        });
+
+        builder.Entity<PropertyNightlyRate>(e =>
+        {
+            e.Property(x => x.PropertySlug).HasMaxLength(120).IsRequired();
+            e.Property(x => x.Rate).HasPrecision(18, 2);
+            e.HasIndex(x => new { x.PropertySlug, x.Date }).IsUnique();
         });
     }
 }

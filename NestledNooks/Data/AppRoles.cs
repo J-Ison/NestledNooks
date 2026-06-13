@@ -7,4 +7,7 @@ public static class AppRoles
     public const string CoHost = "CoHost";
     public const string Manager = "Manager";
     public const string Client = "Client";
+
+    /// <summary>Owner, CoHost, and Manager — staff who help run properties (not guest Client accounts).</summary>
+    public const string HostStaff = $"{Owner},{CoHost},{Manager}";
 }

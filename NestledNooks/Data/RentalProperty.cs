@@ -49,6 +49,9 @@ public class RentalProperty
 
     public string? VrboUrl { get; set; }
 
+    /// <summary>One-time cleaning fee for direct bookings (USD).</summary>
+    public decimal CleaningFee { get; set; }
+
     /// <summary>JSON array of { url, alt } photo objects.</summary>
     public string PhotosJson { get; set; } = "[]";
 

@@ -6,4 +6,5 @@ public sealed record BookingQuote(
     decimal Subtotal,
     decimal CleaningFee,
     decimal PetFee,
-    decimal TotalAmount);
+    decimal TotalAmount,
+    bool UsesDynamicPricing = false);

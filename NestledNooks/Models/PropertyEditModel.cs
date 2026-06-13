@@ -44,6 +44,8 @@ public sealed class PropertyEditModel
 
     public string? VrboUrl { get; set; }
 
+    public decimal CleaningFee { get; set; } = 150m;
+
     public List<PropertyPhoto> Photos { get; set; } = [];
 
     public static PropertyEditModel FromEntity(RentalProperty entity) => new()
@@ -68,6 +70,7 @@ public sealed class PropertyEditModel
         BookingFinePrint = entity.BookingFinePrint,
         AirbnbUrl = entity.AirbnbUrl,
         VrboUrl = entity.VrboUrl,
+        CleaningFee = entity.CleaningFee,
         Photos = PropertyContentJson.ParsePhotos(entity.PhotosJson).ToList(),
     };
 
@@ -93,6 +96,7 @@ public sealed class PropertyEditModel
         BookingFinePrint = BookingFinePrint.Trim(),
         AirbnbUrl = string.IsNullOrWhiteSpace(AirbnbUrl) ? null : AirbnbUrl.Trim(),
         VrboUrl = string.IsNullOrWhiteSpace(VrboUrl) ? null : VrboUrl.Trim(),
+        CleaningFee = CleaningFee,
         PhotosJson = PropertyContentJson.SerializePhotos(Photos),
         UpdatedAtUtc = DateTime.UtcNow,
     };

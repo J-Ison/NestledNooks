@@ -1,0 +1,460 @@
+﻿@page "/account/manage/properties/{Slug}/operations"
+@layout NestledNooks.Components.Layout.MainLayout
+@rendermode InteractiveServer
+
+@using Microsoft.AspNetCore.Authorization
+@using NestledNooks.Data
+@using NestledNooks.Services
+
+@attribute [Authorize(Roles = AppRoles.HostStaff)]
+
+@inject IPropertyOperationsService PropertyOperations
+@inject NavigationManager Navigation
+
+<PageTitle>Property ops · @(_displayName ?? Slug) · @SiteBranding.Name</PageTitle>
+
+<div class="mgmt-page">
+    <header class="mgmt-hero">
+        <div class="mgmt-wrap">
+            <p class="mgmt-hero-eyebrow">@SiteBranding.Name · Host tools</p>
+            <h1 class="mgmt-hero-title">@(_displayName ?? "Property") · Contacts &amp; equipment</h1>
+            <p class="mgmt-hero-lead">
+                Who to call for plumbing, handyman visits, and other vendors — plus smart-home and lockbox details for staff only.
+            </p>
+        </div>
+    </header>
+
+    <main class="mgmt-wrap mgmt-main">
+        @if (_loading)
+        {
+            <p class="nn-loading">Loading…</p>
+        }
+        else if (_notFound)
+        {
+            <p class="nn-note nn-note--error">Property not found.</p>
+            <a class="guide-link" href="/account/manage/properties">← Back to properties</a>
+        }
+        else
+        {
+            @if (!string.IsNullOrEmpty(_success))
+            {
+                <p class="nn-note nn-note--success">@_success</p>
+            }
+
+            @if (!string.IsNullOrEmpty(_error))
+            {
+                <p class="nn-note nn-note--error">@_error</p>
+            }
+
+            <p class="prop-ops-back">
+                <a class="guide-link" href="/account/manage/properties">← All properties</a>
+                <AuthorizeView Roles="@AppRoles.Owner">
+                    <span aria-hidden="true"> · </span>
+                    <a class="guide-link" href="/account/manage/properties/@Slug">Edit listing</a>
+                </AuthorizeView>
+            </p>
+
+            <section class="theme-panel">
+                <h2 class="theme-panel-title">Equipment &amp; access</h2>
+                <p class="theme-panel-lead">Lockboxes, cameras, smart locks, linen closets — add rows as you go. Blanks are OK until you have the details.</p>
+
+                @if (_equipmentItems.Count == 0 && _editingEquipmentId is null)
+                {
+                    <p class="mgmt-empty">No equipment rows yet. Add your first one below.</p>
+                }
+
+                @foreach (var equipment in _equipmentItems.Where(e => e.Id != _editingEquipmentId))
+                {
+                    <article class="prop-ops-contact-card">
+                        <div class="prop-ops-contact-head">
+                            <div>
+                                <h3 class="mgmt-card-title">@(string.IsNullOrWhiteSpace(equipment.Item) ? "Untitled item" : equipment.Item)</h3>
+                                @if (!string.IsNullOrWhiteSpace(equipment.Value))
+                                {
+                                    <p class="mgmt-card-subtitle prop-ops-equipment-value">@equipment.Value</p>
+                                }
+                                else
+                                {
+                                    <p class="mgmt-card-subtitle prop-ops-equipment-value prop-ops-equipment-value--empty">No details yet</p>
+                                }
+                            </div>
+                            <div class="prop-ops-row-actions">
+                                <button type="button" class="nn-btn-secondary" @onclick="() => EditEquipment(equipment)">Edit</button>
+                                <button type="button" class="prop-list-remove" @onclick="() => DeleteEquipmentAsync(equipment.Id)">Delete</button>
+                            </div>
+                        </div>
+                    </article>
+                }
+
+                <div class="prop-ops-row-card">
+                    <h3 class="theme-panel-title">@(_editingEquipmentId is null ? "Add equipment" : "Edit equipment")</h3>
+                    <div class="prop-edit-grid">
+                        <div class="nn-form-group">
+                            <label>Item</label>
+                            <InputText class="nn-form-control" @bind-Value="_equipmentDraft.Item" placeholder="Lockbox, Doorbell Camera, Linen Closet, Door Smartlock…" />
+                        </div>
+                        <div class="nn-form-group">
+                            <label>Details</label>
+                            <InputText class="nn-form-control" @bind-Value="_equipmentDraft.Value" placeholder="3482, website URL, model name…" />
+                        </div>
+                    </div>
+                    <div class="prop-ops-row-actions">
+                        <button type="button" class="nn-btn-primary" disabled="@_savingEquipment" @onclick="SaveEquipmentAsync">
+                            @(_savingEquipment ? "Saving…" : "Save equipment")
+                        </button>
+                        @if (_editingEquipmentId is not null)
+                        {
+                            <button type="button" class="nn-btn-secondary" @onclick="CancelEquipmentEdit">Cancel</button>
+                        }
+                    </div>
+                </div>
+            </section>
+
+            <section class="theme-panel">
+                <h2 class="theme-panel-title">Additional notes</h2>
+                <p class="theme-panel-lead">Add your own labels (pool service, gate code, etc.). Blanks are OK until you have the info.</p>
+
+                @for (var i = 0; i < _customFields.Count; i++)
+                {
+                    var fieldIndex = i;
+                    <div class="prop-ops-row-card">
+                        <div class="prop-edit-grid">
+                            <div class="nn-form-group">
+                                <label>Label</label>
+                                <InputText class="nn-form-control" @bind-Value="_customFields[fieldIndex].Label" placeholder="e.g. Pool service" />
+                            </div>
+                            <div class="nn-form-group">
+                                <label>Value</label>
+                                <InputText class="nn-form-control" @bind-Value="_customFields[fieldIndex].Value" placeholder="Fill in later" />
+                            </div>
+                        </div>
+                        <div class="prop-ops-row-actions">
+                            <button type="button" class="nn-btn-secondary" disabled="@_savingCustomField" @onclick="() => SaveCustomFieldAsync(_customFields[fieldIndex])">
+                                Save row
+                            </button>
+                            <button type="button" class="prop-list-remove" disabled="@_savingCustomField" @onclick="() => DeleteCustomFieldAsync(_customFields[fieldIndex].Id)">
+                                Delete
+                            </button>
+                        </div>
+                    </div>
+                }
+
+                <button type="button" class="nn-btn-secondary prop-list-add" @onclick="AddCustomFieldAsync">
+                    + Add note row
+                </button>
+            </section>
+
+            <section class="theme-panel">
+                <h2 class="theme-panel-title">Vendor &amp; emergency contacts</h2>
+                <p class="theme-panel-lead">Plumbers, handymen, cleaners — anyone you call when something needs attention.</p>
+
+                @if (_contacts.Count == 0 && _editingContactId is null)
+                {
+                    <p class="mgmt-empty">No contacts yet. Add your first one below.</p>
+                }
+
+                @foreach (var contact in _contacts.Where(c => c.Id != _editingContactId))
+                {
+                    <article class="prop-ops-contact-card">
+                        <div class="prop-ops-contact-head">
+                            <div>
+                                <h3 class="mgmt-card-title">@contact.Name</h3>
+                                @if (!string.IsNullOrWhiteSpace(contact.Role))
+                                {
+                                    <p class="mgmt-card-subtitle">@contact.Role</p>
+                                }
+                            </div>
+                            <div class="prop-ops-row-actions">
+                                <button type="button" class="nn-btn-secondary" @onclick="() => EditContact(contact)">Edit</button>
+                                <button type="button" class="prop-list-remove" @onclick="() => DeleteContactAsync(contact.Id)">Delete</button>
+                            </div>
+                        </div>
+                        <ul class="prop-ops-contact-details">
+                            @if (!string.IsNullOrWhiteSpace(contact.Phone))
+                            {
+                                <li><strong>Phone:</strong> <a class="guide-link" href="tel:@contact.Phone">@contact.Phone</a></li>
+                            }
+                            @if (!string.IsNullOrWhiteSpace(contact.Email))
+                            {
+                                <li><strong>Email:</strong> <a class="guide-link" href="mailto:@contact.Email">@contact.Email</a></li>
+                            }
+                            @if (!string.IsNullOrWhiteSpace(contact.Notes))
+                            {
+                                <li><strong>Notes:</strong> @contact.Notes</li>
+                            }
+                        </ul>
+                    </article>
+                }
+
+                <div class="prop-ops-row-card">
+                    <h3 class="theme-panel-title">@(_editingContactId is null ? "Add contact" : "Edit contact")</h3>
+                    <div class="prop-edit-grid">
+                        <div class="nn-form-group">
+                            <label>Name <span class="prop-ops-required">*</span></label>
+                            <InputText class="nn-form-control" @bind-Value="_contactDraft.Name" placeholder="Company or person" />
+                        </div>
+                        <div class="nn-form-group">
+                            <label>Role / trade</label>
+                            <InputText class="nn-form-control" @bind-Value="_contactDraft.Role" placeholder="Plumber, handyman, HVAC…" />
+                        </div>
+                        <div class="nn-form-group">
+                            <label>Phone</label>
+                            <InputText class="nn-form-control" @bind-Value="_contactDraft.Phone" inputmode="tel" />
+                        </div>
+                        <div class="nn-form-group">
+                            <label>Email</label>
+                            <InputText class="nn-form-control" @bind-Value="_contactDraft.Email" inputmode="email" />
+                        </div>
+                        <div class="nn-form-group prop-edit-full">
+                            <label>Notes</label>
+                            <InputTextArea class="nn-form-control" rows="2" @bind-Value="_contactDraft.Notes" />
+                        </div>
+                    </div>
+                    <div class="prop-ops-row-actions">
+                        <button type="button" class="nn-btn-primary" disabled="@_savingContact" @onclick="SaveContactAsync">
+                            @(_savingContact ? "Saving…" : "Save contact")
+                        </button>
+                        @if (_editingContactId is not null)
+                        {
+                            <button type="button" class="nn-btn-secondary" @onclick="CancelContactEdit">Cancel</button>
+                        }
+                    </div>
+                </div>
+            </section>
+        }
+    </main>
+</div>
+
+@code {
+    [Parameter]
+    public string Slug { get; set; } = "";
+
+    private string? _displayName;
+    private bool _loading = true;
+    private bool _notFound;
+    private string? _success;
+    private string? _error;
+
+    private List<PropertyEquipmentItemModel> _equipmentItems = [];
+    private List<PropertyContactModel> _contacts = [];
+    private List<PropertyCustomFieldModel> _customFields = [];
+    private PropertyEquipmentItemModel _equipmentDraft = new();
+    private PropertyContactModel _contactDraft = new();
+    private int? _editingEquipmentId;
+    private int? _editingContactId;
+
+    private bool _savingEquipment;
+    private bool _savingContact;
+    private bool _savingCustomField;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _loading = true;
+        _notFound = false;
+        _success = null;
+        _error = null;
+
+        var data = await PropertyOperations.GetPageDataAsync(Slug);
+        if (data is null)
+        {
+            _notFound = true;
+            _loading = false;
+            return;
+        }
+
+        _displayName = data.PropertyDisplayName;
+        _equipmentItems = data.EquipmentItems.ToList();
+        _contacts = data.Contacts.ToList();
+        _customFields = data.CustomFields.ToList();
+        ResetEquipmentDraft();
+        ResetContactDraft();
+        _loading = false;
+    }
+
+    private async Task SaveEquipmentAsync()
+    {
+        _savingEquipment = true;
+        _error = null;
+        _success = null;
+
+        _equipmentDraft.Id = _editingEquipmentId ?? 0;
+        var result = await PropertyOperations.SaveEquipmentItemAsync(Slug, _equipmentDraft);
+        _savingEquipment = false;
+
+        if (!result.Success)
+        {
+            _error = result.ErrorMessage;
+            return;
+        }
+
+        await ReloadAsync();
+        ResetEquipmentDraft();
+        _success = "Equipment saved.";
+    }
+
+    private async Task DeleteEquipmentAsync(int itemId)
+    {
+        _error = null;
+        _success = null;
+
+        var result = await PropertyOperations.DeleteEquipmentItemAsync(Slug, itemId);
+        if (!result.Success)
+        {
+            _error = result.ErrorMessage;
+            return;
+        }
+
+        if (_editingEquipmentId == itemId)
+            ResetEquipmentDraft();
+
+        await ReloadAsync();
+        _success = "Equipment removed.";
+    }
+
+    private void EditEquipment(PropertyEquipmentItemModel item)
+    {
+        _editingEquipmentId = item.Id;
+        _equipmentDraft = new PropertyEquipmentItemModel
+        {
+            Id = item.Id,
+            Item = item.Item,
+            Value = item.Value,
+        };
+    }
+
+    private void CancelEquipmentEdit() => ResetEquipmentDraft();
+
+    private void ResetEquipmentDraft()
+    {
+        _editingEquipmentId = null;
+        _equipmentDraft = new PropertyEquipmentItemModel();
+    }
+
+    private async Task SaveContactAsync()
+    {
+        _savingContact = true;
+        _error = null;
+        _success = null;
+
+        _contactDraft.Id = _editingContactId ?? 0;
+        var result = await PropertyOperations.SaveContactAsync(Slug, _contactDraft);
+        _savingContact = false;
+
+        if (!result.Success)
+        {
+            _error = result.ErrorMessage;
+            return;
+        }
+
+        await ReloadAsync();
+        _success = "Contact saved.";
+    }
+
+    private async Task DeleteContactAsync(int contactId)
+    {
+        _error = null;
+        _success = null;
+
+        var result = await PropertyOperations.DeleteContactAsync(Slug, contactId);
+        if (!result.Success)
+        {
+            _error = result.ErrorMessage;
+            return;
+        }
+
+        if (_editingContactId == contactId)
+            ResetContactDraft();
+
+        await ReloadAsync();
+        _success = "Contact removed.";
+    }
+
+    private void EditContact(PropertyContactModel contact)
+    {
+        _editingContactId = contact.Id;
+        _contactDraft = new PropertyContactModel
+        {
+            Id = contact.Id,
+            Name = contact.Name,
+            Role = contact.Role,
+            Phone = contact.Phone,
+            Email = contact.Email,
+            Notes = contact.Notes,
+        };
+    }
+
+    private void CancelContactEdit() => ResetContactDraft();
+
+    private void ResetContactDraft()
+    {
+        _editingContactId = null;
+        _contactDraft = new PropertyContactModel();
+    }
+
+    private async Task AddCustomFieldAsync()
+    {
+        _savingCustomField = true;
+        _error = null;
+
+        var result = await PropertyOperations.SaveCustomFieldAsync(Slug, new PropertyCustomFieldModel());
+        _savingCustomField = false;
+
+        if (!result.Success)
+        {
+            _error = result.ErrorMessage;
+            return;
+        }
+
+        await ReloadAsync();
+        _success = "Note row added — fill in when ready.";
+    }
+
+    private async Task SaveCustomFieldAsync(PropertyCustomFieldModel field)
+    {
+        _savingCustomField = true;
+        _error = null;
+        _success = null;
+
+        var result = await PropertyOperations.SaveCustomFieldAsync(Slug, field);
+        _savingCustomField = false;
+
+        if (!result.Success)
+        {
+            _error = result.ErrorMessage;
+            return;
+        }
+
+        _success = "Note row saved.";
+        await ReloadAsync();
+    }
+
+    private async Task DeleteCustomFieldAsync(int fieldId)
+    {
+        _error = null;
+        _success = null;
+
+        var result = await PropertyOperations.DeleteCustomFieldAsync(Slug, fieldId);
+        if (!result.Success)
+        {
+            _error = result.ErrorMessage;
+            return;
+        }
+
+        await ReloadAsync();
+        _success = "Note row removed.";
+    }
+
+    private async Task ReloadAsync()
+    {
+        var data = await PropertyOperations.GetPageDataAsync(Slug);
+        if (data is null)
+        {
+            _notFound = true;
+            return;
+        }
+
+        _equipmentItems = data.EquipmentItems.ToList();
+        _contacts = data.Contacts.ToList();
+        _customFields = data.CustomFields.ToList();
+    }
+}

@@ -26,4 +26,10 @@ public sealed class PropertyBookingOptions
 
     /// <summary>Vrbo calendar export (.ics) URL — import only.</summary>
     public string? VrboIcalUrl { get; set; }
+
+    /// <summary>PriceLabs listing ID for dynamic nightly rates (Customer API).</summary>
+    public string? PriceLabsListingId { get; set; }
+
+    /// <summary>PriceLabs PMS name for the listing (e.g. airbnb, vrbo). Auto-detected when omitted.</summary>
+    public string? PriceLabsPms { get; set; }
 }

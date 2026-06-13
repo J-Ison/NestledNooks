@@ -6,7 +6,7 @@
 @using NestledNooks.Data
 @using NestledNooks.Services
 
-@attribute [Authorize(Roles = AppRoles.Owner)]
+@attribute [Authorize(Roles = AppRoles.HostStaff)]
 
 @inject IPropertyService PropertyService
 
@@ -15,10 +15,10 @@
 <div class="mgmt-page">
     <header class="mgmt-hero">
         <div class="mgmt-wrap">
-            <p class="mgmt-hero-eyebrow">@SiteBranding.Name · Owner tools</p>
+            <p class="mgmt-hero-eyebrow">@SiteBranding.Name · Host tools</p>
             <h1 class="mgmt-hero-title">Manage properties</h1>
             <p class="mgmt-hero-lead">
-                Edit listing copy, tags, amenities, and photos for each property. Booking rates stay in site configuration for now.
+                Vendor contacts, equipment notes, and listing copy. Contacts &amp; equipment are available to owners, managers, and co-hosts.
             </p>
         </div>
     </header>
@@ -74,7 +74,10 @@
                             </div>
                             <p class="prop-manage-card-desc">@property.Subtitle</p>
                             <div class="prop-manage-card-actions">
-                                <a class="nn-btn-primary prop-manage-edit-btn" href="/account/manage/properties/@property.Slug">Edit listing</a>
+                                <a class="nn-btn-primary prop-manage-edit-btn" href="/account/manage/properties/@property.Slug/operations">Contacts &amp; equipment</a>
+                                <AuthorizeView Roles="@AppRoles.Owner">
+                                    <a class="nn-btn-secondary prop-manage-edit-btn" href="/account/manage/properties/@property.Slug">Edit listing</a>
+                                </AuthorizeView>
                                 <a class="guide-link" href="/properties/@property.Slug" target="_blank" rel="noopener">View live page ↗</a>
                             </div>
                         </div>

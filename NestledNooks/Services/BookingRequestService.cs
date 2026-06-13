@@ -32,7 +32,7 @@ public sealed class BookingRequestService : IBookingRequestService
         string? userId,
         CancellationToken cancellationToken = default)
     {
-        var slug = model.PropertySlug.Trim();
+        var slug = model.PropertySlug.Trim().ToLowerInvariant();
         var property = _pricing.GetProperty(slug);
         if (property is null)
             return new BookingSubmitResult(false, null, null, "Unknown property.");
@@ -49,7 +49,8 @@ public sealed class BookingRequestService : IBookingRequestService
         BookingQuote quote;
         try
         {
-            quote = _pricing.Calculate(slug, checkIn, checkOut, model.PetCount);
+            quote = await _pricing.CalculateAsync(slug, checkIn, checkOut, model.PetCount, cancellationToken)
+                .ConfigureAwait(false);
         }
         catch (InvalidOperationException ex)
         {
@@ -143,15 +144,21 @@ public sealed class BookingRequestService : IBookingRequestService
         return new BookingSubmitResult(true, entity.Id, entity.BookingNumber, null, emailWarning);
     }
 
-    public Task<BookingQuote?> GetQuoteAsync(string propertySlug, DateOnly checkIn, DateOnly checkOut, int petCount)
+    public async Task<BookingQuote?> GetQuoteAsync(
+        string propertySlug,
+        DateOnly checkIn,
+        DateOnly checkOut,
+        int petCount,
+        CancellationToken cancellationToken = default)
     {
         try
         {
-            return Task.FromResult<BookingQuote?>(_pricing.Calculate(propertySlug, checkIn, checkOut, petCount));
+            return await _pricing.CalculateAsync(propertySlug, checkIn, checkOut, petCount, cancellationToken)
+                .ConfigureAwait(false);
         }
         catch
         {
-            return Task.FromResult<BookingQuote?>(null);
+            return null;
         }
     }
 

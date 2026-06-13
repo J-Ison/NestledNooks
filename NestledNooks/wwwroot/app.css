@@ -1701,9 +1701,32 @@ footer {
     margin-bottom: 14px;
 }
 
+.nn-booking-mud .nn-booking-date-blocked {
+    opacity: 0.35;
+    text-decoration: line-through;
+}
+
 .nn-booking-submit {
     margin-top: 8px;
 }
+
+.nn-booking-quote {
+    margin: 0 0 16px;
+    padding: 14px 16px;
+    border-radius: 12px;
+    border: 1px solid color-mix(in srgb, var(--nn-booking) 28%, var(--nn-line));
+    background: color-mix(in srgb, var(--nn-booking) 8%, var(--nn-surface));
+}
+
+.nn-booking-quote-lines {
+    margin: 8px 0 0;
+    padding-left: 18px;
+    line-height: 1.6;
+}
+
+    .nn-booking-quote-lines li {
+        margin: 4px 0;
+    }
 
 .weather-toolbar {
     display: flex;
@@ -1878,6 +1901,73 @@ footer {
 .prop-manage-edit-btn {
     width: auto;
     min-width: 140px;
+}
+
+.prop-ops-back {
+    margin: 0 0 18px;
+}
+
+.prop-ops-save-btn {
+    width: auto;
+    min-width: 180px;
+    margin-top: 8px;
+}
+
+.prop-ops-row-card {
+    margin: 0 0 16px;
+    padding: 16px;
+    border: 1px solid var(--nn-line);
+    border-radius: 14px;
+    background: color-mix(in srgb, var(--nn-surface-muted) 55%, var(--nn-surface));
+}
+
+.prop-ops-row-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    margin-top: 12px;
+}
+
+.prop-ops-contact-card {
+    margin: 0 0 14px;
+    padding: 16px 18px;
+    border: 1px solid var(--nn-primary-border);
+    border-radius: 14px;
+    background: var(--nn-surface);
+}
+
+.prop-ops-contact-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 10px;
+}
+
+.prop-ops-contact-details {
+    margin: 0;
+    padding: 0 0 0 18px;
+    color: var(--nn-ink-secondary);
+    line-height: 1.55;
+}
+
+    .prop-ops-contact-details li {
+        margin: 4px 0;
+    }
+
+.prop-ops-required {
+    color: var(--nn-booking-dark);
+}
+
+.prop-ops-equipment-value {
+    word-break: break-word;
+}
+
+.prop-ops-equipment-value--empty {
+    font-style: italic;
+    opacity: 0.75;
 }
 
 .mgmt-badge--published {

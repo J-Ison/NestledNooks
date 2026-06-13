@@ -109,22 +109,24 @@
                             <div class="nn-booking-date-panel">
                                 <MudText Typo="Typo.caption" Class="mb-2 px-1">Check-in</MudText>
                                 <MudDatePicker @bind-Date="_checkInDate"
-                                               @bind-Date:after="OnDatesUpdated"
+                                               @bind-Date:after="OnDatesUpdatedAsync"
                                                PickerVariant="PickerVariant.Static"
                                                MinDate="_minSelectable"
                                                MaxDate="_maxSelectable"
-                                               DateDisabledFunc="IsDateUnavailable"
+                                               IsDateDisabledFunc="@IsDateUnavailable"
+                                               AdditionalDateClassesFunc="@GetUnavailableDateClass"
                                                Disabled="_submitting"
                                                ShowToolbar="false" />
                             </div>
                             <div class="nn-booking-date-panel">
                                 <MudText Typo="Typo.caption" Class="mb-2 px-1">Check-out</MudText>
                                 <MudDatePicker @bind-Date="_checkOutDate"
-                                               @bind-Date:after="OnDatesUpdated"
+                                               @bind-Date:after="OnDatesUpdatedAsync"
                                                PickerVariant="PickerVariant.Static"
                                                MinDate="_checkOutMinDate"
                                                MaxDate="_maxSelectable"
-                                               DateDisabledFunc="IsDateUnavailable"
+                                               IsDateDisabledFunc="@IsDateUnavailable"
+                                               AdditionalDateClassesFunc="@GetUnavailableDateClass"
                                                Disabled="_submitting"
                                                ShowToolbar="false" />
                             </div>
@@ -146,7 +148,8 @@
                                          Min="0"
                                          Max="@(_property?.MaxPets ?? 4)"
                                          Class="mb-3"
-                                         Disabled="_submitting" />
+                                         Disabled="_submitting"
+                                         @bind-Value:after="OnPetCountUpdatedAsync" />
 
                         <MudTextField @bind-Value="_model.Notes"
                                       For="@(() => _model.Notes)"
@@ -156,8 +159,43 @@
                                       Class="mb-3"
                                       Disabled="_submitting" />
 
+                        @if (_quoteLoading)
+                        {
+                            <p class="nn-note">Calculating estimate…</p>
+                        }
+                        else if (_quote is not null)
+                        {
+                            <div class="nn-booking-quote">
+                                <p class="nn-booking-section-title">Estimated total</p>
+                                <ul class="nn-booking-quote-lines">
+                                    <li>@_quote.Nights night@(_quote.Nights == 1 ? "" : "s") · lodging @_quote.Subtotal.ToString("C")</li>
+                                    @if (_quote.CleaningFee > 0)
+                                    {
+                                        <li>Cleaning fee @_quote.CleaningFee.ToString("C")</li>
+                                    }
+                                    @if (_quote.PetFee > 0)
+                                    {
+                                        <li>Pet fee @_quote.PetFee.ToString("C")</li>
+                                    }
+                                    <li><strong>Total @_quote.TotalAmount.ToString("C")</strong></li>
+                                </ul>
+                                @if (_quote.UsesDynamicPricing)
+                                {
+                                    <p class="nn-booking-section-hint">Rates synced from PriceLabs (@(_quote.NightlyRate.ToString("C")) avg/night).</p>
+                                }
+                                else
+                                {
+                                    <p class="nn-booking-section-hint">Using site base rate until PriceLabs sync is configured.</p>
+                                }
+                            </div>
+                        }
+                        else if (_model.CheckIn is not null && _model.CheckOut is not null)
+                        {
+                            <p class="nn-note nn-note--error">@(_quoteError ?? "Could not calculate an estimate for those dates.")</p>
+                        }
+
                         <p class="nn-note">
-                            We will confirm your total rate after we review your request (dynamic pricing applies).
+                            Final total is confirmed when we approve your request. Payment will be collected after approval.
                         </p>
 
                         @if (!string.IsNullOrEmpty(_error))
@@ -204,8 +242,11 @@
 
     private bool _loading = true;
     private bool _submitting;
+    private bool _quoteLoading;
     private string? _error;
     private string? _success;
+    private string? _quoteError;
+    private BookingQuote? _quote;
     private string? _userId;
 
     protected override async Task OnInitializedAsync()
@@ -261,14 +302,59 @@
     private bool IsDateUnavailable(DateTime date) =>
         _unavailableDates.Contains(DateOnly.FromDateTime(date.Date));
 
-    private void OnDatesUpdated()
+    private string GetUnavailableDateClass(DateTime date) =>
+        IsDateUnavailable(date) ? "nn-booking-date-blocked" : "";
+
+    private async Task OnDatesUpdatedAsync()
     {
         _model.CheckIn = _checkInDate.HasValue ? DateOnly.FromDateTime(_checkInDate.Value.Date) : null;
         _model.CheckOut = _checkOutDate.HasValue ? DateOnly.FromDateTime(_checkOutDate.Value.Date) : null;
 
         if (_model.CheckIn is { } ci && _model.CheckOut is { } co && co <= ci)
             _checkOutDate = null;
+
+        await RefreshQuoteAsync();
     }
+
+    private async Task RefreshQuoteAsync()
+    {
+        _quoteError = null;
+        _quote = null;
+
+        if (_model.CheckIn is not { } checkIn || _model.CheckOut is not { } checkOut || checkOut <= checkIn)
+        {
+            _quoteLoading = false;
+            await InvokeAsync(StateHasChanged);
+            return;
+        }
+
+        _quoteLoading = true;
+        await InvokeAsync(StateHasChanged);
+
+        try
+        {
+            _quote = await PricingService.CalculateAsync(
+                _model.PropertySlug,
+                checkIn,
+                checkOut,
+                _model.PetCount);
+        }
+        catch (InvalidOperationException ex)
+        {
+            _quoteError = ex.Message;
+        }
+        catch (Exception)
+        {
+            _quoteError = "Could not calculate an estimate for those dates.";
+        }
+        finally
+        {
+            _quoteLoading = false;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private Task OnPetCountUpdatedAsync() => RefreshQuoteAsync();
 
     private async Task SubmitAsync()
     {

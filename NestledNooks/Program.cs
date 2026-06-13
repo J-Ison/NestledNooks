@@ -54,9 +54,11 @@ builder.Services.AddSingleton<IEmailSender<ApplicationUser>, IdentityNoOpEmailSe
 builder.Services.Configure<SmtpOptions>(builder.Configuration.GetSection("Smtp"));
 builder.Services.AddSingleton<IEmailService, SmtpEmailService>();
 builder.Services.Configure<BookingOptions>(builder.Configuration.GetSection(BookingOptions.SectionName));
+builder.Services.Configure<PriceLabsOptions>(builder.Configuration.GetSection(PriceLabsOptions.SectionName));
 builder.Services.Configure<GuestWifiOptions>(builder.Configuration.GetSection(GuestWifiOptions.SectionName));
 builder.Services.Configure<AdminOptions>(builder.Configuration.GetSection(AdminOptions.SectionName));
 builder.Services.AddScoped<BookingPricingService>();
+builder.Services.AddScoped<IPriceLabsPricingSyncService, PriceLabsPricingSyncService>();
 builder.Services.AddScoped<IBookingAvailabilityService, BookingAvailabilityService>();
 builder.Services.AddScoped<IBookingRequestService, BookingRequestService>();
 builder.Services.AddScoped<BookingIcalExportService>();
@@ -69,6 +71,7 @@ builder.Services.AddScoped<IMessagingService, MessagingService>();
 builder.Services.AddScoped<IContactInquiryService, ContactInquiryService>();
 builder.Services.AddScoped<IQrCodeService, QrCodeService>();
 builder.Services.AddScoped<IGuestWifiService, GuestWifiService>();
+builder.Services.AddScoped<IPropertyOperationsService, PropertyOperationsService>();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddDistributedMemoryCache();
 builder.Services.AddSession(options =>
@@ -78,6 +81,13 @@ builder.Services.AddSession(options =>
     options.Cookie.IsEssential = true;
 });
 builder.Services.AddHostedService<CalendarSyncHostedService>();
+builder.Services.AddHostedService<PriceLabsPricingSyncHostedService>();
+
+builder.Services.AddHttpClient<IPriceLabsApiClient, PriceLabsApiClient>(client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(60);
+    client.DefaultRequestHeaders.UserAgent.ParseAdd("NestledNooks/1.0 (pricelabs-sync)");
+});
 
 builder.Services.AddMudServices();
 

@@ -8,7 +8,7 @@
 @using NestledNooks.Models
 @using NestledNooks.Services
 
-@attribute [Authorize(Roles = $"{AppRoles.Owner},{AppRoles.Manager}")]
+@attribute [Authorize(Roles = AppRoles.HostStaff)]
 
 @inject IBookingRequestService BookingService
 @inject NavigationManager Navigation

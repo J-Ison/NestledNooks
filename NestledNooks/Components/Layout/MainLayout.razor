@@ -123,7 +123,7 @@
                         </Authorized>
                     </AuthorizeView>
 
-                    <AuthorizeView Roles="@($"{AppRoles.Owner},{AppRoles.Manager}")">
+                    <AuthorizeView Roles="@AppRoles.HostStaff">
                         <Authorized>
                             <div class="nn-drawer-section-label">Host tools</div>
 
@@ -131,6 +131,12 @@
                                         Icon="@Icons.Material.Filled.CalendarMonth"
                                         OnClick="@CloseDrawerLocal">
                                 Manage bookings
+                            </MudNavLink>
+
+                            <MudNavLink Href="/account/manage/properties"
+                                        Icon="@Icons.Material.Filled.House"
+                                        OnClick="@CloseDrawerLocal">
+                                Property contacts &amp; ops
                             </MudNavLink>
                         </Authorized>
                     </AuthorizeView>

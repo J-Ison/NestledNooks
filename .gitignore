@@ -18,6 +18,11 @@ TestResults/
 # Publish output
 publish/
 
+# Local build/debug output folders
+_build_out/
+_sync_out/
+_test_out/
+
 # VS Code
 .vscode/
 

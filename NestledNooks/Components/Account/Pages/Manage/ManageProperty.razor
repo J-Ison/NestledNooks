@@ -22,6 +22,7 @@
             <p class="mgmt-hero-lead">
                 Update descriptions, tags, amenities, and photos for this listing.
                 <a class="mgmt-link" href="/account/manage/properties">← All properties</a>
+                · <a class="mgmt-link" href="/account/manage/properties/@Slug/operations">Contacts &amp; equipment</a>
             </p>
         </div>
     </header>
@@ -157,6 +158,14 @@
                 <section class="theme-panel">
                     <h2 class="theme-panel-title">Booking sidebar</h2>
                     <div class="prop-edit-grid">
+                        <div class="nn-form-group">
+                            <label>Cleaning fee</label>
+                            <InputNumber class="nn-form-control"
+                                         @bind-Value="_model.CleaningFee"
+                                         min="0"
+                                         step="0.01" />
+                            <p class="prop-field-hint">Applied once per direct booking request.</p>
+                        </div>
                         <div class="nn-form-group prop-edit-full">
                             <label>Booking card subtext</label>
                             <InputText class="nn-form-control" @bind-Value="_model.BookingSubtext" />
@@ -244,6 +253,12 @@
             if (string.IsNullOrWhiteSpace(_model.DisplayName))
             {
                 _error = "Display name is required.";
+                return;
+            }
+
+            if (_model.CleaningFee < 0)
+            {
+                _error = "Cleaning fee cannot be negative.";
                 return;
             }
 

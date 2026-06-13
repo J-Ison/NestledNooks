@@ -15,6 +15,7 @@ public static class DatabaseSchemaRepair
         await EnsureMessagingTablesAsync(db, logger, cancellationToken).ConfigureAwait(false);
         await EnsureContactInquiryTableAsync(db, logger, cancellationToken).ConfigureAwait(false);
         await EnsureSiteSettingsTableAsync(db, logger, cancellationToken).ConfigureAwait(false);
+        await EnsureRentalPropertyCleaningFeeColumnAsync(db, logger, cancellationToken).ConfigureAwait(false);
     }
 
     public static async Task EnsureAspNetUserProfileColumnsAsync(
@@ -153,5 +154,20 @@ public static class DatabaseSchemaRepair
             cancellationToken).ConfigureAwait(false);
 
         logger.LogInformation("Verified SiteSettings.DeerfieldGuestGuideQrCodeUrl column.");
+    }
+
+    public static async Task EnsureRentalPropertyCleaningFeeColumnAsync(
+        ApplicationDbContext db,
+        ILogger logger,
+        CancellationToken cancellationToken = default)
+    {
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            IF COL_LENGTH('RentalProperties', 'CleaningFee') IS NULL
+                ALTER TABLE [RentalProperties] ADD [CleaningFee] decimal(18,2) NOT NULL CONSTRAINT [DF_RentalProperties_CleaningFee] DEFAULT (150);
+            """,
+            cancellationToken).ConfigureAwait(false);
+
+        logger.LogInformation("Verified RentalProperties.CleaningFee column.");
     }
 }

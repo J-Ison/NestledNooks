@@ -14,7 +14,8 @@ public interface IBookingRequestService
         string propertySlug,
         DateOnly checkIn,
         DateOnly checkOut,
-        int petCount);
+        int petCount,
+        CancellationToken cancellationToken = default);
 
     Task<IReadOnlyList<BookingRequest>> GetForUserAsync(string userId, CancellationToken cancellationToken = default);
 

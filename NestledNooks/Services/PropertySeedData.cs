@@ -135,6 +135,7 @@ public static class PropertySeedData
             BookingFinePrint = "Most accurate pricing and availability appear on each platform.",
             AirbnbUrl = "https://airbnb.com/h/mydeerfieldretreat",
             VrboUrl = "https://www.vrbo.com/4507873?dateless=true",
+            CleaningFee = 150m,
             PhotosJson = PropertyContentJson.SerializePhotos(
                 photos.Select(p => new PropertyPhoto { Url = p.Item1, Alt = p.Item2 })),
             UpdatedAtUtc = DateTime.UtcNow,
