@@ -74,6 +74,9 @@ namespace NestledNooks.Migrations
                     b.Property<bool>("PhoneNumberConfirmed")
                         .HasColumnType("bit");
 
+                    b.Property<DateTime>("RegisteredAtUtc")
+                        .HasColumnType("datetime2");
+
                     b.Property<string>("SecurityStamp")
                         .HasColumnType("nvarchar(max)");
 
@@ -345,6 +348,37 @@ namespace NestledNooks.Migrations
                     b.HasIndex("PropertySlug", "CheckIn", "CheckOut");
 
                     b.ToTable("BookingRequests");
+                });
+
+            modelBuilder.Entity("NestledNooks.Data.AdminBookingSeen", b =>
+                {
+                    b.Property<string>("UserId")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<int>("BookingRequestId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("SeenAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("UserId", "BookingRequestId");
+
+                    b.HasIndex("BookingRequestId");
+
+                    b.ToTable("AdminBookingSeens");
+                });
+
+            modelBuilder.Entity("NestledNooks.Data.AdminUserNotificationState", b =>
+                {
+                    b.Property<string>("UserId")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<DateTime?>("UsersSectionSeenAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("UserId");
+
+                    b.ToTable("AdminUserNotificationStates");
                 });
 
             modelBuilder.Entity("NestledNooks.Data.ContactInquiry", b =>
@@ -783,6 +817,14 @@ namespace NestledNooks.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
 
+                    b.Property<string>("GuestEmailFooterTemplate")
+                        .HasMaxLength(4000)
+                        .HasColumnType("nvarchar(4000)");
+
+                    b.Property<string>("GuestEmailHeaderTemplate")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
                     b.Property<string>("MainQrCodeUrl")
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
@@ -945,6 +987,36 @@ namespace NestledNooks.Migrations
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("NestledNooks.Data.AdminBookingSeen", b =>
+                {
+                    b.HasOne("NestledNooks.Data.BookingRequest", "BookingRequest")
+                        .WithMany()
+                        .HasForeignKey("BookingRequestId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("ApplicationUser", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("BookingRequest");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("NestledNooks.Data.AdminUserNotificationState", b =>
+                {
+                    b.HasOne("ApplicationUser", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.Navigation("User");
                 });

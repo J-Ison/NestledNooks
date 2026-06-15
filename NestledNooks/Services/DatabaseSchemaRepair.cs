@@ -16,6 +16,9 @@ public static class DatabaseSchemaRepair
         await EnsureContactInquiryTableAsync(db, logger, cancellationToken).ConfigureAwait(false);
         await EnsureSiteSettingsTableAsync(db, logger, cancellationToken).ConfigureAwait(false);
         await EnsureRentalPropertyCleaningFeeColumnAsync(db, logger, cancellationToken).ConfigureAwait(false);
+        await EnsureStripeBookingPaymentSchemaAsync(db, logger, cancellationToken).ConfigureAwait(false);
+        await EnsureGuestEmailTemplatesTableAsync(db, logger, cancellationToken).ConfigureAwait(false);
+        await EnsureAdminNotificationSchemaAsync(db, logger, cancellationToken).ConfigureAwait(false);
     }
 
     public static async Task EnsureAspNetUserProfileColumnsAsync(
@@ -154,6 +157,18 @@ public static class DatabaseSchemaRepair
             cancellationToken).ConfigureAwait(false);
 
         logger.LogInformation("Verified SiteSettings.DeerfieldGuestGuideQrCodeUrl column.");
+
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            IF COL_LENGTH('SiteSettings', 'GuestEmailHeaderTemplate') IS NULL
+                ALTER TABLE [SiteSettings] ADD [GuestEmailHeaderTemplate] nvarchar(2000) NULL;
+
+            IF COL_LENGTH('SiteSettings', 'GuestEmailFooterTemplate') IS NULL
+                ALTER TABLE [SiteSettings] ADD [GuestEmailFooterTemplate] nvarchar(4000) NULL;
+            """,
+            cancellationToken).ConfigureAwait(false);
+
+        logger.LogInformation("Verified SiteSettings guest email wrapper columns.");
     }
 
     public static async Task EnsureRentalPropertyCleaningFeeColumnAsync(
@@ -169,5 +184,109 @@ public static class DatabaseSchemaRepair
             cancellationToken).ConfigureAwait(false);
 
         logger.LogInformation("Verified RentalProperties.CleaningFee column.");
+    }
+
+    public static async Task EnsureStripeBookingPaymentSchemaAsync(
+        ApplicationDbContext db,
+        ILogger logger,
+        CancellationToken cancellationToken = default)
+    {
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            IF COL_LENGTH('BookingRequests', 'RequiredDepositAmount') IS NULL
+                ALTER TABLE [BookingRequests] ADD [RequiredDepositAmount] decimal(18,2) NULL;
+
+            IF COL_LENGTH('BookingRequests', 'DepositNonRefundable') IS NULL
+                ALTER TABLE [BookingRequests] ADD [DepositNonRefundable] bit NOT NULL CONSTRAINT [DF_BookingRequests_DepositNonRefundable] DEFAULT (0);
+
+            IF OBJECT_ID(N'[BookingPaymentLinks]', N'U') IS NULL
+            BEGIN
+                CREATE TABLE [BookingPaymentLinks] (
+                    [Id] int NOT NULL IDENTITY(1,1),
+                    [BookingRequestId] int NOT NULL,
+                    [Token] nvarchar(64) NOT NULL,
+                    [Purpose] nvarchar(20) NOT NULL,
+                    [Amount] decimal(18,2) NOT NULL,
+                    [StripeCheckoutSessionId] nvarchar(200) NULL,
+                    [CreatedAtUtc] datetime2 NOT NULL,
+                    [CompletedAtUtc] datetime2 NULL,
+                    CONSTRAINT [PK_BookingPaymentLinks] PRIMARY KEY ([Id]),
+                    CONSTRAINT [FK_BookingPaymentLinks_BookingRequests_BookingRequestId]
+                        FOREIGN KEY ([BookingRequestId]) REFERENCES [BookingRequests] ([Id]) ON DELETE CASCADE
+                );
+                CREATE INDEX [IX_BookingPaymentLinks_BookingRequestId] ON [BookingPaymentLinks] ([BookingRequestId]);
+                CREATE UNIQUE INDEX [IX_BookingPaymentLinks_Token] ON [BookingPaymentLinks] ([Token]);
+            END
+            """,
+            cancellationToken).ConfigureAwait(false);
+
+        logger.LogInformation("Verified Stripe booking payment schema (deposit columns, BookingPaymentLinks).");
+    }
+
+    public static async Task EnsureGuestEmailTemplatesTableAsync(
+        ApplicationDbContext db,
+        ILogger logger,
+        CancellationToken cancellationToken = default)
+    {
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            IF OBJECT_ID(N'[GuestEmailTemplates]', N'U') IS NULL
+            BEGIN
+                CREATE TABLE [GuestEmailTemplates] (
+                    [Id] int NOT NULL IDENTITY(1,1),
+                    [PropertySlug] nvarchar(120) NOT NULL,
+                    [Category] nvarchar(40) NOT NULL,
+                    [Title] nvarchar(120) NOT NULL,
+                    [EmailSubject] nvarchar(200) NULL,
+                    [Body] nvarchar(max) NOT NULL,
+                    [SortOrder] int NOT NULL,
+                    [UpdatedAtUtc] datetime2 NOT NULL,
+                    CONSTRAINT [PK_GuestEmailTemplates] PRIMARY KEY ([Id])
+                );
+                CREATE INDEX [IX_GuestEmailTemplates_PropertySlug_SortOrder] ON [GuestEmailTemplates] ([PropertySlug], [SortOrder]);
+            END
+            """,
+            cancellationToken).ConfigureAwait(false);
+
+        logger.LogInformation("Verified GuestEmailTemplates table.");
+    }
+
+    public static async Task EnsureAdminNotificationSchemaAsync(
+        ApplicationDbContext db,
+        ILogger logger,
+        CancellationToken cancellationToken = default)
+    {
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            IF COL_LENGTH('AspNetUsers', 'RegisteredAtUtc') IS NULL
+                ALTER TABLE [AspNetUsers] ADD [RegisteredAtUtc] datetime2 NOT NULL
+                    CONSTRAINT [DF_AspNetUsers_RegisteredAtUtc] DEFAULT ('2000-01-01T00:00:00');
+
+            IF OBJECT_ID(N'[AdminBookingSeens]', N'U') IS NULL
+            BEGIN
+                CREATE TABLE [AdminBookingSeens] (
+                    [UserId] nvarchar(450) NOT NULL,
+                    [BookingRequestId] int NOT NULL,
+                    [SeenAtUtc] datetime2 NOT NULL,
+                    CONSTRAINT [PK_AdminBookingSeens] PRIMARY KEY ([UserId], [BookingRequestId]),
+                    CONSTRAINT [FK_AdminBookingSeens_AspNetUsers_UserId] FOREIGN KEY ([UserId]) REFERENCES [AspNetUsers] ([Id]) ON DELETE CASCADE,
+                    CONSTRAINT [FK_AdminBookingSeens_BookingRequests_BookingRequestId] FOREIGN KEY ([BookingRequestId]) REFERENCES [BookingRequests] ([Id]) ON DELETE CASCADE
+                );
+                CREATE INDEX [IX_AdminBookingSeens_BookingRequestId] ON [AdminBookingSeens] ([BookingRequestId]);
+            END
+
+            IF OBJECT_ID(N'[AdminUserNotificationStates]', N'U') IS NULL
+            BEGIN
+                CREATE TABLE [AdminUserNotificationStates] (
+                    [UserId] nvarchar(450) NOT NULL,
+                    [UsersSectionSeenAtUtc] datetime2 NULL,
+                    CONSTRAINT [PK_AdminUserNotificationStates] PRIMARY KEY ([UserId]),
+                    CONSTRAINT [FK_AdminUserNotificationStates_AspNetUsers_UserId] FOREIGN KEY ([UserId]) REFERENCES [AspNetUsers] ([Id]) ON DELETE CASCADE
+                );
+            END
+            """,
+            cancellationToken).ConfigureAwait(false);
+
+        logger.LogInformation("Verified admin notification schema.");
     }
 }

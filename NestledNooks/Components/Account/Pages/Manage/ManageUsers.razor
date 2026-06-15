@@ -10,6 +10,7 @@
 @attribute [Authorize(Roles = AppRoles.Owner)]
 
 @inject IUserAdminService UserAdminService
+@inject IAdminNotificationService AdminNotifications
 @inject AuthenticationStateProvider AuthenticationStateProvider
 
 <PageTitle>Manage users · @SiteBranding.Name</PageTitle>
@@ -262,6 +263,8 @@
         _currentUserId = authState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
 
         _users = await UserAdminService.GetUsersAsync();
+        if (!string.IsNullOrEmpty(_currentUserId))
+            await AdminNotifications.MarkUsersSectionSeenAsync(_currentUserId);
         _loading = false;
     }
 

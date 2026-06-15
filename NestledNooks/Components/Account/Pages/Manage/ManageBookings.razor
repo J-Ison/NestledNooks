@@ -7,22 +7,41 @@
 @using NestledNooks.Data
 @using NestledNooks.Models
 @using NestledNooks.Services
+@using Microsoft.Extensions.Options
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Components.Authorization
 
 @attribute [Authorize(Roles = AppRoles.HostStaff)]
 
 @inject IBookingRequestService BookingService
+@inject IGuestEmailTemplateService GuestTemplates
+@inject IGuestEmailWrapperService EmailWrapper
+@inject IAdminNotificationService AdminNotifications
+@inject BookingPricingService PricingService
+@inject IOptions<StripeOptions> StripeOptionsAccessor
 @inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IJSRuntime Js
 
 <PageTitle>Manage bookings · @SiteBranding.Name</PageTitle>
 
-<div class="mgmt-page">
-    <header class="mgmt-hero">
+<div class="mgmt-page mgmt-page--bookings">
+    <header class="mgmt-hero bk-hero">
         <div class="mgmt-wrap">
-            <p class="mgmt-hero-eyebrow">@SiteBranding.Name · Owner tools</p>
+            <p class="mgmt-hero-eyebrow">@SiteBranding.Name · Host dashboard</p>
             <h1 class="mgmt-hero-title">Manage bookings</h1>
             <p class="mgmt-hero-lead">
-                Review requests, update stay status, and record payment.
-                Import <a class="mgmt-link" href="@_holdsFeedUrl" target="_blank" rel="noopener">holds.ics</a> into Airbnb/Vrbo for pending site holds.
+                @if (_inHouseCount > 0)
+                {
+                    <strong>@_inHouseCount guest stay@(_inHouseCount == 1 ? "" : "s") in the house now.</strong>
+                    <span> · </span>
+                }
+                @if (_nextBooking is not null)
+                {
+                    <span>Next arrival: @FormatShortDate(_nextBooking.CheckIn) (@_nextBooking.GuestFullName).</span>
+                    <span> · </span>
+                }
+                <a class="mgmt-link" href="@_holdsFeedUrl" target="_blank" rel="noopener">holds.ics</a> for calendar holds.
             </p>
         </div>
     </header>
@@ -34,194 +53,324 @@
         }
         else
         {
-            <nav class="mgmt-tabs" aria-label="Booking lists">
-                <button type="button"
-                        class="@TabClass(0)"
-                        aria-pressed="@(_tabIndex == 0)"
-                        @onclick="() => _tabIndex = 0">
-                    Pending <span class="mgmt-tab-count">@_pending.Count</span>
-                </button>
-                <button type="button"
-                        class="@TabClass(1)"
-                        aria-pressed="@(_tabIndex == 1)"
-                        @onclick="() => _tabIndex = 1">
-                    Active stays <span class="mgmt-tab-count">@_active.Count</span>
-                </button>
-                <button type="button"
-                        class="@TabClass(2)"
-                        aria-pressed="@(_tabIndex == 2)"
-                        @onclick="() => _tabIndex = 2">
-                    All <span class="mgmt-tab-count">@_all.Count</span>
-                </button>
-            </nav>
+            <div class="bk-toolbar">
+                <nav class="bk-tabs" aria-label="Booking lists">
+                    <button type="button" class="@TabClass(0)" aria-pressed="@(_tabIndex == 0)" @onclick="() => SelectTab(0)">
+                        Pending <span class="bk-tab-count">@_pending.Count</span>
+                    </button>
+                    <button type="button" class="@TabClass(1)" aria-pressed="@(_tabIndex == 1)" @onclick="() => SelectTab(1)">
+                        Current &amp; upcoming <span class="bk-tab-count">@_currentCount</span>
+                    </button>
+                    <button type="button" class="@TabClass(2)" aria-pressed="@(_tabIndex == 2)" @onclick="() => SelectTab(2)">
+                        Past <span class="bk-tab-count">@_pastCount</span>
+                    </button>
+                </nav>
 
-            @if (CurrentList.Count == 0)
+                <div class="bk-filters">
+                    <label class="bk-filter">
+                        <span class="bk-filter-label">Payment</span>
+                        <select class="bk-select" @bind="_paymentFilter">
+                            <option value="all">All</option>
+                            <option value="unpaid">Unpaid</option>
+                            <option value="partial">Partially paid</option>
+                            <option value="paid">Paid in full</option>
+                        </select>
+                    </label>
+                    <label class="bk-filter">
+                        <span class="bk-filter-label">Sort</span>
+                        <select class="bk-select" @bind="_sortKey">
+                            <option value="checkin">Check-in date</option>
+                            <option value="payment">Payment status</option>
+                            <option value="guest">Guest name</option>
+                        </select>
+                    </label>
+                    <button type="button" class="bk-text-btn" @onclick="ExpandAllVisible">Expand all</button>
+                    <button type="button" class="bk-text-btn" @onclick="CollapseAll">Collapse all</button>
+                </div>
+            </div>
+
+            @if (!FilteredSortedList.Any())
             {
-                <div class="mgmt-empty">
-                    <p>No bookings in this list.</p>
+                <div class="bk-empty">
+                    <p>No bookings match this view.</p>
+                    @if (_paymentFilter != "all")
+                    {
+                        <button type="button" class="bk-text-btn" @onclick='() => _paymentFilter = "all"'>Clear payment filter</button>
+                    }
                 </div>
             }
             else
             {
-                @foreach (var b in CurrentList)
+                @foreach (var b in FilteredSortedList)
                 {
-                    <article class="mgmt-card @StatusCardClass(b.Status)">
-                        <header class="mgmt-card-header">
-                            <div class="mgmt-card-heading">
-                                <h2 class="mgmt-card-title">@b.BookingNumber</h2>
-                                <p class="mgmt-card-subtitle">@FormatPropertyName(b.PropertySlug)</p>
-                            </div>
-                            <div class="mgmt-badges">
-                                <span class="mgmt-badge mgmt-badge--status">@b.Status</span>
-                                <span class="mgmt-badge mgmt-badge--payment">@FormatPaymentStatus(b.PaymentStatus)</span>
-                            </div>
-                        </header>
+                    var expanded = IsExpanded(b.Id);
+                    var highlight = HighlightClass(b);
+                    var balance = RemainingBalance(b);
 
-                        <div class="mgmt-card-body">
-                            <div class="mgmt-meta-grid">
-                                <div class="mgmt-meta-item">
-                                    <span class="mgmt-meta-label">Guest</span>
-                                    <span class="mgmt-meta-value">@b.GuestFullName</span>
+                    <article class="bk-card @highlight @StatusCardClass(b.Status) @(expanded ? "is-expanded" : "is-collapsed")">
+                        <button type="button"
+                                class="bk-card-summary"
+                                aria-expanded="@expanded"
+                                @onclick="() => ToggleExpandAsync(b.Id)">
+                            <div class="bk-card-summary-main">
+                                @if (IsInHouse(b))
+                                {
+                                    <span class="bk-priority bk-priority--in-house">In the house now</span>
+                                }
+                                else if (IsNextBooking(b))
+                                {
+                                    <span class="bk-priority bk-priority--next">Next arrival</span>
+                                }
+                                else if (b.Status == BookingStatuses.Pending)
+                                {
+                                    <span class="bk-priority bk-priority--pending">Needs decision</span>
+                                }
+                                else if (UnseenLabel(b) is { } unseenLabel)
+                                {
+                                    <span class="bk-priority bk-priority--unseen">@unseenLabel</span>
+                                }
+
+                                <div class="bk-card-title-row">
+                                    <h2 class="bk-guest-name">@b.GuestFullName</h2>
+                                    <span class="bk-ref">@b.BookingNumber</span>
                                 </div>
-                                <div class="mgmt-meta-item">
-                                    <span class="mgmt-meta-label">Email</span>
-                                    <a class="mgmt-link" href="@($"mailto:{b.GuestEmail}")">@b.GuestEmail</a>
-                                </div>
-                                <div class="mgmt-meta-item">
-                                    <span class="mgmt-meta-label">Phone</span>
-                                    <span class="mgmt-meta-value">@(string.IsNullOrWhiteSpace(b.GuestPhone) ? "—" : b.GuestPhone)</span>
-                                </div>
-                                <div class="mgmt-meta-item">
-                                    <span class="mgmt-meta-label">Dates</span>
-                                    <span class="mgmt-meta-value">@FormatDateRange(b.CheckIn, b.CheckOut)</span>
-                                </div>
-                                <div class="mgmt-meta-item">
-                                    <span class="mgmt-meta-label">Party</span>
-                                    <span class="mgmt-meta-value">@b.NightCount night(s) · @b.GuestCount guests · @b.PetCount pets</span>
-                                </div>
-                                <div class="mgmt-meta-item">
-                                    <span class="mgmt-meta-label">Total</span>
-                                    <span class="mgmt-meta-value mgmt-meta-value--strong">@b.TotalAmount.ToString("C2")</span>
-                                    @if (b.AmountPaid > 0)
+
+                                <div class="bk-card-facts">
+                                    <span class="bk-fact bk-fact--dates">
+                                        @FormatDateRange(b.CheckIn, b.CheckOut)
+                                        <span class="bk-fact-meta">@b.NightCount nights · @FormatPropertyName(b.PropertySlug)</span>
+                                    </span>
+                                    <span class="bk-fact">
+                                        @b.TotalAmount.ToString("C0")
+                                        @if (balance > 0 && b.PaymentStatus != PaymentStatuses.Paid)
+                                        {
+                                            <span class="bk-due">@balance.ToString("C0") due</span>
+                                        }
+                                    </span>
+                                    @if (!string.IsNullOrWhiteSpace(b.GuestPhone))
                                     {
-                                        <span class="mgmt-meta-note">Paid @b.AmountPaid.ToString("C2")</span>
+                                        <a class="bk-fact bk-fact--link" href="@($"tel:{b.GuestPhone}")" @onclick:stopPropagation="true">@b.GuestPhone</a>
+                                    }
+                                    <a class="bk-fact bk-fact--link" href="@($"mailto:{b.GuestEmail}")" @onclick:stopPropagation="true">Email</a>
+                                </div>
+                            </div>
+
+                            <div class="bk-card-summary-badges">
+                                <span class="bk-pay-badge @PaymentBadgeClass(b.PaymentStatus)">@FormatPaymentStatus(b.PaymentStatus)</span>
+                                <span class="bk-status-badge">@FormatStayStatus(b)</span>
+                                <span class="bk-chevron" aria-hidden="true"></span>
+                            </div>
+                        </button>
+
+                        @if (expanded)
+                        {
+                            <div class="bk-card-details">
+                                @if (!string.IsNullOrWhiteSpace(b.Notes))
+                                {
+                                    <div class="bk-detail-block bk-detail-block--note">
+                                        <h3 class="bk-detail-title">Guest notes</h3>
+                                        <p>@b.Notes</p>
+                                    </div>
+                                }
+
+                                @if (b.Status == BookingStatuses.Pending)
+                                {
+                                    <div class="bk-detail-block">
+                                        <h3 class="bk-detail-title">Decision</h3>
+                                        @if (!_stripeConfigured)
+                                        {
+                                            <p class="bk-hint">Stripe not configured — <a class="mgmt-link" href="/account/manage/payments">set up payments</a> first.</p>
+                                        }
+                                        @if (_depositBookingId == b.Id)
+                                        {
+                                            <p class="bk-hint">Minimum deposit @MinimumDeposit(b.TotalAmount).ToString("C2") (@_minimumDepositPercent%). Non-refundable.</p>
+                                            <div class="bk-field-row">
+                                                <div class="bk-field bk-field--amount">
+                                                    <label class="bk-field-label">Deposit amount</label>
+                                                    <MudNumericField T="decimal" @bind-Value="_depositAmounts[b.Id]" Label=""
+                                                                     Variant="Variant.Filled" Min="@MinimumDeposit(b.TotalAmount)" Max="@(b.TotalAmount - 0.01m)" Format="C2"
+                                                                     Disabled="_processingId == b.Id" Class="bk-mud-input" Margin="Margin.Dense" />
+                                                </div>
+                                                <MudButton Color="Color.Success" Variant="Variant.Filled" Disabled="_processingId == b.Id"
+                                                           OnClick="@(() => ApproveWithDepositAsync(b.Id))">Confirm deposit</MudButton>
+                                                <MudButton Variant="Variant.Text" Disabled="_processingId == b.Id"
+                                                           OnClick="@(() => _depositBookingId = null)">Cancel</MudButton>
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            <div class="mgmt-action-row">
+                                                <MudButton Color="Color.Success" Variant="Variant.Filled" Disabled="_processingId == b.Id || !_stripeConfigured"
+                                                           OnClick="@(() => ApproveForFullPaymentAsync(b.Id))">Approve &amp; full payment</MudButton>
+                                                <MudButton Color="Color.Primary" Variant="Variant.Outlined" Disabled="_processingId == b.Id || !_stripeConfigured"
+                                                           OnClick="@(() => StartDepositApproval(b))">Approve with deposit</MudButton>
+                                                <MudButton Color="Color.Error" Variant="Variant.Outlined" Disabled="_processingId == b.Id"
+                                                           OnClick="@(() => UpdateStatusAsync(b.Id, BookingStatuses.Denied))">Deny</MudButton>
+                                            </div>
+                                        }
+                                    </div>
+                                }
+
+                                @if (b.Status is BookingStatuses.Approved or BookingStatuses.Active && !IsPast(b))
+                                {
+                                    <div class="bk-detail-block">
+                                        <h3 class="bk-detail-title">Stay status</h3>
+                                        <div class="mgmt-action-row">
+                                            @if (b.Status == BookingStatuses.Approved)
+                                            {
+                                                <MudButton Size="Size.Small" Variant="Variant.Outlined" Disabled="_processingId == b.Id"
+                                                           OnClick="@(() => UpdateStatusAsync(b.Id, BookingStatuses.Active))">Mark in progress</MudButton>
+                                            }
+                                            <MudButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Success" Disabled="_processingId == b.Id"
+                                                       OnClick="@(() => UpdateStatusAsync(b.Id, BookingStatuses.Ended))">Mark completed</MudButton>
+                                            <MudButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Warning" Disabled="_processingId == b.Id"
+                                                       OnClick="@(() => UpdateStatusAsync(b.Id, BookingStatuses.Cancelled))">Cancel stay</MudButton>
+                                        </div>
+                                    </div>
+                                }
+
+                                <div class="bk-detail-block">
+                                    <h3 class="bk-detail-title">Payment</h3>
+                                    @if (_paymentUrls.TryGetValue(b.Id, out var payUrl) && !string.IsNullOrWhiteSpace(payUrl))
+                                    {
+                                        <p class="bk-hint">
+                                            Pay link: <a class="mgmt-link" href="@payUrl" target="_blank" rel="noopener">open</a>
+                                            · <button type="button" class="bk-text-btn" @onclick="@(() => CopyPayUrlAsync(payUrl))">Copy</button>
+                                        </p>
+                                    }
+                                    @if (_successMessages.TryGetValue(b.Id, out var successMsg))
+                                    {
+                                        <div class="mgmt-success">@successMsg</div>
+                                    }
+                                    @if (ShowBalanceLink(b))
+                                    {
+                                        <MudButton Class="mb-2" Variant="Variant.Filled" Color="Color.Primary" Disabled="_processingId == b.Id || !_stripeConfigured"
+                                                   OnClick="@(() => SendBalanceLinkAsync(b.Id))">
+                                            Email balance link (@RemainingBalance(b).ToString("C2"))
+                                        </MudButton>
+                                    }
+                                    @if (ShowSyncPayment(b))
+                                    {
+                                        <MudButton Class="mb-2" Variant="Variant.Outlined" Color="Color.Info" Disabled="_processingId == b.Id || !_stripeConfigured"
+                                                   OnClick="@(() => SyncPaymentFromStripeAsync(b.Id))">
+                                            Refresh from Stripe
+                                        </MudButton>
+                                    }
+                                    <div class="bk-field-row bk-field-row--payment">
+                                        <div class="bk-field bk-field--payment-status">
+                                            <label class="bk-field-label">Payment status</label>
+                                            <MudSelect T="string" @bind-Value="_paymentStatuses[b.Id]" Label=""
+                                                       Variant="Variant.Filled" Disabled="_processingId == b.Id"
+                                                       Class="bk-mud-input" Margin="Margin.Dense">
+                                                <MudSelectItem Value="@PaymentStatuses.Unpaid">Unpaid</MudSelectItem>
+                                                <MudSelectItem Value="@PaymentStatuses.PartiallyPaid">Partially paid</MudSelectItem>
+                                                <MudSelectItem Value="@PaymentStatuses.Paid">Paid in full</MudSelectItem>
+                                                <MudSelectItem Value="@PaymentStatuses.Refunded">Refunded</MudSelectItem>
+                                            </MudSelect>
+                                        </div>
+                                        <div class="bk-field bk-field--amount">
+                                            <label class="bk-field-label">Amount paid</label>
+                                            <MudNumericField T="decimal" @bind-Value="_amountsPaid[b.Id]" Label=""
+                                                             Variant="Variant.Filled" Min="0" Format="C2"
+                                                             Disabled="_processingId == b.Id" Class="bk-mud-input" Margin="Margin.Dense" />
+                                        </div>
+                                        <div class="bk-field bk-field--action">
+                                            <label class="bk-field-label bk-field-label--hidden" aria-hidden="true">&nbsp;</label>
+                                            <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="_processingId == b.Id"
+                                                       Class="bk-save-btn" OnClick="@(() => SavePaymentAsync(b.Id))">Save</MudButton>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="bk-detail-block">
+                                    <h3 class="bk-detail-title">Contact guest</h3>
+                                    @{
+                                        var bookingTemplates = GetTemplatesFor(b);
+                                    }
+                                    @if (bookingTemplates.Count > 0)
+                                    {
+                                        <p class="bk-hint">Quick insert — fills the message below (edit before sending). <a class="mgmt-link" href="/account/manage/guest-messages">Manage templates</a></p>
+                                        <div class="bk-template-chips">
+                                            @foreach (var tmpl in bookingTemplates)
+                                            {
+                                                <button type="button"
+                                                        class="bk-template-chip"
+                                                        title="@GuestEmailTemplateCategories.DisplayName(tmpl.Category)"
+                                                        @onclick="() => InsertTemplate(b, tmpl)">
+                                                    @tmpl.Title
+                                                </button>
+                                            }
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <p class="bk-hint">
+                                            No message templates yet.
+                                            <a class="mgmt-link" href="/account/manage/guest-messages">Create templates</a>
+                                            for check-in, check-out, and payment.
+                                        </p>
+                                    }
+                                    <div class="bk-field">
+                                        <label class="bk-field-label">Email message</label>
+                                        <p class="bk-hint">
+                                            A header and footer are added automatically around your message.
+                                            <a class="mgmt-link" href="/account/manage/guest-messages">Edit header &amp; footer</a>
+                                        </p>
+                                        <MudTextField @bind-Value="_guestEmailMessages[b.Id]"
+                                                      Placeholder="Write your message…"
+                                                      Variant="Variant.Outlined" Lines="4"
+                                                      Disabled="_emailSendingId == b.Id"
+                                                      Class="bk-mud-input bk-mud-input--multiline bk-mud-input--resizable" Margin="Margin.Dense" />
+                                    </div>
+                                    <details class="bk-detail-block bk-email-preview-block">
+                                        <summary>Full email preview (what the guest receives)</summary>
+                                        <pre class="bk-email-preview">@GetGuestEmailPreview(b)</pre>
+                                    </details>
+                                    <div class="mgmt-action-row">
+                                        <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                                                   Disabled="_emailSendingId == b.Id || string.IsNullOrWhiteSpace(_guestEmailMessages[b.Id])"
+                                                   OnClick="@(() => SendGuestEmailAsync(b.Id))">
+                                            @( _emailSendingId == b.Id ? "Sending…" : "Send email" )
+                                        </MudButton>
+                                    </div>
+                                    @if (_emailSuccessMessages.TryGetValue(b.Id, out var emailSentMsg))
+                                    {
+                                        <div class="mgmt-success">@emailSentMsg</div>
                                     }
                                 </div>
-                            </div>
 
-                            @if (!string.IsNullOrWhiteSpace(b.Notes))
-                            {
-                                <div class="mgmt-subblock">
-                                    <h3 class="mgmt-subblock-title">Guest notes</h3>
-                                    <p class="mgmt-note-text">@b.Notes</p>
-                                </div>
-                            }
-
-                            <div class="mgmt-subblock">
-                                <h3 class="mgmt-subblock-title">Message to guest</h3>
-                                <MudTextField @bind-Value="_statusNotes[b.Id]"
-                                              Placeholder="Optional note included when status changes"
-                                              Variant="Variant.Outlined"
-                                              Lines="2"
-                                              Disabled="_processingId == b.Id"
-                                              Class="mgmt-field" />
-                            </div>
-
-                            @if (ShowApproveDeny)
-                            {
-                                <div class="mgmt-subblock mgmt-subblock--actions">
-                                    <h3 class="mgmt-subblock-title">Decision</h3>
-                                    <div class="mgmt-action-row">
-                                        <MudButton Color="Color.Success"
-                                                   Variant="Variant.Filled"
-                                                   Disabled="_processingId == b.Id"
-                                                   OnClick="@(() => UpdateStatusAsync(b.Id, BookingStatuses.Approved))">
-                                            Approve
-                                        </MudButton>
-                                        <MudButton Color="Color.Error"
-                                                   Variant="Variant.Outlined"
-                                                   Disabled="_processingId == b.Id"
-                                                   OnClick="@(() => UpdateStatusAsync(b.Id, BookingStatuses.Denied))">
-                                            Deny
-                                        </MudButton>
+                                <div class="bk-detail-block">
+                                    <h3 class="bk-detail-title">Status note <span class="bk-detail-sub">(included in status change emails)</span></h3>
+                                    <div class="bk-field">
+                                        <label class="bk-field-label">Note for guest</label>
+                                        <MudTextField @bind-Value="_statusNotes[b.Id]"
+                                                      Placeholder="Optional note when changing status…"
+                                                      Variant="Variant.Outlined" Lines="2"
+                                                      Disabled="_processingId == b.Id"
+                                                      Class="bk-mud-input bk-mud-input--multiline" Margin="Margin.Dense" />
                                     </div>
                                 </div>
-                            }
 
-                            @if (ShowStatusActions && b.Status != BookingStatuses.Denied && b.Status != BookingStatuses.Ended)
-                            {
-                                <div class="mgmt-subblock mgmt-subblock--actions">
-                                    <h3 class="mgmt-subblock-title">Stay status</h3>
-                                    <div class="mgmt-action-row">
-                                        @if (b.Status == BookingStatuses.Approved)
+                                <details class="bk-detail-block bk-detail-more">
+                                    <summary>Full details</summary>
+                                    <div class="mgmt-meta-grid">
+                                        <div class="mgmt-meta-item"><span class="mgmt-meta-label">Email</span><a class="mgmt-link" href="@($"mailto:{b.GuestEmail}")">@b.GuestEmail</a></div>
+                                        <div class="mgmt-meta-item"><span class="mgmt-meta-label">Phone</span><span class="mgmt-meta-value">@(string.IsNullOrWhiteSpace(b.GuestPhone) ? "—" : b.GuestPhone)</span></div>
+                                        <div class="mgmt-meta-item"><span class="mgmt-meta-label">Party</span><span class="mgmt-meta-value">@b.GuestCount guests · @b.PetCount pets</span></div>
+                                        <div class="mgmt-meta-item"><span class="mgmt-meta-label">Paid</span><span class="mgmt-meta-value">@b.AmountPaid.ToString("C2") of @b.TotalAmount.ToString("C2")</span></div>
+                                        @if (b.RequiredDepositAmount is { } dep)
                                         {
-                                            <MudButton Size="Size.Small" Variant="Variant.Outlined" Disabled="_processingId == b.Id"
-                                                       OnClick="@(() => UpdateStatusAsync(b.Id, BookingStatuses.Active))">
-                                                Mark in progress
-                                            </MudButton>
-                                        }
-                                        @if (b.Status is BookingStatuses.Approved or BookingStatuses.Active)
-                                        {
-                                            <MudButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Success" Disabled="_processingId == b.Id"
-                                                       OnClick="@(() => UpdateStatusAsync(b.Id, BookingStatuses.Ended))">
-                                                Mark completed
-                                            </MudButton>
-                                            <MudButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Warning" Disabled="_processingId == b.Id"
-                                                       OnClick="@(() => UpdateStatusAsync(b.Id, BookingStatuses.Cancelled))">
-                                                Cancel
-                                            </MudButton>
-                                        }
-                                        @if (b.Status == BookingStatuses.Pending)
-                                        {
-                                            <MudButton Size="Size.Small" Color="Color.Success" Variant="Variant.Filled" Disabled="_processingId == b.Id"
-                                                       OnClick="@(() => UpdateStatusAsync(b.Id, BookingStatuses.Approved))">
-                                                Approve
-                                            </MudButton>
-                                            <MudButton Size="Size.Small" Color="Color.Error" Variant="Variant.Outlined" Disabled="_processingId == b.Id"
-                                                       OnClick="@(() => UpdateStatusAsync(b.Id, BookingStatuses.Denied))">
-                                                Deny
-                                            </MudButton>
+                                            <div class="mgmt-meta-item"><span class="mgmt-meta-label">Deposit</span><span class="mgmt-meta-value">@dep.ToString("C2")@(b.DepositNonRefundable ? " (non-refundable)" : "")</span></div>
                                         }
                                     </div>
-                                </div>
-                            }
+                                </details>
 
-                            <div class="mgmt-subblock mgmt-subblock--payment">
-                                <h3 class="mgmt-subblock-title">Payment</h3>
-                                <div class="mgmt-payment-row">
-                                    <MudSelect T="string"
-                                               @bind-Value="_paymentStatuses[b.Id]"
-                                               Label="Status"
-                                               Variant="Variant.Outlined"
-                                               Disabled="_processingId == b.Id"
-                                               Class="mgmt-field mgmt-field--payment-status">
-                                        <MudSelectItem Value="@PaymentStatuses.Unpaid">Unpaid</MudSelectItem>
-                                        <MudSelectItem Value="@PaymentStatuses.PartiallyPaid">Partially paid</MudSelectItem>
-                                        <MudSelectItem Value="@PaymentStatuses.Paid">Paid in full</MudSelectItem>
-                                        <MudSelectItem Value="@PaymentStatuses.Refunded">Refunded</MudSelectItem>
-                                    </MudSelect>
-                                    <MudNumericField T="decimal"
-                                                     @bind-Value="_amountsPaid[b.Id]"
-                                                     Label="Amount paid"
-                                                     Variant="Variant.Outlined"
-                                                     Min="0"
-                                                     Format="C2"
-                                                     Disabled="_processingId == b.Id"
-                                                     Class="mgmt-field mgmt-field--amount" />
-                                    <MudButton Variant="Variant.Filled"
-                                               Color="Color.Primary"
-                                               Disabled="_processingId == b.Id"
-                                               OnClick="@(() => SavePaymentAsync(b.Id))">
-                                        Save payment
-                                    </MudButton>
-                                </div>
+                                @if (_errors.TryGetValue(b.Id, out var err))
+                                {
+                                    <div class="mgmt-error">@err</div>
+                                }
                             </div>
-
-                            @if (_errors.TryGetValue(b.Id, out var err))
-                            {
-                                <div class="mgmt-error">@err</div>
-                            }
-                        </div>
+                        }
                     </article>
                 }
             }
@@ -231,31 +380,54 @@
 
 @code {
     private List<BookingRequest> _pending = [];
-    private List<BookingRequest> _active = [];
     private List<BookingRequest> _all = [];
     private readonly Dictionary<int, string> _statusNotes = new();
     private readonly Dictionary<int, string> _paymentStatuses = new();
     private readonly Dictionary<int, decimal> _amountsPaid = new();
+    private readonly Dictionary<int, decimal> _depositAmounts = new();
+    private readonly Dictionary<int, string> _paymentUrls = new();
+    private readonly Dictionary<int, string> _successMessages = new();
+    private readonly Dictionary<int, string> _guestEmailMessages = new();
+    private readonly Dictionary<int, string?> _guestEmailSubjects = new();
+    private readonly Dictionary<int, string> _emailSuccessMessages = new();
     private readonly Dictionary<int, string> _errors = new();
+    private readonly HashSet<int> _expandedIds = new();
     private bool _loading = true;
+    private bool _stripeConfigured;
+    private int _minimumDepositPercent = 50;
     private int? _processingId;
+    private int? _emailSendingId;
+    private int? _depositBookingId;
     private string _holdsFeedUrl = "";
-    private int _tabIndex;
+    private int _tabIndex = 1;
+    private string _paymentFilter = "all";
+    private string _sortKey = "checkin";
+    private int _currentCount;
+    private int _pastCount;
+    private int _inHouseCount;
+    private BookingRequest? _nextBooking;
+    private int? _nextBookingId;
+    private List<GuestEmailTemplateModel> _emailTemplates = [];
+    private GuestEmailWrapperSettings? _emailWrapperSettings;
+    private Dictionary<int, BookingUnseenState> _unseenStates = new();
+    private string? _userId;
 
-    private IReadOnlyList<BookingRequest> CurrentList => _tabIndex switch
-    {
-        0 => _pending,
-        1 => _active,
-        _ => _all
-    };
+    private DateOnly Today => DateOnly.FromDateTime(DateTime.Today);
 
-    private bool ShowApproveDeny => _tabIndex == 0;
-
-    private bool ShowStatusActions => _tabIndex != 0;
+    private IEnumerable<BookingRequest> FilteredSortedList =>
+        SortBookings(ApplyPaymentFilter(GetTabList()));
 
     protected override async Task OnInitializedAsync()
     {
+        var stripeOptions = StripeOptionsAccessor.Value;
+        _stripeConfigured = stripeOptions.IsConfigured;
+        _minimumDepositPercent = Math.Clamp(stripeOptions.DefaultMinimumDepositPercent, 1, 100);
         _holdsFeedUrl = Navigation.ToAbsoluteUri($"/api/calendar/{BookingFormModel.DeerfieldSlug}/holds.ics").ToString();
+        var auth = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        _userId = auth.User.FindFirstValue(ClaimTypes.NameIdentifier);
+        await GuestTemplates.EnsureSeededAsync();
+        _emailTemplates = (await GuestTemplates.GetAllAsync()).ToList();
+        _emailWrapperSettings = await EmailWrapper.GetAsync();
         await ReloadAsync();
     }
 
@@ -264,10 +436,14 @@
         _loading = true;
         _pending = (await BookingService.GetPendingForPropertyAsync()).ToList();
         _all = (await BookingService.GetAllForAdminAsync()).ToList();
-        _active = _all
-            .Where(b => b.Status is BookingStatuses.Approved or BookingStatuses.Active)
-            .OrderBy(b => b.CheckIn)
-            .ToList();
+
+        _currentCount = _all.Count(b => !IsPast(b) && b.Status != BookingStatuses.Pending);
+        _pastCount = _all.Count(IsPast);
+        _inHouseCount = _all.Count(IsInHouse);
+        _nextBooking = _all.Where(IsUpcoming).OrderBy(b => b.CheckIn).FirstOrDefault();
+        _nextBookingId = _nextBooking?.Id;
+
+        var paymentUrls = await BookingService.GetLatestPaymentUrlsAsync(_all.Select(b => b.Id));
 
         foreach (var b in _all)
         {
@@ -275,9 +451,405 @@
                 _statusNotes[b.Id] = b.StatusNote ?? "";
             _paymentStatuses[b.Id] = b.PaymentStatus;
             _amountsPaid[b.Id] = b.AmountPaid;
+            if (!_depositAmounts.ContainsKey(b.Id))
+                _depositAmounts[b.Id] = MinimumDeposit(b.TotalAmount);
+            if (!_guestEmailMessages.ContainsKey(b.Id))
+                _guestEmailMessages[b.Id] = "";
+
+            if (paymentUrls.TryGetValue(b.Id, out var relativePayUrl))
+                _paymentUrls[b.Id] = Navigation.ToAbsoluteUri(relativePayUrl).ToString();
+            else
+                _paymentUrls.Remove(b.Id);
         }
 
+        ApplyDefaultExpansion();
+        await LoadUnseenStatesAsync();
         _loading = false;
+    }
+
+    private async Task LoadUnseenStatesAsync()
+    {
+        if (string.IsNullOrEmpty(_userId))
+        {
+            _unseenStates = new Dictionary<int, BookingUnseenState>();
+            return;
+        }
+
+        _unseenStates = (await AdminNotifications.GetBookingUnseenStatesAsync(_userId))
+            .ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
+    }
+
+    private void ApplyDefaultExpansion()
+    {
+        foreach (var b in _all)
+        {
+            if (IsInHouse(b) || IsNextBooking(b) || (b.Status == BookingStatuses.Pending && _tabIndex == 0))
+                _expandedIds.Add(b.Id);
+        }
+    }
+
+    private IEnumerable<BookingRequest> GetTabList() => _tabIndex switch
+    {
+        0 => _pending,
+        1 => _all.Where(b => !IsPast(b) && b.Status != BookingStatuses.Pending),
+        2 => _all.Where(IsPast),
+        _ => []
+    };
+
+    private IEnumerable<BookingRequest> ApplyPaymentFilter(IEnumerable<BookingRequest> list) =>
+        _paymentFilter switch
+        {
+            "unpaid" => list.Where(b => b.PaymentStatus == PaymentStatuses.Unpaid),
+            "partial" => list.Where(b => b.PaymentStatus == PaymentStatuses.PartiallyPaid),
+            "paid" => list.Where(b => b.PaymentStatus == PaymentStatuses.Paid),
+            _ => list
+        };
+
+    private IEnumerable<BookingRequest> SortBookings(IEnumerable<BookingRequest> list) => _sortKey switch
+    {
+        "guest" => list.OrderBy(b => b.GuestFullName, StringComparer.OrdinalIgnoreCase),
+        "payment" => list.OrderBy(b => PaymentSortOrder(b.PaymentStatus)).ThenBy(b => b.CheckIn),
+        _ => _tabIndex == 2
+            ? list.OrderByDescending(b => b.CheckOut)
+            : list.OrderBy(b => IsInHouse(b) ? 0 : IsNextBooking(b) ? 1 : 2).ThenBy(b => b.CheckIn)
+    };
+
+    private static int PaymentSortOrder(string status) => status switch
+    {
+        PaymentStatuses.Unpaid => 0,
+        PaymentStatuses.PartiallyPaid => 1,
+        PaymentStatuses.Paid => 2,
+        _ => 3
+    };
+
+    private bool IsPast(BookingRequest b) =>
+        b.CheckOut < Today ||
+        b.Status is BookingStatuses.Ended or BookingStatuses.Denied or BookingStatuses.Cancelled;
+
+    private bool IsInHouse(BookingRequest b) =>
+        !IsPast(b) &&
+        b.CheckIn <= Today &&
+        b.CheckOut > Today &&
+        b.Status is BookingStatuses.Approved or BookingStatuses.Active;
+
+    private bool IsUpcoming(BookingRequest b) =>
+        !IsPast(b) &&
+        b.CheckIn > Today &&
+        b.Status is BookingStatuses.Approved or BookingStatuses.Active;
+
+    private bool IsNextBooking(BookingRequest b) => _nextBookingId == b.Id;
+
+    private string HighlightClass(BookingRequest b)
+    {
+        var classes = new List<string>();
+        if (IsUnseen(b)) classes.Add("bk-card--unseen");
+        if (IsInHouse(b)) classes.Add("bk-card--in-house");
+        else if (IsNextBooking(b)) classes.Add("bk-card--next");
+        return string.Join(' ', classes);
+    }
+
+    private bool IsUnseen(BookingRequest b) =>
+        _unseenStates.TryGetValue(b.Id, out var state) && state.IsUnseen;
+
+    private string? UnseenLabel(BookingRequest b) =>
+        _unseenStates.TryGetValue(b.Id, out var state) && state.IsUnseen ? state.UpdateLabel : null;
+
+    private bool IsExpanded(int id) => _expandedIds.Contains(id);
+
+    private async Task ToggleExpandAsync(int id)
+    {
+        if (_expandedIds.Contains(id))
+        {
+            _expandedIds.Remove(id);
+            return;
+        }
+
+        _expandedIds.Add(id);
+        await MarkBookingSeenAsync(id);
+    }
+
+    private async Task MarkBookingSeenAsync(int bookingId)
+    {
+        if (string.IsNullOrEmpty(_userId))
+            return;
+
+        if (!_unseenStates.TryGetValue(bookingId, out var state) || !state.IsUnseen)
+            return;
+
+        await AdminNotifications.MarkBookingSeenAsync(_userId, bookingId);
+        _unseenStates[bookingId] = new BookingUnseenState(false, null);
+    }
+
+    private void ExpandAllVisible()
+    {
+        foreach (var b in FilteredSortedList)
+            _expandedIds.Add(b.Id);
+    }
+
+    private void CollapseAll() => _expandedIds.Clear();
+
+    private void SelectTab(int index)
+    {
+        _tabIndex = index;
+        _expandedIds.Clear();
+        ApplyDefaultExpansion();
+    }
+
+    private string SiteBaseUrl => Navigation.BaseUri.TrimEnd('/');
+
+    private decimal MinimumDeposit(decimal totalAmount) =>
+        decimal.Round(totalAmount * _minimumDepositPercent / 100m, 2, MidpointRounding.AwayFromZero);
+
+    private static decimal RemainingBalance(BookingRequest booking) =>
+        decimal.Round(booking.TotalAmount - booking.AmountPaid, 2, MidpointRounding.AwayFromZero);
+
+    private bool ShowBalanceLink(BookingRequest booking) =>
+        _stripeConfigured &&
+        booking.Status is BookingStatuses.Approved or BookingStatuses.Active &&
+        booking.PaymentStatus is PaymentStatuses.PartiallyPaid or PaymentStatuses.Unpaid &&
+        RemainingBalance(booking) > 0 &&
+        booking.AmountPaid > 0;
+
+    private bool ShowSyncPayment(BookingRequest booking) =>
+        _stripeConfigured &&
+        booking.PaymentStatus is PaymentStatuses.Unpaid or PaymentStatuses.PartiallyPaid &&
+        booking.Status is BookingStatuses.Approved or BookingStatuses.Active;
+
+    private void StartDepositApproval(BookingRequest booking)
+    {
+        _depositBookingId = booking.Id;
+        _depositAmounts[booking.Id] = MinimumDeposit(booking.TotalAmount);
+        _errors.Remove(booking.Id);
+        _successMessages.Remove(booking.Id);
+        _expandedIds.Add(booking.Id);
+    }
+
+    private async Task ApproveForFullPaymentAsync(int id)
+    {
+        _processingId = id;
+        _errors.Remove(id);
+        _successMessages.Remove(id);
+        _depositBookingId = null;
+        StateHasChanged();
+
+        var note = _statusNotes.TryGetValue(id, out var n) ? n : null;
+        var result = await BookingService.ApproveForFullPaymentAsync(id, note, SiteBaseUrl);
+
+        if (!result.Succeeded)
+        {
+            _errors[id] = result.ErrorMessage ?? "Approval failed.";
+            _processingId = null;
+            return;
+        }
+
+        if (!string.IsNullOrWhiteSpace(result.PaymentUrl))
+        {
+            _paymentUrls[id] = result.PaymentUrl;
+            _successMessages[id] = string.IsNullOrWhiteSpace(result.EmailWarning)
+                ? $"Approved. Payment link emailed to {GuestEmailFor(id)}."
+                : result.EmailWarning;
+        }
+
+        await ReloadAsync();
+        _processingId = null;
+    }
+
+    private async Task ApproveWithDepositAsync(int id)
+    {
+        _processingId = id;
+        _errors.Remove(id);
+        _successMessages.Remove(id);
+        StateHasChanged();
+
+        if (!_depositAmounts.TryGetValue(id, out var depositAmount))
+        {
+            _errors[id] = "Enter a deposit amount.";
+            _processingId = null;
+            return;
+        }
+
+        var note = _statusNotes.TryGetValue(id, out var n) ? n : null;
+        var result = await BookingService.ApproveWithDepositAsync(id, depositAmount, note, SiteBaseUrl);
+
+        if (!result.Succeeded)
+        {
+            _errors[id] = result.ErrorMessage ?? "Deposit approval failed.";
+            _processingId = null;
+            return;
+        }
+
+        _depositBookingId = null;
+        if (!string.IsNullOrWhiteSpace(result.PaymentUrl))
+        {
+            _paymentUrls[id] = result.PaymentUrl;
+            _successMessages[id] = string.IsNullOrWhiteSpace(result.EmailWarning)
+                ? $"Approved with deposit. Link emailed to {GuestEmailFor(id)}."
+                : result.EmailWarning;
+        }
+
+        await ReloadAsync();
+        _processingId = null;
+    }
+
+    private async Task SendBalanceLinkAsync(int id)
+    {
+        _processingId = id;
+        _errors.Remove(id);
+        _successMessages.Remove(id);
+        StateHasChanged();
+
+        var result = await BookingService.CreateBalancePaymentLinkAsync(id, SiteBaseUrl);
+
+        if (!result.Succeeded)
+        {
+            _errors[id] = result.ErrorMessage ?? "Could not create balance link.";
+            _processingId = null;
+            return;
+        }
+
+        if (!string.IsNullOrWhiteSpace(result.PayUrl))
+        {
+            _paymentUrls[id] = result.PayUrl;
+            _successMessages[id] = string.IsNullOrWhiteSpace(result.EmailWarning)
+                ? $"Balance link emailed to {GuestEmailFor(id)}."
+                : result.EmailWarning;
+        }
+
+        await ReloadAsync();
+        _processingId = null;
+    }
+
+    private async Task SyncPaymentFromStripeAsync(int id)
+    {
+        _processingId = id;
+        _errors.Remove(id);
+        _successMessages.Remove(id);
+        StateHasChanged();
+
+        var result = await BookingService.SyncPaymentFromStripeAsync(id);
+
+        if (!result.Succeeded)
+        {
+            _errors[id] = result.ErrorMessage ?? "Could not refresh payment status.";
+            _processingId = null;
+            return;
+        }
+
+        _successMessages[id] = "Payment status updated from Stripe.";
+        await ReloadAsync();
+        _processingId = null;
+    }
+
+    private string GuestEmailFor(int bookingId) =>
+        _all.FirstOrDefault(b => b.Id == bookingId)?.GuestEmail ?? "guest";
+
+    private IReadOnlyList<GuestEmailTemplateModel> GetTemplatesFor(BookingRequest booking) =>
+        _emailTemplates
+            .Where(t => t.PropertySlug == "" || t.PropertySlug == booking.PropertySlug)
+            .OrderBy(t => TemplateCategoryOrder(t.Category))
+            .ThenBy(t => t.SortOrder)
+            .ThenBy(t => t.Title)
+            .ToList();
+
+    private static int TemplateCategoryOrder(string category) => category switch
+    {
+        GuestEmailTemplateCategories.CheckIn => 0,
+        GuestEmailTemplateCategories.CheckOut => 1,
+        GuestEmailTemplateCategories.Payment => 2,
+        GuestEmailTemplateCategories.Welcome => 3,
+        _ => 9,
+    };
+
+    private void InsertTemplate(BookingRequest booking, GuestEmailTemplateModel template)
+    {
+        var context = BuildRenderContext(booking);
+        _guestEmailMessages[booking.Id] = GuestTemplates.Render(template.Body, context);
+        if (!string.IsNullOrWhiteSpace(template.EmailSubject))
+            _guestEmailSubjects[booking.Id] = GuestTemplates.Render(template.EmailSubject, context);
+        else
+            _guestEmailSubjects.Remove(booking.Id);
+
+        _expandedIds.Add(booking.Id);
+        _errors.Remove(booking.Id);
+    }
+
+    private GuestEmailRenderContext BuildRenderContext(BookingRequest booking)
+    {
+        var property = PricingService.GetProperty(booking.PropertySlug);
+        var displayName = property?.DisplayName ?? FormatPropertyName(booking.PropertySlug);
+        _paymentUrls.TryGetValue(booking.Id, out var payUrl);
+
+        return new GuestEmailRenderContext(
+            booking.GuestFullName,
+            booking.GuestEmail,
+            booking.BookingNumber,
+            displayName,
+            booking.CheckIn,
+            booking.CheckOut,
+            booking.NightCount,
+            booking.TotalAmount,
+            payUrl);
+    }
+
+    private string GetGuestEmailPreview(BookingRequest booking)
+    {
+        if (_emailWrapperSettings is null)
+            return "Loading preview…";
+
+        if (!_guestEmailMessages.TryGetValue(booking.Id, out var message) || string.IsNullOrWhiteSpace(message))
+            return "(Your message will appear here between the header and footer.)";
+
+        _paymentUrls.TryGetValue(booking.Id, out var payUrl);
+        var property = PricingService.GetProperty(booking.PropertySlug);
+        var displayName = property?.DisplayName ?? FormatPropertyName(booking.PropertySlug);
+
+        var payload = new BookingGuestMessageEmailPayload(
+            booking.BookingNumber,
+            displayName,
+            booking.GuestFullName,
+            booking.GuestEmail,
+            booking.CheckIn,
+            booking.CheckOut,
+            booking.NightCount,
+            booking.TotalAmount,
+            message,
+            PayUrl: payUrl);
+
+        return EmailWrapper.ComposeFullBody(message, payload, _emailWrapperSettings);
+    }
+
+    private async Task CopyPayUrlAsync(string payUrl) =>
+        await Js.InvokeVoidAsync("navigator.clipboard.writeText", payUrl);
+
+    private async Task SendGuestEmailAsync(int id)
+    {
+        _emailSendingId = id;
+        _errors.Remove(id);
+        _emailSuccessMessages.Remove(id);
+        StateHasChanged();
+
+        if (!_guestEmailMessages.TryGetValue(id, out var message))
+        {
+            _errors[id] = "Enter a message before sending.";
+            _emailSendingId = null;
+            return;
+        }
+
+        var result = await BookingService.SendGuestEmailAsync(
+            id,
+            message,
+            _guestEmailSubjects.TryGetValue(id, out var subject) ? subject : null);
+
+        if (!result.Succeeded)
+        {
+            _errors[id] = result.ErrorMessage ?? "Email could not be sent.";
+            _emailSendingId = null;
+            return;
+        }
+
+        _emailSuccessMessages[id] = $"Email sent to {GuestEmailFor(id)}.";
+        _guestEmailMessages[id] = "";
+        _emailSendingId = null;
     }
 
     private async Task UpdateStatusAsync(int id, string status)
@@ -328,21 +900,43 @@
     }
 
     private string TabClass(int index) =>
-        $"mgmt-tab{(_tabIndex == index ? " is-active" : "")}";
+        $"bk-tab{(_tabIndex == index ? " is-active" : "")}";
 
     private static string StatusCardClass(string status) => status switch
     {
-        BookingStatuses.Pending => "mgmt-card--pending",
-        BookingStatuses.Approved => "mgmt-card--approved",
-        BookingStatuses.Active => "mgmt-card--active",
-        BookingStatuses.Denied => "mgmt-card--denied",
-        BookingStatuses.Cancelled => "mgmt-card--denied",
-        BookingStatuses.Ended => "mgmt-card--ended",
+        BookingStatuses.Pending => "bk-card--pending",
+        BookingStatuses.Approved => "bk-card--approved",
+        BookingStatuses.Active => "bk-card--active",
+        BookingStatuses.Denied => "bk-card--denied",
+        BookingStatuses.Cancelled => "bk-card--denied",
+        BookingStatuses.Ended => "bk-card--ended",
         _ => ""
     };
 
+    private static string PaymentBadgeClass(string status) => status switch
+    {
+        PaymentStatuses.Paid => "bk-pay-badge--paid",
+        PaymentStatuses.PartiallyPaid => "bk-pay-badge--partial",
+        PaymentStatuses.Refunded => "bk-pay-badge--refunded",
+        _ => "bk-pay-badge--unpaid"
+    };
+
+    private static string FormatStayStatus(BookingRequest b) => b.Status switch
+    {
+        BookingStatuses.Active => "In progress",
+        BookingStatuses.Approved => "Approved",
+        BookingStatuses.Pending => "Pending",
+        BookingStatuses.Ended => "Completed",
+        BookingStatuses.Cancelled => "Cancelled",
+        BookingStatuses.Denied => "Denied",
+        _ => b.Status
+    };
+
     private static string FormatDateRange(DateOnly checkIn, DateOnly checkOut) =>
-        $"{checkIn:MMM d, yyyy} → {checkOut:MMM d, yyyy}";
+        $"{checkIn:MMM d} → {checkOut:MMM d, yyyy}";
+
+    private static string FormatShortDate(DateOnly date) =>
+        date.ToString("MMM d");
 
     private static string FormatPropertyName(string slug) =>
         slug.Replace('-', ' ') is var s
@@ -351,8 +945,9 @@
 
     private static string FormatPaymentStatus(string status) => status switch
     {
-        PaymentStatuses.PartiallyPaid => "Partially paid",
-        PaymentStatuses.Paid => "Paid in full",
-        _ => status
+        PaymentStatuses.PartiallyPaid => "Partial",
+        PaymentStatuses.Paid => "Paid",
+        PaymentStatuses.Refunded => "Refunded",
+        _ => "Unpaid"
     };
 }

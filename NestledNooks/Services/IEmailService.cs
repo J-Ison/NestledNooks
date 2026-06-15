@@ -12,6 +12,10 @@ public interface IEmailService
 
     Task SendBookingStatusChangedEmailsAsync(BookingStatusEmailPayload payload);
 
+    Task SendBookingPaymentRequestEmailAsync(BookingPaymentEmailPayload payload);
+
+    Task SendBookingGuestMessageEmailAsync(BookingGuestMessageEmailPayload payload);
+
     Task SendTemporaryPasswordEmailAsync(
         string toEmail,
         string userName,

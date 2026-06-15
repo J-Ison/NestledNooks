@@ -178,7 +178,8 @@
                 UserName = model.Email,
                 Email = model.Email,
                 Nickname = nicknameResult.Normalized,
-                PhoneNumber = model.PhoneNumber
+                PhoneNumber = model.PhoneNumber,
+                RegisteredAtUtc = DateTime.UtcNow,
             };
 
             var createResult = await UserManager.CreateAsync(user, model.Password!);

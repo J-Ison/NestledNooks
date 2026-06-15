@@ -20,6 +20,10 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<PropertyEquipmentItem> PropertyEquipmentItems => Set<PropertyEquipmentItem>();
     public DbSet<PropertyCustomField> PropertyCustomFields => Set<PropertyCustomField>();
     public DbSet<PropertyNightlyRate> PropertyNightlyRates => Set<PropertyNightlyRate>();
+    public DbSet<BookingPaymentLink> BookingPaymentLinks => Set<BookingPaymentLink>();
+    public DbSet<GuestEmailTemplate> GuestEmailTemplates => Set<GuestEmailTemplate>();
+    public DbSet<AdminBookingSeen> AdminBookingSeens => Set<AdminBookingSeen>();
+    public DbSet<AdminUserNotificationState> AdminUserNotificationStates => Set<AdminUserNotificationState>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -48,6 +52,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             e.Property(x => x.PetFee).HasPrecision(18, 2);
             e.Property(x => x.Subtotal).HasPrecision(18, 2);
             e.Property(x => x.TotalAmount).HasPrecision(18, 2);
+            e.Property(x => x.RequiredDepositAmount).HasPrecision(18, 2);
 
             e.HasOne(x => x.User)
                 .WithMany()
@@ -163,6 +168,8 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             e.Property(x => x.Id).ValueGeneratedNever();
             e.Property(x => x.MainQrCodeUrl).HasMaxLength(500);
             e.Property(x => x.DeerfieldGuestGuideQrCodeUrl).HasMaxLength(500);
+            e.Property(x => x.GuestEmailHeaderTemplate).HasMaxLength(2000);
+            e.Property(x => x.GuestEmailFooterTemplate).HasMaxLength(4000);
         });
 
         builder.Entity<PropertyContact>(e =>
@@ -200,6 +207,55 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             e.Property(x => x.PropertySlug).HasMaxLength(120).IsRequired();
             e.Property(x => x.Rate).HasPrecision(18, 2);
             e.HasIndex(x => new { x.PropertySlug, x.Date }).IsUnique();
+        });
+
+        builder.Entity<BookingPaymentLink>(e =>
+        {
+            e.Property(x => x.Token).HasMaxLength(64).IsRequired();
+            e.HasIndex(x => x.Token).IsUnique();
+            e.Property(x => x.Purpose).HasMaxLength(20).IsRequired();
+            e.Property(x => x.Amount).HasPrecision(18, 2);
+            e.Property(x => x.StripeCheckoutSessionId).HasMaxLength(200);
+
+            e.HasOne(x => x.BookingRequest)
+                .WithMany()
+                .HasForeignKey(x => x.BookingRequestId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<GuestEmailTemplate>(e =>
+        {
+            e.Property(x => x.PropertySlug).HasMaxLength(120).IsRequired();
+            e.Property(x => x.Category).HasMaxLength(40).IsRequired();
+            e.Property(x => x.Title).HasMaxLength(120).IsRequired();
+            e.Property(x => x.EmailSubject).HasMaxLength(200);
+            e.Property(x => x.Body).HasMaxLength(8000).IsRequired();
+            e.HasIndex(x => new { x.PropertySlug, x.SortOrder });
+        });
+
+        builder.Entity<AdminBookingSeen>(e =>
+        {
+            e.HasKey(x => new { x.UserId, x.BookingRequestId });
+
+            e.HasOne(x => x.User)
+                .WithMany()
+                .HasForeignKey(x => x.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            e.HasOne(x => x.BookingRequest)
+                .WithMany()
+                .HasForeignKey(x => x.BookingRequestId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<AdminUserNotificationState>(e =>
+        {
+            e.HasKey(x => x.UserId);
+
+            e.HasOne(x => x.User)
+                .WithMany()
+                .HasForeignKey(x => x.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
     }
 }

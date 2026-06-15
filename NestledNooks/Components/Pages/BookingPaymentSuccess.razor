@@ -1,0 +1,87 @@
+@page "/booking/payment/success"
+@rendermode InteractiveServer
+
+@using NestledNooks.Services
+@inject IStripePaymentService Stripe
+
+<PageTitle>Payment received · @SiteBranding.Name</PageTitle>
+
+<div class="guide-page">
+    <header class="guide-hero">
+        <div class="wrap guide-hero-inner">
+            <p class="guide-hero-eyebrow">@SiteBranding.Name</p>
+            <h1 class="guide-hero-title">@(_confirmed ? "Thank you — payment received" : "Confirming your payment…")</h1>
+            <p class="guide-hero-lead">
+                @if (_loading)
+                {
+                    <span>Please wait while we confirm your payment.</span>
+                }
+                else if (_confirmed)
+                {
+                    <span>
+                        Your payment was recorded successfully.
+                        @if (!string.IsNullOrWhiteSpace(_bookingNumber))
+                        {
+                            <span> Reference: <strong>@_bookingNumber</strong>.</span>
+                        }
+                    </span>
+                }
+                else
+                {
+                    <span>@(_error ?? "We could not confirm your payment yet.")</span>
+                }
+            </p>
+        </div>
+    </header>
+
+    <main class="wrap guide-main">
+        <article class="guide-card">
+            @if (_loading)
+            {
+                <p class="guide-card-subtitle">This usually takes a few seconds.</p>
+            }
+            else if (_confirmed)
+            {
+                <p class="guide-card-subtitle">
+                    You can close this window. Your host will see the updated payment status in Manage bookings.
+                </p>
+            }
+            else
+            {
+                <p class="guide-card-subtitle">
+                    If you completed checkout, your card may still have been charged. Contact your host or
+                    <a class="guide-link" href="/contact">reach out to us</a> with your booking reference.
+                </p>
+            }
+            <p>
+                <a class="guide-link" href="/">Return to home</a>
+            </p>
+        </article>
+    </main>
+</div>
+
+@code {
+    [SupplyParameterFromQuery(Name = "session_id")]
+    public string? SessionId { get; set; }
+
+    private bool _loading = true;
+    private bool _confirmed;
+    private string? _bookingNumber;
+    private string? _error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (string.IsNullOrWhiteSpace(SessionId))
+        {
+            _loading = false;
+            _error = "Missing payment confirmation. If you paid, contact your host.";
+            return;
+        }
+
+        var result = await Stripe.ConfirmCheckoutSessionAsync(SessionId);
+        _loading = false;
+        _confirmed = result.Succeeded;
+        _bookingNumber = result.BookingNumber;
+        _error = result.ErrorMessage;
+    }
+}

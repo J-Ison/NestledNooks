@@ -57,6 +57,8 @@ builder.Services.Configure<BookingOptions>(builder.Configuration.GetSection(Book
 builder.Services.Configure<PriceLabsOptions>(builder.Configuration.GetSection(PriceLabsOptions.SectionName));
 builder.Services.Configure<GuestWifiOptions>(builder.Configuration.GetSection(GuestWifiOptions.SectionName));
 builder.Services.Configure<AdminOptions>(builder.Configuration.GetSection(AdminOptions.SectionName));
+builder.Services.Configure<StripeOptions>(builder.Configuration.GetSection(StripeOptions.SectionName));
+builder.Services.AddScoped<IStripePaymentService, StripePaymentService>();
 builder.Services.AddScoped<BookingPricingService>();
 builder.Services.AddScoped<IPriceLabsPricingSyncService, PriceLabsPricingSyncService>();
 builder.Services.AddScoped<IBookingAvailabilityService, BookingAvailabilityService>();
@@ -71,6 +73,10 @@ builder.Services.AddScoped<IMessagingService, MessagingService>();
 builder.Services.AddScoped<IContactInquiryService, ContactInquiryService>();
 builder.Services.AddScoped<IQrCodeService, QrCodeService>();
 builder.Services.AddScoped<IGuestWifiService, GuestWifiService>();
+builder.Services.AddScoped<IGuestEmailTemplateService, GuestEmailTemplateService>();
+builder.Services.AddScoped<IGuestEmailWrapperService, GuestEmailWrapperService>();
+builder.Services.AddSingleton<AdminNotificationStateNotifier>();
+builder.Services.AddScoped<IAdminNotificationService, AdminNotificationService>();
 builder.Services.AddScoped<IPropertyOperationsService, PropertyOperationsService>();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddDistributedMemoryCache();
@@ -174,6 +180,17 @@ _ = Task.Run(async () =>
         catch (Exception ex)
         {
             logger.LogWarning(ex, "Property seed skipped.");
+        }
+
+        try
+        {
+            await scope.ServiceProvider.GetRequiredService<IGuestEmailTemplateService>()
+                .EnsureSeededAsync()
+                .ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Guest email template seed skipped.");
         }
 
         try

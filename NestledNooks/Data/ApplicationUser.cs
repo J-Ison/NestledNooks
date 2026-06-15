@@ -14,4 +14,6 @@ public class ApplicationUser : IdentityUser
     [Phone]
     [MaxLength(20)]
     public override string? PhoneNumber { get; set; }
+
+    public DateTime RegisteredAtUtc { get; set; } = DateTime.UtcNow;
 }

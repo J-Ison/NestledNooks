@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using NestledNooks.Data;
 using NestledNooks.Models;
 
@@ -11,6 +12,9 @@ public sealed class BookingRequestService : IBookingRequestService
     private readonly IEmailService _email;
     private readonly IBookingAvailabilityService _availability;
     private readonly BookingPricingService _pricing;
+    private readonly IStripePaymentService _stripe;
+    private readonly IGuestEmailWrapperService _guestEmailWrapper;
+    private readonly StripeOptions _stripeOptions;
     private readonly ILogger<BookingRequestService> _logger;
 
     public BookingRequestService(
@@ -18,12 +22,18 @@ public sealed class BookingRequestService : IBookingRequestService
         IEmailService email,
         IBookingAvailabilityService availability,
         BookingPricingService pricing,
+        IStripePaymentService stripe,
+        IGuestEmailWrapperService guestEmailWrapper,
+        IOptions<StripeOptions> stripeOptions,
         ILogger<BookingRequestService> logger)
     {
         _db = db;
         _email = email;
         _availability = availability;
         _pricing = pricing;
+        _stripe = stripe;
+        _guestEmailWrapper = guestEmailWrapper;
+        _stripeOptions = stripeOptions.Value;
         _logger = logger;
     }
 
@@ -248,6 +258,276 @@ public sealed class BookingRequestService : IBookingRequestService
         return new BookingStatusUpdateResult(true, null);
     }
 
+    public async Task<BookingApprovalResult> ApproveForFullPaymentAsync(
+        int bookingId,
+        string? statusNote,
+        string siteBaseUrl,
+        CancellationToken cancellationToken = default)
+    {
+        if (!_stripe.IsConfigured)
+            return new BookingApprovalResult(false, "Stripe is not configured. Add API keys under Payment settings.", null);
+
+        var entity = await LoadBookingForUpdateAsync(bookingId, cancellationToken).ConfigureAwait(false);
+        if (entity is null)
+            return new BookingApprovalResult(false, "Booking not found.", null);
+
+        if (entity.Status != BookingStatuses.Pending)
+            return new BookingApprovalResult(false, "Only pending requests can be approved for payment.", null);
+
+        entity.RequiredDepositAmount = null;
+        entity.DepositNonRefundable = false;
+
+        var statusResult = await ApplyStatusChangeAsync(entity, BookingStatuses.Approved, statusNote, cancellationToken)
+            .ConfigureAwait(false);
+        if (!statusResult.Succeeded)
+            return new BookingApprovalResult(false, statusResult.ErrorMessage, null);
+
+        var linkResult = await _stripe.CreatePaymentLinkAsync(
+            entity,
+            BookingPaymentPurposes.Full,
+            entity.TotalAmount,
+            siteBaseUrl,
+            cancellationToken).ConfigureAwait(false);
+
+        if (!linkResult.Succeeded || linkResult.PayUrl is null)
+            return new BookingApprovalResult(false, linkResult.ErrorMessage ?? "Could not create payment link.", null);
+
+        var emailWarning = await SendPaymentEmailAsync(
+            entity,
+            linkResult.PayUrl,
+            entity.TotalAmount,
+            "Amount due now",
+            nonRefundable: false).ConfigureAwait(false);
+
+        return new BookingApprovalResult(true, null, linkResult.PayUrl, emailWarning);
+    }
+
+    public async Task<BookingApprovalResult> ApproveWithDepositAsync(
+        int bookingId,
+        decimal depositAmount,
+        string? statusNote,
+        string siteBaseUrl,
+        CancellationToken cancellationToken = default)
+    {
+        if (!_stripe.IsConfigured)
+            return new BookingApprovalResult(false, "Stripe is not configured. Add API keys under Payment settings.", null);
+
+        var entity = await LoadBookingForUpdateAsync(bookingId, cancellationToken).ConfigureAwait(false);
+        if (entity is null)
+            return new BookingApprovalResult(false, "Booking not found.", null);
+
+        if (entity.Status != BookingStatuses.Pending)
+            return new BookingApprovalResult(false, "Only pending requests can be approved with a deposit.", null);
+
+        depositAmount = decimal.Round(depositAmount, 2, MidpointRounding.AwayFromZero);
+        var minimumDeposit = CalculateMinimumDeposit(entity.TotalAmount);
+        if (depositAmount < minimumDeposit)
+        {
+            return new BookingApprovalResult(
+                false,
+                $"Deposit must be at least {minimumDeposit:C2} ({_stripeOptions.DefaultMinimumDepositPercent}% of the booking total).",
+                null);
+        }
+
+        if (depositAmount >= entity.TotalAmount)
+        {
+            return new BookingApprovalResult(
+                false,
+                "Deposit must be less than the full total. Use full payment approval instead.",
+                null);
+        }
+
+        entity.RequiredDepositAmount = depositAmount;
+        entity.DepositNonRefundable = true;
+
+        var statusResult = await ApplyStatusChangeAsync(entity, BookingStatuses.Approved, statusNote, cancellationToken)
+            .ConfigureAwait(false);
+        if (!statusResult.Succeeded)
+            return new BookingApprovalResult(false, statusResult.ErrorMessage, null);
+
+        var linkResult = await _stripe.CreatePaymentLinkAsync(
+            entity,
+            BookingPaymentPurposes.Deposit,
+            depositAmount,
+            siteBaseUrl,
+            cancellationToken).ConfigureAwait(false);
+
+        if (!linkResult.Succeeded || linkResult.PayUrl is null)
+            return new BookingApprovalResult(false, linkResult.ErrorMessage ?? "Could not create payment link.", null);
+
+        var emailWarning = await SendPaymentEmailAsync(
+            entity,
+            linkResult.PayUrl,
+            depositAmount,
+            "Non-refundable deposit due now",
+            nonRefundable: true).ConfigureAwait(false);
+
+        return new BookingApprovalResult(true, null, linkResult.PayUrl, emailWarning);
+    }
+
+    public async Task<BookingPaymentLinkResult> CreateBalancePaymentLinkAsync(
+        int bookingId,
+        string siteBaseUrl,
+        CancellationToken cancellationToken = default)
+    {
+        if (!_stripe.IsConfigured)
+            return new BookingPaymentLinkResult(false, "Stripe is not configured.", null, null);
+
+        var entity = await _db.BookingRequests
+            .AsNoTracking()
+            .FirstOrDefaultAsync(b => b.Id == bookingId, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (entity is null)
+            return new BookingPaymentLinkResult(false, "Booking not found.", null, null);
+
+        if (entity.Status is not (BookingStatuses.Approved or BookingStatuses.Active))
+            return new BookingPaymentLinkResult(false, "Booking is not approved.", null, null);
+
+        var balance = decimal.Round(entity.TotalAmount - entity.AmountPaid, 2, MidpointRounding.AwayFromZero);
+        if (balance <= 0)
+            return new BookingPaymentLinkResult(false, "No balance remaining on this booking.", null, null);
+
+        var linkResult = await _stripe.CreatePaymentLinkAsync(
+            entity,
+            BookingPaymentPurposes.Balance,
+            balance,
+            siteBaseUrl,
+            cancellationToken).ConfigureAwait(false);
+
+        if (!linkResult.Succeeded || linkResult.PayUrl is null)
+            return linkResult;
+
+        var emailWarning = await SendPaymentEmailAsync(
+            entity,
+            linkResult.PayUrl,
+            balance,
+            "Remaining balance due",
+            nonRefundable: false).ConfigureAwait(false);
+
+        return linkResult with { EmailWarning = emailWarning };
+    }
+
+    public async Task<string?> GetLatestPaymentUrlAsync(
+        int bookingId,
+        CancellationToken cancellationToken = default)
+    {
+        var urls = await GetLatestPaymentUrlsAsync([bookingId], cancellationToken).ConfigureAwait(false);
+        return urls.TryGetValue(bookingId, out var url) ? url : null;
+    }
+
+    public async Task<IReadOnlyDictionary<int, string>> GetLatestPaymentUrlsAsync(
+        IEnumerable<int> bookingIds,
+        CancellationToken cancellationToken = default)
+    {
+        var ids = bookingIds.Distinct().ToList();
+        if (ids.Count == 0)
+            return new Dictionary<int, string>();
+
+        var links = await _db.BookingPaymentLinks
+            .AsNoTracking()
+            .Where(l => ids.Contains(l.BookingRequestId) && l.CompletedAtUtc == null)
+            .OrderByDescending(l => l.CreatedAtUtc)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        var result = new Dictionary<int, string>();
+        foreach (var link in links)
+        {
+            if (!result.ContainsKey(link.BookingRequestId))
+                result[link.BookingRequestId] = $"/pay/{link.Token}";
+        }
+
+        return result;
+    }
+
+    public async Task<BookingStatusUpdateResult> SendGuestEmailAsync(
+        int bookingId,
+        string message,
+        string? emailSubject = null,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(message))
+            return new BookingStatusUpdateResult(false, "Enter a message before sending.");
+
+        var entity = await _db.BookingRequests
+            .AsNoTracking()
+            .FirstOrDefaultAsync(b => b.Id == bookingId, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (entity is null)
+            return new BookingStatusUpdateResult(false, "Booking not found.");
+
+        var property = _pricing.GetProperty(entity.PropertySlug);
+        var displayName = property?.DisplayName ?? entity.PropertySlug;
+        var payUrl = await GetLatestPaymentUrlAsync(bookingId, cancellationToken).ConfigureAwait(false);
+
+        var payload = new BookingGuestMessageEmailPayload(
+            entity.BookingNumber,
+            displayName,
+            entity.GuestFullName,
+            entity.GuestEmail,
+            entity.CheckIn,
+            entity.CheckOut,
+            entity.NightCount,
+            entity.TotalAmount,
+            message.Trim(),
+            emailSubject,
+            payUrl);
+
+        try
+        {
+            var fullBody = await _guestEmailWrapper.ComposeFullBodyAsync(message.Trim(), payload, cancellationToken)
+                .ConfigureAwait(false);
+
+            await _email.SendBookingGuestMessageEmailAsync(payload with { Message = fullBody })
+                .ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Guest email failed for booking {BookingNumber}.", entity.BookingNumber);
+            return new BookingStatusUpdateResult(
+                false,
+                "Could not send email. Check SMTP settings (Smtp:Password in user secrets).");
+        }
+
+        return new BookingStatusUpdateResult(true, null);
+    }
+
+    public async Task<BookingStatusUpdateResult> SyncPaymentFromStripeAsync(
+        int bookingId,
+        CancellationToken cancellationToken = default)
+    {
+        if (!_stripe.IsConfigured)
+            return new BookingStatusUpdateResult(false, "Stripe is not configured.");
+
+        var sessionId = await _db.BookingPaymentLinks
+            .AsNoTracking()
+            .Where(l => l.BookingRequestId == bookingId && l.CompletedAtUtc == null)
+            .OrderByDescending(l => l.CreatedAtUtc)
+            .Select(l => l.StripeCheckoutSessionId)
+            .FirstOrDefaultAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        if (string.IsNullOrWhiteSpace(sessionId))
+        {
+            return new BookingStatusUpdateResult(
+                false,
+                "No open Stripe checkout session found for this booking.");
+        }
+
+        var result = await _stripe.ConfirmCheckoutSessionAsync(sessionId, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (!result.Succeeded)
+            return new BookingStatusUpdateResult(false, result.ErrorMessage ?? "Could not sync payment from Stripe.");
+
+        if (result.PaymentApplied)
+            return new BookingStatusUpdateResult(true, null);
+
+        return new BookingStatusUpdateResult(true, null);
+    }
+
     public async Task<BookingStatusUpdateResult> UpdateStatusAsync(
         int bookingId,
         string newStatus,
@@ -257,13 +537,33 @@ public sealed class BookingRequestService : IBookingRequestService
         if (!IsAllowedTransition(newStatus))
             return new BookingStatusUpdateResult(false, "Invalid status.");
 
-        var entity = await _db.BookingRequests
-            .FirstOrDefaultAsync(b => b.Id == bookingId, cancellationToken)
-            .ConfigureAwait(false);
+        if (newStatus == BookingStatuses.Approved)
+        {
+            return new BookingStatusUpdateResult(
+                false,
+                "Use Approve & request payment or Approve with deposit for approved bookings.");
+        }
 
+        var entity = await LoadBookingForUpdateAsync(bookingId, cancellationToken).ConfigureAwait(false);
         if (entity is null)
             return new BookingStatusUpdateResult(false, "Booking not found.");
 
+        return await ApplyStatusChangeAsync(entity, newStatus, statusNote, cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task<BookingRequest?> LoadBookingForUpdateAsync(
+        int bookingId,
+        CancellationToken cancellationToken) =>
+        await _db.BookingRequests
+            .FirstOrDefaultAsync(b => b.Id == bookingId, cancellationToken)
+            .ConfigureAwait(false);
+
+    private async Task<BookingStatusUpdateResult> ApplyStatusChangeAsync(
+        BookingRequest entity,
+        string newStatus,
+        string? statusNote,
+        CancellationToken cancellationToken)
+    {
         var oldStatus = entity.Status;
 
         if (newStatus is BookingStatuses.Approved or BookingStatuses.Active)
@@ -303,12 +603,54 @@ public sealed class BookingRequestService : IBookingRequestService
                 newStatus,
                 entity.StatusNote)).ConfigureAwait(false);
         }
-        catch
+        catch (Exception ex)
         {
-            // Status saved even if email fails
+            _logger.LogWarning(ex, "Status updated but notification email failed for {BookingNumber}.", entity.BookingNumber);
         }
 
         return new BookingStatusUpdateResult(true, null);
+    }
+
+    private async Task<string?> SendPaymentEmailAsync(
+        BookingRequest entity,
+        string paymentUrl,
+        decimal amountDue,
+        string paymentLabel,
+        bool nonRefundable)
+    {
+        var property = _pricing.GetProperty(entity.PropertySlug);
+        var displayName = property?.DisplayName ?? entity.PropertySlug;
+
+        try
+        {
+            await _email.SendBookingPaymentRequestEmailAsync(new BookingPaymentEmailPayload(
+                entity.BookingNumber,
+                displayName,
+                entity.GuestFullName,
+                entity.GuestEmail,
+                entity.CheckIn,
+                entity.CheckOut,
+                amountDue,
+                entity.TotalAmount,
+                paymentUrl,
+                paymentLabel,
+                nonRefundable)).ConfigureAwait(false);
+
+            return null;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Payment link created but email failed for {BookingNumber}.", entity.BookingNumber);
+            return
+                "Approved, but the payment email could not be sent (check SMTP settings). " +
+                "Copy the pay link below and send it to the guest manually.";
+        }
+    }
+
+    private decimal CalculateMinimumDeposit(decimal totalAmount)
+    {
+        var percent = Math.Clamp(_stripeOptions.DefaultMinimumDepositPercent, 1, 100);
+        return decimal.Round(totalAmount * percent / 100m, 2, MidpointRounding.AwayFromZero);
     }
 
     private static bool IsAllowedTransition(string status) =>

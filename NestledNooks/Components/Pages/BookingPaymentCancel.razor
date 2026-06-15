@@ -1,0 +1,59 @@
+@page "/booking/payment/cancel"
+@rendermode InteractiveServer
+
+@using NestledNooks.Services
+@inject IBookingRequestService BookingService
+@inject NavigationManager Navigation
+
+<PageTitle>Payment cancelled · @SiteBranding.Name</PageTitle>
+
+<div class="guide-page">
+    <header class="guide-hero">
+        <div class="wrap guide-hero-inner">
+            <p class="guide-hero-eyebrow">@SiteBranding.Name</p>
+            <h1 class="guide-hero-title">Payment not completed</h1>
+            <p class="guide-hero-lead">
+                You left checkout before paying. No charge was made.
+                @if (!string.IsNullOrWhiteSpace(_payUrl))
+                {
+                    <span> You can try again using the link below or the email we sent you.</span>
+                }
+            </p>
+        </div>
+    </header>
+
+    <main class="wrap guide-main">
+        <article class="guide-card">
+            @if (!string.IsNullOrWhiteSpace(_payUrl))
+            {
+                <p>
+                    <a class="guide-link" href="@_payUrl">Return to payment</a>
+                </p>
+            }
+            else
+            {
+                <p class="guide-card-subtitle">
+                    Check your email for the payment link, or contact us if you need a new one.
+                </p>
+            }
+            <p>
+                <a class="guide-link" href="/contact">Contact us</a>
+                ·
+                <a class="guide-link" href="/">Home</a>
+            </p>
+        </article>
+    </main>
+</div>
+
+@code {
+    [SupplyParameterFromQuery(Name = "token")]
+    public string? Token { get; set; }
+
+    private string? _payUrl;
+
+    protected override void OnInitialized()
+    {
+        if (!string.IsNullOrWhiteSpace(Token))
+            _payUrl = Navigation.ToAbsoluteUri($"/pay/{Token}").ToString();
+    }
+}

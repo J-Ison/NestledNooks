@@ -11,5 +11,11 @@ public class SiteSettings
     /// <summary>QR link for the Deerfield Retreat guest guide (print in house / share with guests).</summary>
     public string? DeerfieldGuestGuideQrCodeUrl { get; set; }
 
+    /// <summary>Prepended to every guest email from Manage bookings (supports {{tokens}}).</summary>
+    public string? GuestEmailHeaderTemplate { get; set; }
+
+    /// <summary>Appended to every guest email from Manage bookings (supports {{tokens}}).</summary>
+    public string? GuestEmailFooterTemplate { get; set; }
+
     public DateTime UpdatedAtUtc { get; set; }
 }

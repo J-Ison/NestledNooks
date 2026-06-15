@@ -2,9 +2,15 @@
 @using MudBlazor
 @using Microsoft.AspNetCore.Components.Routing
 @using Microsoft.AspNetCore.Components.Authorization
+@using System.Security.Claims
 @using NestledNooks.Data
+@using NestledNooks.Services
+@using Microsoft.Extensions.DependencyInjection
 
 @inject NavigationManager Nav
+@inject AuthenticationStateProvider AuthState
+@inject IServiceScopeFactory ScopeFactory
+@inject AdminNotificationStateNotifier NotificationNotifier
 
 @implements IDisposable
 
@@ -112,7 +118,13 @@
                             <MudNavLink Href="/account/messages"
                                         Icon="@Icons.Material.Filled.Mail"
                                         OnClick="@CloseDrawerLocal">
-                                Messages
+                                <span class="nn-nav-label">
+                                    Messages
+                                    @if (_summary?.UnreadMessages is > 0)
+                                    {
+                                        <span class="nn-nav-badge" aria-label="@($"{_summary.UnreadMessages} unread")">@FormatBadgeCount(_summary.UnreadMessages)</span>
+                                    }
+                                </span>
                             </MudNavLink>
 
                             <MudNavLink Href="/account/manage/settings"
@@ -130,13 +142,25 @@
                             <MudNavLink Href="/account/manage/bookings"
                                         Icon="@Icons.Material.Filled.CalendarMonth"
                                         OnClick="@CloseDrawerLocal">
-                                Manage bookings
+                                <span class="nn-nav-label">
+                                    Manage bookings
+                                    @if (_summary?.UnseenBookings is > 0)
+                                    {
+                                        <span class="nn-nav-badge" aria-label="@($"{_summary.UnseenBookings} unseen updates")">@FormatBadgeCount(_summary.UnseenBookings)</span>
+                                    }
+                                </span>
                             </MudNavLink>
 
                             <MudNavLink Href="/account/manage/properties"
                                         Icon="@Icons.Material.Filled.House"
                                         OnClick="@CloseDrawerLocal">
                                 Property contacts &amp; ops
+                            </MudNavLink>
+
+                            <MudNavLink Href="/account/manage/guest-messages"
+                                        Icon="@Icons.Material.Filled.Quickreply"
+                                        OnClick="@CloseDrawerLocal">
+                                Guest message templates
                             </MudNavLink>
                         </Authorized>
                     </AuthorizeView>
@@ -160,19 +184,37 @@
                             <MudNavLink Href="/account/manage/users"
                                         Icon="@Icons.Material.Filled.People"
                                         OnClick="@CloseDrawerLocal">
-                                Manage users
+                                <span class="nn-nav-label">
+                                    Manage users
+                                    @if (_summary?.NewUsers is > 0)
+                                    {
+                                        <span class="nn-nav-badge" aria-label="@($"{_summary.NewUsers} new users")">@FormatBadgeCount(_summary.NewUsers)</span>
+                                    }
+                                </span>
                             </MudNavLink>
 
                             <MudNavLink Href="/account/manage/contact"
                                         Icon="@Icons.Material.Filled.ContactMail"
                                         OnClick="@CloseDrawerLocal">
-                                Contact inquiries
+                                <span class="nn-nav-label">
+                                    Contact inquiries
+                                    @if (_summary?.NewContactInquiries is > 0)
+                                    {
+                                        <span class="nn-nav-badge" aria-label="@($"{_summary.NewContactInquiries} new inquiries")">@FormatBadgeCount(_summary.NewContactInquiries)</span>
+                                    }
+                                </span>
                             </MudNavLink>
 
                             <MudNavLink Href="/account/manage/qr-codes"
                                         Icon="@Icons.Material.Filled.QrCode2"
                                         OnClick="@CloseDrawerLocal">
                                 QR codes
+                            </MudNavLink>
+
+                            <MudNavLink Href="/account/manage/payments"
+                                        Icon="@Icons.Material.Filled.Payments"
+                                        OnClick="@CloseDrawerLocal">
+                                Payment settings
                             </MudNavLink>
                         </Authorized>
                     </AuthorizeView>
@@ -209,28 +251,71 @@
 
 @code {
     private bool _drawerOpen;
+    private string? _userId;
+    private AdminNotificationSummary? _summary;
 
     private void ToggleDrawer() => _drawerOpen = !_drawerOpen;
-    private void OnDrawerOpenChanged(bool open) => _drawerOpen = open;
+
+    private void OnDrawerOpenChanged(bool open)
+    {
+        _drawerOpen = open;
+        if (open)
+            _ = RefreshNotificationsAsync();
+    }
 
     private void CloseDrawerLocal() => _drawerOpen = false;
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
         Nav.LocationChanged += OnLocationChanged;
+        NotificationNotifier.Changed += OnNotificationsChanged;
+        await RefreshNotificationsAsync();
     }
 
     private void OnLocationChanged(object? sender, LocationChangedEventArgs args)
     {
-        InvokeAsync(() =>
+        InvokeAsync(async () =>
         {
             _drawerOpen = false;
+            await RefreshNotificationsAsync();
             StateHasChanged();
         });
     }
 
+    private void OnNotificationsChanged() =>
+        InvokeAsync(async () =>
+        {
+            await RefreshNotificationsAsync();
+            StateHasChanged();
+        });
+
+    private async Task RefreshNotificationsAsync()
+    {
+        var auth = await AuthState.GetAuthenticationStateAsync();
+        if (auth.User.Identity?.IsAuthenticated != true)
+        {
+            _userId = null;
+            _summary = null;
+            return;
+        }
+
+        _userId = auth.User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrEmpty(_userId))
+        {
+            _summary = null;
+            return;
+        }
+
+        await using var scope = ScopeFactory.CreateAsyncScope();
+        var adminNotifications = scope.ServiceProvider.GetRequiredService<IAdminNotificationService>();
+        _summary = await adminNotifications.GetSummaryAsync(_userId);
+    }
+
+    private static string FormatBadgeCount(int count) => count > 9 ? "9+" : count.ToString();
+
     public void Dispose()
     {
         Nav.LocationChanged -= OnLocationChanged;
+        NotificationNotifier.Changed -= OnNotificationsChanged;
     }
 }

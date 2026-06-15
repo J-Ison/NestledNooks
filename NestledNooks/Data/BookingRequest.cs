@@ -42,6 +42,11 @@ public sealed class BookingRequest
 
     public DateTime? PaymentReceivedAtUtc { get; set; }
 
+    /// <summary>When approved with deposit, the required non-refundable deposit amount.</summary>
+    public decimal? RequiredDepositAmount { get; set; }
+
+    public bool DepositNonRefundable { get; set; }
+
     public DateTime CreatedAtUtc { get; set; }
     public DateTime? StatusUpdatedAtUtc { get; set; }
 }

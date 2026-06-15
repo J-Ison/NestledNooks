@@ -1,0 +1,171 @@
+@page "/account/manage/payments"
+@layout NestledNooks.Components.Layout.MainLayout
+@rendermode InteractiveServer
+
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.Extensions.Options
+@using MudBlazor
+@using NestledNooks.Data
+@using NestledNooks.Services
+
+@attribute [Authorize(Roles = AppRoles.Owner)]
+
+@inject IStripePaymentService Stripe
+@inject IOptions<StripeOptions> StripeOptionsAccessor
+@inject NavigationManager Navigation
+
+<PageTitle>Payment settings · @SiteBranding.Name</PageTitle>
+
+<div class="mgmt-page">
+    <header class="mgmt-hero">
+        <div class="mgmt-wrap">
+            <p class="mgmt-hero-eyebrow">@SiteBranding.Name · Owner tools</p>
+            <h1 class="mgmt-hero-title">Payment settings</h1>
+            <p class="mgmt-hero-lead">
+                Stripe Checkout handles guest payments. Payouts go to your connected bank account in the
+                <a class="mgmt-link" href="https://dashboard.stripe.com/balance/overview" target="_blank" rel="noopener">Stripe Dashboard</a>.
+            </p>
+        </div>
+    </header>
+
+    <main class="mgmt-wrap mgmt-main">
+        <article class="mgmt-card">
+            <header class="mgmt-card-header">
+                <div class="mgmt-card-heading">
+                    <h2 class="mgmt-card-title">Stripe status</h2>
+                    <p class="mgmt-card-subtitle">Configured via user secrets or Azure App Settings</p>
+                </div>
+                <div class="mgmt-badges">
+                    @if (_options.IsConfigured)
+                    {
+                        <span class="mgmt-badge mgmt-badge--approved">Ready</span>
+                    }
+                    else
+                    {
+                        <span class="mgmt-badge mgmt-badge--pending">Not configured</span>
+                    }
+                    @if (_options.IsConfigured && _options.IsTestMode)
+                    {
+                        <span class="mgmt-badge mgmt-badge--payment">Test mode</span>
+                    }
+                </div>
+            </header>
+
+            <div class="mgmt-card-body">
+                <div class="mgmt-meta-grid">
+                    <div class="mgmt-meta-item">
+                        <span class="mgmt-meta-label">Enabled</span>
+                        <span class="mgmt-meta-value">@(_options.Enabled ? "Yes" : "No")</span>
+                    </div>
+                    <div class="mgmt-meta-item">
+                        <span class="mgmt-meta-label">Publishable key</span>
+                        <span class="mgmt-meta-value">@FormatKeyPreview(_options.PublishableKey)</span>
+                    </div>
+                    <div class="mgmt-meta-item">
+                        <span class="mgmt-meta-label">Secret key</span>
+                        <span class="mgmt-meta-value">@FormatKeyPreview(_options.SecretKey)</span>
+                    </div>
+                    <div class="mgmt-meta-item">
+                        <span class="mgmt-meta-label">Webhook secret</span>
+                        <span class="mgmt-meta-value">@(string.IsNullOrWhiteSpace(_options.WebhookSecret) ? "Not set" : "Configured")</span>
+                    </div>
+                    <div class="mgmt-meta-item">
+                        <span class="mgmt-meta-label">Minimum deposit</span>
+                        <span class="mgmt-meta-value">@_options.DefaultMinimumDepositPercent% of booking total</span>
+                    </div>
+                </div>
+
+                @if (!_options.IsConfigured)
+                {
+                    <div class="mgmt-subblock">
+                        <h3 class="mgmt-subblock-title">Local setup (user secrets)</h3>
+                        <p class="mgmt-note-text">
+                            Run these from the project folder. Replace placeholders with your Stripe test keys from
+                            <a class="mgmt-link" href="https://dashboard.stripe.com/test/apikeys" target="_blank" rel="noopener">Developers → API keys</a>.
+                        </p>
+                        <pre class="mgmt-code-block">dotnet user-secrets set "Stripe:Enabled" "true"
+dotnet user-secrets set "Stripe:PublishableKey" "pk_test_..."
+dotnet user-secrets set "Stripe:SecretKey" "sk_test_..."</pre>
+                        <p class="mgmt-note-text">
+                            For webhooks locally, install the
+                            <a class="mgmt-link" href="https://stripe.com/docs/stripe-cli" target="_blank" rel="noopener">Stripe CLI</a>
+                            and run:
+                        </p>
+                        <pre class="mgmt-code-block">stripe listen --forward-to @Navigation.BaseUri.TrimEnd('/')/api/webhooks/stripe</pre>
+                        <p class="mgmt-note-text">
+                            Copy the webhook signing secret from the CLI output, then:
+                        </p>
+                        <pre class="mgmt-code-block">dotnet user-secrets set "Stripe:WebhookSecret" "whsec_..."</pre>
+                    </div>
+                }
+                else
+                {
+                    <div class="mgmt-subblock mgmt-subblock--actions">
+                        <h3 class="mgmt-subblock-title">Quick links</h3>
+                        <div class="mgmt-action-row">
+                            <MudButton Href="https://dashboard.stripe.com/payments" Target="_blank" Variant="Variant.Outlined">
+                                View payments
+                            </MudButton>
+                            <MudButton Href="https://dashboard.stripe.com/balance/overview" Target="_blank" Variant="Variant.Outlined">
+                                Payouts &amp; balance
+                            </MudButton>
+                            <MudButton Href="https://dashboard.stripe.com/test/webhooks" Target="_blank" Variant="Variant.Outlined">
+                                Webhooks
+                            </MudButton>
+                        </div>
+                    </div>
+
+                    @if (string.IsNullOrWhiteSpace(_options.WebhookSecret))
+                    {
+                        <div class="mgmt-error">
+                            Webhook secret is missing. Payments may complete in Stripe but booking status will not update until webhooks are configured.
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="mgmt-subblock">
+                            <h3 class="mgmt-subblock-title">Webhooks (local development)</h3>
+                            <p class="mgmt-note-text">
+                                Webhook secret is saved. While testing locally, keep the Stripe CLI forwarder running
+                                in a separate terminal (app must be running on HTTPS port 7225):
+                            </p>
+                            <pre class="mgmt-code-block">.\scripts\stripe-webhook-local.ps1</pre>
+                            <p class="mgmt-note-text">
+                                Restart NestledNooks after the script updates the signing secret. The forwarder listens for
+                                <code>checkout.session.completed</code> and updates Manage bookings even if the guest closes the browser.
+                            </p>
+                        </div>
+
+                        <div class="mgmt-subblock">
+                            <h3 class="mgmt-subblock-title">Webhooks (Azure production)</h3>
+                            <p class="mgmt-note-text">
+                                In Stripe Dashboard → Webhooks, add endpoint
+                                <strong>https://nestlednooks-bvd3htchb9hwhzex.centralus-01.azurewebsites.net/api/webhooks/stripe</strong>
+                                with event <code>checkout.session.completed</code>.
+                                Set the signing secret in Azure as <code>Stripe__WebhookSecret</code>.
+                                See <code>scripts/stripe-webhook-azure.md</code> in the repo.
+                            </p>
+                        </div>
+                    }
+                }
+            </div>
+        </article>
+    </main>
+</div>
+
+@code {
+    private StripeOptions _options = new();
+
+    protected override void OnInitialized()
+    {
+        _options = StripeOptionsAccessor.Value;
+    }
+
+    private static string FormatKeyPreview(string? key)
+    {
+        if (string.IsNullOrWhiteSpace(key))
+            return "Not set";
+
+        return key.Length <= 12 ? $"{key}…" : $"{key[..12]}…";
+    }
+}

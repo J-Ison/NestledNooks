@@ -8,6 +8,7 @@ public sealed class ContactInquiryService(
     ApplicationDbContext db,
     UserManager<ApplicationUser> userManager,
     IEmailService emailService,
+    AdminNotificationStateNotifier notificationNotifier,
     ILogger<ContactInquiryService> logger) : IContactInquiryService
 {
     private const int MaxMessageLength = 4000;
@@ -65,6 +66,7 @@ public sealed class ContactInquiryService(
 
         db.ContactInquiries.Add(inquiry);
         await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        notificationNotifier.NotifyChanged();
 
         try
         {
@@ -170,6 +172,7 @@ public sealed class ContactInquiryService(
 
         inquiry.ReadAtUtc ??= DateTime.UtcNow;
         await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        notificationNotifier.NotifyChanged();
     }
 
     private static string? NormalizeMessage(string? message)

@@ -170,6 +170,51 @@ public sealed class SmtpEmailService : IEmailService
         await SendMimeAsync(guestMime, "booking status email (guest)").ConfigureAwait(false);
     }
 
+    public Task SendBookingPaymentRequestEmailAsync(BookingPaymentEmailPayload payload)
+    {
+        var mime = new MimeMessage();
+        mime.From.Add(new MailboxAddress(_options.FromName, _options.FromEmail));
+        mime.To.Add(MailboxAddress.Parse(payload.GuestEmail));
+        mime.Subject = $"Payment due — {payload.BookingNumber} ({payload.PropertyDisplayName})";
+
+        var nonRefundableLine = payload.NonRefundable
+            ? "\r\nThis deposit is non-refundable per the host approval terms.\r\n"
+            : "";
+
+        var bodyBuilder = new BodyBuilder
+        {
+            TextBody =
+                $"Hello {payload.GuestFullName},\r\n\r\n" +
+                $"Your stay at {payload.PropertyDisplayName} has been approved.\r\n\r\n" +
+                $"Reference: {payload.BookingNumber}\r\n" +
+                $"Dates: {payload.CheckIn:yyyy-MM-dd} to {payload.CheckOut:yyyy-MM-dd}\r\n" +
+                $"Booking total: {payload.TotalAmount:C2}\r\n" +
+                $"{payload.PaymentLabel}: {payload.AmountDue:C2}\r\n" +
+                nonRefundableLine +
+                "\r\nPay securely online:\r\n" +
+                $"{payload.PaymentUrl}\r\n\r\n" +
+                "— Nestled Nooks"
+        };
+
+        mime.Body = bodyBuilder.ToMessageBody();
+        return SendMimeAsync(mime, "booking payment request (guest)");
+    }
+
+    public Task SendBookingGuestMessageEmailAsync(BookingGuestMessageEmailPayload payload)
+    {
+        var mime = new MimeMessage();
+        mime.From.Add(new MailboxAddress(_options.FromName, _options.FromEmail));
+        mime.To.Add(MailboxAddress.Parse(payload.GuestEmail));
+        mime.Subject = string.IsNullOrWhiteSpace(payload.EmailSubject)
+            ? $"Message about your booking {payload.BookingNumber}"
+            : payload.EmailSubject.Trim();
+
+        var bodyBuilder = new BodyBuilder { TextBody = payload.Message.Trim() };
+
+        mime.Body = bodyBuilder.ToMessageBody();
+        return SendMimeAsync(mime, "booking guest message");
+    }
+
     public Task SendTemporaryPasswordEmailAsync(
         string toEmail,
         string userName,

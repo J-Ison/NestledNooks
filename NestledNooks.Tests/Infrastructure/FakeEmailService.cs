@@ -28,6 +28,10 @@ public sealed class FakeEmailService : IEmailService
 
     public Task SendBookingStatusChangedEmailsAsync(BookingStatusEmailPayload payload) => Task.CompletedTask;
 
+    public Task SendBookingPaymentRequestEmailAsync(BookingPaymentEmailPayload payload) => Task.CompletedTask;
+
+    public Task SendBookingGuestMessageEmailAsync(BookingGuestMessageEmailPayload payload) => Task.CompletedTask;
+
     public Task SendTemporaryPasswordEmailAsync(
         string toEmail,
         string userName,

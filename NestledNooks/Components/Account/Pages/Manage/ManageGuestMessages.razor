@@ -1,0 +1,356 @@
+@page "/account/manage/guest-messages"
+@layout NestledNooks.Components.Layout.MainLayout
+@rendermode InteractiveServer
+
+@using Microsoft.AspNetCore.Authorization
+@using MudBlazor
+@using NestledNooks.Data
+@using NestledNooks.Services
+
+@attribute [Authorize(Roles = AppRoles.HostStaff)]
+
+@inject IGuestEmailTemplateService Templates
+@inject IGuestEmailWrapperService EmailWrapper
+@inject IPropertyService PropertyService
+
+<PageTitle>Guest message templates · @SiteBranding.Name</PageTitle>
+
+<div class="mgmt-page mgmt-page--bookings">
+    <header class="mgmt-hero bk-hero">
+        <div class="mgmt-wrap">
+            <p class="mgmt-hero-eyebrow">@SiteBranding.Name · Host tools</p>
+            <h1 class="mgmt-hero-title">Guest message templates</h1>
+            <p class="mgmt-hero-lead">
+                Edit the header and footer wrapped around every guest email, plus reusable templates for check-in, check-out, payment, and more.
+                Use templates from
+                <a class="mgmt-link" href="/account/manage/bookings">Manage bookings</a> with one click.
+            </p>
+        </div>
+    </header>
+
+    <main class="mgmt-wrap mgmt-main">
+        @if (_loading)
+        {
+            <MudProgressLinear Indeterminate="true" Class="mgmt-loading" />
+        }
+        else
+        {
+            <article class="bk-card is-expanded bk-wrapper-card">
+                <div class="bk-card-details">
+                    <h2 class="bk-guest-name mb-2">Email header &amp; footer</h2>
+                    <p class="bk-hint mb-3">
+                        These are automatically added above and below your message when you send email from Manage bookings.
+                        Supports the same tokens as templates.
+                    </p>
+                    <div class="bk-field">
+                        <label class="bk-field-label">Header (above your message)</label>
+                        <MudTextField @bind-Value="_wrapperHeader" Variant="Variant.Outlined" Lines="3"
+                                      Class="bk-mud-input bk-mud-input--multiline" Margin="Margin.Dense" />
+                    </div>
+                    <div class="bk-field">
+                        <label class="bk-field-label">Footer (below your message)</label>
+                        <MudTextField @bind-Value="_wrapperFooter" Variant="Variant.Outlined" Lines="8"
+                                      Class="bk-mud-input bk-mud-input--multiline" Margin="Margin.Dense" />
+                    </div>
+                    <div class="mgmt-action-row">
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="_wrapperSaving" OnClick="SaveWrapperAsync">
+                            @(_wrapperSaving ? "Saving…" : "Save header & footer")
+                        </MudButton>
+                        <MudButton Variant="Variant.Text" Disabled="_wrapperSaving" OnClick="ResetWrapperDefaults">Reset to defaults</MudButton>
+                    </div>
+                    @if (!string.IsNullOrWhiteSpace(_wrapperSuccess))
+                    {
+                        <div class="mgmt-success">@_wrapperSuccess</div>
+                    }
+                    @if (!string.IsNullOrWhiteSpace(_wrapperError))
+                    {
+                        <div class="mgmt-error">@_wrapperError</div>
+                    }
+                </div>
+            </article>
+
+            <div class="bk-toolbar">
+                <div class="bk-filters">
+                    <label class="bk-filter">
+                        <span class="bk-filter-label">Property</span>
+                        <select class="bk-select" @bind="_filterPropertySlug">
+                            <option value="">All properties</option>
+                            @foreach (var p in _properties)
+                            {
+                                <option value="@p.Slug">@p.DisplayName</option>
+                            }
+                        </select>
+                    </label>
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="StartNewTemplate">
+                        Add template
+                    </MudButton>
+                </div>
+            </div>
+
+            <details class="bk-detail-block bk-token-help">
+                <summary>Placeholder tokens (auto-filled per booking)</summary>
+                <p class="bk-hint">
+                    {{GuestName}}, {{GuestFullName}}, {{BookingNumber}}, {{PropertyName}},
+                    {{CheckIn}}, {{CheckOut}}, {{NightCount}}, {{TotalAmount}}, {{PayUrl}}
+                </p>
+            </details>
+
+            @if (!string.IsNullOrWhiteSpace(_pageSuccess))
+            {
+                <div class="mgmt-success">@_pageSuccess</div>
+            }
+            @if (!string.IsNullOrWhiteSpace(_pageError))
+            {
+                <div class="mgmt-error">@_pageError</div>
+            }
+
+            @if (_editing is not null)
+            {
+                <article class="bk-card is-expanded">
+                    <div class="bk-card-details">
+                        <h2 class="bk-guest-name mb-3">@(_editing.Id == 0 ? "New template" : "Edit template")</h2>
+                        <div class="bk-field-row">
+                            <div class="bk-field">
+                                <label class="bk-field-label">Property</label>
+                                <select class="bk-select" @bind="_editing.PropertySlug">
+                                    <option value="">All properties</option>
+                                    @foreach (var p in _properties)
+                                    {
+                                        <option value="@p.Slug">@p.DisplayName</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="bk-field">
+                                <label class="bk-field-label">Category</label>
+                                <select class="bk-select" @bind="_editing.Category">
+                                    @foreach (var cat in GuestEmailTemplateCategories.All)
+                                    {
+                                        <option value="@cat">@GuestEmailTemplateCategories.DisplayName(cat)</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="bk-field bk-field--amount">
+                                <label class="bk-field-label">Sort order</label>
+                                <MudNumericField T="int" @bind-Value="_editing.SortOrder" Label="" Variant="Variant.Filled"
+                                                 Class="bk-mud-input" Margin="Margin.Dense" />
+                            </div>
+                        </div>
+                        <div class="bk-field">
+                            <label class="bk-field-label">Button label (shown on booking card)</label>
+                            <MudTextField @bind-Value="_editing.Title" Label="" Variant="Variant.Filled"
+                                          Class="bk-mud-input" Margin="Margin.Dense" />
+                        </div>
+                        <div class="bk-field">
+                            <label class="bk-field-label">Email subject (optional)</label>
+                            <MudTextField @bind-Value="_editing.EmailSubject" Label="" Variant="Variant.Filled"
+                                          Placeholder="Defaults to booking message subject"
+                                          Class="bk-mud-input" Margin="Margin.Dense" />
+                        </div>
+                        <div class="bk-field">
+                            <label class="bk-field-label">Message body</label>
+                            <MudTextField @bind-Value="_editing.Body" Variant="Variant.Outlined" Lines="12"
+                                          Class="bk-mud-input bk-mud-input--multiline" Margin="Margin.Dense" />
+                        </div>
+                        <div class="mgmt-action-row">
+                            <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="_saving" OnClick="SaveEditingAsync">
+                                @(_saving ? "Saving…" : "Save template")
+                            </MudButton>
+                            <MudButton Variant="Variant.Text" Disabled="_saving" OnClick="CancelEdit">Cancel</MudButton>
+                        </div>
+                    </div>
+                </article>
+            }
+
+            @foreach (var group in FilteredTemplates.GroupBy(t => t.Category).OrderBy(g => CategoryOrder(g.Key)))
+            {
+                <h3 class="bk-section-title">@GuestEmailTemplateCategories.DisplayName(group.Key)</h3>
+                @foreach (var t in group.OrderBy(x => x.SortOrder).ThenBy(x => x.Title))
+                {
+                    <article class="bk-card is-collapsed">
+                        <div class="bk-card-summary" style="cursor: default;">
+                            <div class="bk-card-summary-main">
+                                <div class="bk-card-title-row">
+                                    <h2 class="bk-guest-name">@t.Title</h2>
+                                    <span class="bk-ref">@(string.IsNullOrEmpty(t.PropertySlug) ? "All properties" : FormatProperty(t.PropertySlug))</span>
+                                </div>
+                                @if (!string.IsNullOrWhiteSpace(t.EmailSubject))
+                                {
+                                    <p class="bk-hint">Subject: @t.EmailSubject</p>
+                                }
+                                <p class="bk-hint bk-template-preview">@Preview(t.Body)</p>
+                            </div>
+                            <div class="bk-card-summary-badges">
+                                <MudButton Size="Size.Small" Variant="Variant.Outlined" OnClick="@(() => EditTemplate(t))">Edit</MudButton>
+                                <MudButton Size="Size.Small" Variant="Variant.Text" Color="Color.Error" OnClick="@(() => DeleteTemplateAsync(t.Id))">Delete</MudButton>
+                            </div>
+                        </div>
+                    </article>
+                }
+            }
+
+            @if (!FilteredTemplates.Any() && _editing is null)
+            {
+                <div class="bk-empty">
+                    <p>No templates yet. Click <strong>Add template</strong> or restart the app to load defaults.</p>
+                </div>
+            }
+        }
+    </main>
+</div>
+
+@code {
+    private List<RentalProperty> _properties = [];
+    private List<GuestEmailTemplateModel> _templates = [];
+    private GuestEmailTemplateModel? _editing;
+    private string _filterPropertySlug = "";
+    private bool _loading = true;
+    private bool _saving;
+    private string? _pageSuccess;
+    private string? _pageError;
+    private string _wrapperHeader = "";
+    private string _wrapperFooter = "";
+    private bool _wrapperSaving;
+    private string? _wrapperSuccess;
+    private string? _wrapperError;
+
+    private IEnumerable<GuestEmailTemplateModel> FilteredTemplates =>
+        string.IsNullOrWhiteSpace(_filterPropertySlug)
+            ? _templates
+            : _templates.Where(t => t.PropertySlug == _filterPropertySlug || t.PropertySlug == "");
+
+    protected override async Task OnInitializedAsync()
+    {
+        await ReloadAsync();
+    }
+
+    private async Task ReloadAsync()
+    {
+        _loading = true;
+        _pageSuccess = null;
+        _pageError = null;
+        await Templates.EnsureSeededAsync();
+        _properties = (await PropertyService.GetAllAsync()).ToList();
+        _templates = (await Templates.GetAllAsync()).ToList();
+        var wrapper = await EmailWrapper.GetAsync();
+        _wrapperHeader = wrapper.HeaderTemplate;
+        _wrapperFooter = wrapper.FooterTemplate;
+        _loading = false;
+    }
+
+    private void ResetWrapperDefaults()
+    {
+        _wrapperHeader = GuestEmailWrapperDefaults.Header;
+        _wrapperFooter = GuestEmailWrapperDefaults.Footer;
+        _wrapperSuccess = null;
+        _wrapperError = null;
+    }
+
+    private async Task SaveWrapperAsync()
+    {
+        _wrapperSaving = true;
+        _wrapperSuccess = null;
+        _wrapperError = null;
+        StateHasChanged();
+
+        var result = await EmailWrapper.SaveAsync(_wrapperHeader, _wrapperFooter);
+        _wrapperSaving = false;
+
+        if (result.Succeeded)
+            _wrapperSuccess = "Header and footer saved.";
+        else
+            _wrapperError = result.ErrorMessage;
+
+        StateHasChanged();
+    }
+
+    private void StartNewTemplate()
+    {
+        _editing = new GuestEmailTemplateModel
+        {
+            PropertySlug = _filterPropertySlug,
+            Category = GuestEmailTemplateCategories.General,
+            SortOrder = (_templates.Count + 1) * 10,
+            Title = "",
+            Body = "Hello {{GuestName}},\n\n",
+        };
+        _pageError = null;
+        _pageSuccess = null;
+    }
+
+    private void EditTemplate(GuestEmailTemplateModel template)
+    {
+        _editing = new GuestEmailTemplateModel
+        {
+            Id = template.Id,
+            PropertySlug = template.PropertySlug,
+            Category = template.Category,
+            Title = template.Title,
+            EmailSubject = template.EmailSubject,
+            Body = template.Body,
+            SortOrder = template.SortOrder,
+        };
+        _pageError = null;
+        _pageSuccess = null;
+    }
+
+    private void CancelEdit() => _editing = null;
+
+    private async Task SaveEditingAsync()
+    {
+        if (_editing is null)
+            return;
+
+        _saving = true;
+        _pageError = null;
+        _pageSuccess = null;
+        StateHasChanged();
+
+        var result = await Templates.SaveAsync(_editing);
+        _saving = false;
+
+        if (!result.Succeeded)
+        {
+            _pageError = result.ErrorMessage ?? "Could not save template.";
+            return;
+        }
+
+        _editing = null;
+        _pageSuccess = "Template saved.";
+        await ReloadAsync();
+    }
+
+    private async Task DeleteTemplateAsync(int id)
+    {
+        _pageError = null;
+        _pageSuccess = null;
+        var result = await Templates.DeleteAsync(id);
+        if (!result.Succeeded)
+        {
+            _pageError = result.ErrorMessage ?? "Could not delete template.";
+            return;
+        }
+
+        _pageSuccess = "Template deleted.";
+        await ReloadAsync();
+    }
+
+    private static int CategoryOrder(string category) =>
+        category switch
+        {
+            GuestEmailTemplateCategories.CheckIn => 0,
+            GuestEmailTemplateCategories.CheckOut => 1,
+            GuestEmailTemplateCategories.Payment => 2,
+            GuestEmailTemplateCategories.Welcome => 3,
+            _ => 9,
+        };
+
+    private static string Preview(string body)
+    {
+        var line = body.Replace('\r', '\n').Split('\n', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? "";
+        return line.Length > 100 ? line[..100] + "…" : line;
+    }
+
+    private string FormatProperty(string slug) =>
+        _properties.FirstOrDefault(p => p.Slug == slug)?.DisplayName
+        ?? slug.Replace('-', ' ');
+}
