@@ -54,6 +54,7 @@ public sealed class TestServiceScope : IAsyncDisposable
 
         var emailService = new FakeEmailService();
         services.AddSingleton<IEmailService>(emailService);
+        services.AddSingleton<AdminNotificationStateNotifier>();
         services.AddScoped<IContactInquiryService, ContactInquiryService>();
 
         var serviceProvider = services.BuildServiceProvider();

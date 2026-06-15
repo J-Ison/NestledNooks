@@ -127,6 +127,7 @@ public sealed class BookingRequestServiceDepositTests
             availability,
             pricing,
             stripe,
+            new FakeGuestEmailWrapperService(),
             stripeOptions,
             NullLogger<BookingRequestService>.Instance);
 
@@ -181,6 +182,32 @@ public sealed class BookingRequestServiceDepositTests
         db.BookingRequests.Add(booking);
         await db.SaveChangesAsync();
         return booking;
+    }
+
+    private sealed class FakeGuestEmailWrapperService : IGuestEmailWrapperService
+    {
+        public Task<GuestEmailWrapperSettings> GetAsync(CancellationToken cancellationToken = default) =>
+            Task.FromResult(new GuestEmailWrapperSettings(
+                GuestEmailWrapperDefaults.Header,
+                GuestEmailWrapperDefaults.Footer));
+
+        public Task<GuestEmailWrapperSaveResult> SaveAsync(
+            string headerTemplate,
+            string footerTemplate,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(new GuestEmailWrapperSaveResult(true, null));
+
+        public Task<string> ComposeFullBodyAsync(
+            string guestMessage,
+            BookingGuestMessageEmailPayload payload,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(guestMessage);
+
+        public string ComposeFullBody(
+            string guestMessage,
+            BookingGuestMessageEmailPayload payload,
+            GuestEmailWrapperSettings settings) =>
+            guestMessage;
     }
 
     private sealed class FakeAvailabilityService : IBookingAvailabilityService
