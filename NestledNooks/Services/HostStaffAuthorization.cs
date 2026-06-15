@@ -11,6 +11,9 @@ public static class HostStaffAuthorization
          user.IsInRole(AppRoles.CoHost) ||
          user.IsInRole(AppRoles.Manager));
 
+    public static bool IsOwner(ClaimsPrincipal? user) =>
+        user?.Identity?.IsAuthenticated == true && user.IsInRole(AppRoles.Owner);
+
     public static void EnsureHostStaff(ClaimsPrincipal? user)
     {
         if (!IsHostStaff(user))

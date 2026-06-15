@@ -67,6 +67,7 @@ builder.Services.AddScoped<BookingIcalExportService>();
 builder.Services.AddSingleton<SiteThemeCache>();
 builder.Services.AddScoped<ISiteThemePreviewAccessor, SiteThemePreviewAccessor>();
 builder.Services.AddScoped<ISiteThemeService, SiteThemeService>();
+builder.Services.AddScoped<ISiteSettingsService, SiteSettingsService>();
 builder.Services.AddScoped<IPropertyService, PropertyService>();
 builder.Services.AddScoped<IUserAdminService, UserAdminService>();
 builder.Services.AddScoped<IMessagingService, MessagingService>();

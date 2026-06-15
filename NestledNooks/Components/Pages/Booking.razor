@@ -15,6 +15,7 @@
 @inject IBookingRequestService BookingService
 @inject IBookingAvailabilityService AvailabilityService
 @inject BookingPricingService PricingService
+@inject ISiteSettingsService SiteSettingsService
 @inject UserManager<ApplicationUser> UserManager
 @inject AuthenticationStateProvider AuthStateProvider
 
@@ -55,6 +56,23 @@
                 </header>
 
                 <div class="guide-card-body nn-booking-mud">
+                    @if (!_directBookingsEnabled && !_isOwner)
+                    {
+                        <p class="nn-note nn-note--warn">
+                            Direct booking is temporarily unavailable while we finish setup.
+                            Please <a class="mgmt-link" href="/contact">contact us</a> if you need help planning a stay.
+                        </p>
+                    }
+                    else
+                    {
+                        @if (!_directBookingsEnabled && _isOwner)
+                        {
+                            <p class="nn-note nn-note--warn">
+                                <strong>Owner test mode.</strong> Public booking is turned off — only your Owner account can submit requests right now.
+                                Turn bookings back on under <a class="mgmt-link" href="/account/manage/site">Manage site</a>.
+                            </p>
+                        }
+
                     <p class="nn-note">
                         Calendar blocks include Airbnb/Vrbo bookings (when iCal URLs are configured) and pending site requests.
                     </p>
@@ -216,6 +234,7 @@
                             @(_submitting ? "Submitting…" : "Request booking")
                         </MudButton>
                     </EditForm>
+                    }
                 </div>
             </article>
 
@@ -248,11 +267,17 @@
     private string? _quoteError;
     private BookingQuote? _quote;
     private string? _userId;
+    private bool _directBookingsEnabled = true;
+    private bool _isOwner;
 
     protected override async Task OnInitializedAsync()
     {
         var auth = await AuthStateProvider.GetAuthenticationStateAsync();
         _userId = UserManager.GetUserId(auth.User);
+        _isOwner = HostStaffAuthorization.IsOwner(auth.User);
+
+        var siteSettings = await SiteSettingsService.GetAsync();
+        _directBookingsEnabled = siteSettings.DirectBookingsEnabled;
 
         var user = _userId is not null
             ? await UserManager.GetUserAsync(auth.User)

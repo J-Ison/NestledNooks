@@ -17,5 +17,8 @@ public class SiteSettings
     /// <summary>Appended to every guest email from Manage bookings (supports {{tokens}}).</summary>
     public string? GuestEmailFooterTemplate { get; set; }
 
+    /// <summary>When false, only Owner accounts may submit direct booking requests.</summary>
+    public bool DirectBookingsEnabled { get; set; } = true;
+
     public DateTime UpdatedAtUtc { get; set; }
 }

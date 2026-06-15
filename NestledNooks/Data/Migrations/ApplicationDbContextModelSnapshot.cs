@@ -817,6 +817,9 @@ namespace NestledNooks.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
 
+                    b.Property<bool>("DirectBookingsEnabled")
+                        .HasColumnType("bit");
+
                     b.Property<string>("GuestEmailFooterTemplate")
                         .HasMaxLength(4000)
                         .HasColumnType("nvarchar(4000)");

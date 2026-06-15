@@ -2116,6 +2116,21 @@ footer {
     line-height: 1.5;
 }
 
+.site-booking-toggle {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 600;
+    cursor: pointer;
+    user-select: none;
+}
+
+.site-booking-toggle input {
+    width: 18px;
+    height: 18px;
+    accent-color: var(--nn-primary, #0ea5e9);
+}
+
 .theme-preset-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));

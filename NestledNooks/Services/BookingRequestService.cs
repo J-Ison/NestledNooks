@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using NestledNooks.Data;
@@ -14,6 +15,8 @@ public sealed class BookingRequestService : IBookingRequestService
     private readonly BookingPricingService _pricing;
     private readonly IStripePaymentService _stripe;
     private readonly IGuestEmailWrapperService _guestEmailWrapper;
+    private readonly ISiteSettingsService _siteSettings;
+    private readonly IHttpContextAccessor _httpContextAccessor;
     private readonly StripeOptions _stripeOptions;
     private readonly ILogger<BookingRequestService> _logger;
 
@@ -24,6 +27,8 @@ public sealed class BookingRequestService : IBookingRequestService
         BookingPricingService pricing,
         IStripePaymentService stripe,
         IGuestEmailWrapperService guestEmailWrapper,
+        ISiteSettingsService siteSettings,
+        IHttpContextAccessor httpContextAccessor,
         IOptions<StripeOptions> stripeOptions,
         ILogger<BookingRequestService> logger)
     {
@@ -33,6 +38,8 @@ public sealed class BookingRequestService : IBookingRequestService
         _pricing = pricing;
         _stripe = stripe;
         _guestEmailWrapper = guestEmailWrapper;
+        _siteSettings = siteSettings;
+        _httpContextAccessor = httpContextAccessor;
         _stripeOptions = stripeOptions.Value;
         _logger = logger;
     }
@@ -42,6 +49,17 @@ public sealed class BookingRequestService : IBookingRequestService
         string? userId,
         CancellationToken cancellationToken = default)
     {
+        var siteSettings = await _siteSettings.GetAsync(cancellationToken).ConfigureAwait(false);
+        if (!siteSettings.DirectBookingsEnabled &&
+            !HostStaffAuthorization.IsOwner(_httpContextAccessor.HttpContext?.User))
+        {
+            return new BookingSubmitResult(
+                false,
+                null,
+                null,
+                "Direct booking is temporarily unavailable. Please contact us or check back soon.");
+        }
+
         var slug = model.PropertySlug.Trim().ToLowerInvariant();
         var property = _pricing.GetProperty(slug);
         if (property is null)

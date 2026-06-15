@@ -128,6 +128,8 @@ public sealed class BookingRequestServiceDepositTests
             pricing,
             stripe,
             new FakeGuestEmailWrapperService(),
+            new FakeSiteSettingsService(),
+            new Microsoft.AspNetCore.Http.HttpContextAccessor(),
             stripeOptions,
             NullLogger<BookingRequestService>.Instance);
 
@@ -182,6 +184,22 @@ public sealed class BookingRequestServiceDepositTests
         db.BookingRequests.Add(booking);
         await db.SaveChangesAsync();
         return booking;
+    }
+
+    private sealed class FakeSiteSettingsService : ISiteSettingsService
+    {
+        public bool DirectBookingsEnabled { get; set; } = true;
+
+        public Task<SiteSettingsSnapshot> GetAsync(CancellationToken cancellationToken = default) =>
+            Task.FromResult(new SiteSettingsSnapshot(DirectBookingsEnabled));
+
+        public Task<SiteSettingsSaveResult> SetDirectBookingsEnabledAsync(
+            bool enabled,
+            CancellationToken cancellationToken = default)
+        {
+            DirectBookingsEnabled = enabled;
+            return Task.FromResult(new SiteSettingsSaveResult(true, null));
+        }
     }
 
     private sealed class FakeGuestEmailWrapperService : IGuestEmailWrapperService

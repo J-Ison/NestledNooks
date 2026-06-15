@@ -10,6 +10,7 @@
 @attribute [Authorize(Roles = AppRoles.Owner)]
 
 @inject ISiteThemeService SiteThemeService
+@inject ISiteSettingsService SiteSettingsService
 @inject NavigationManager Navigation
 
 <PageTitle>Manage site · @SiteBranding.Name</PageTitle>
@@ -20,7 +21,7 @@
             <p class="mgmt-hero-eyebrow">@SiteBranding.Name · Owner tools</p>
             <h1 class="mgmt-hero-title">Manage site</h1>
             <p class="mgmt-hero-lead">
-                Choose colors for the whole website. Preview on your browser for one minute, or save to apply for everyone.
+                Choose colors for the whole website, and control whether the public can submit direct booking requests.
             </p>
         </div>
     </header>
@@ -42,6 +43,30 @@
                     }
                 </p>
             }
+
+            <section class="theme-panel">
+                <h2 class="theme-panel-title">Direct bookings</h2>
+                <p class="theme-panel-lead">
+                    Turn this off while you connect Stripe, calendars, and email on live.
+                    When off, guests see a closed message — but you can still submit test requests as Owner on the
+                    <a class="mgmt-link" href="/booking?property=deerfield-retreat">booking page</a>.
+                </p>
+                <label class="site-booking-toggle">
+                    <input type="checkbox"
+                           checked="@_directBookingsEnabled"
+                           disabled="@_bookingSettingsSaving"
+                           @onchange="OnDirectBookingsToggled" />
+                    <span>Accept booking requests from the public</span>
+                </label>
+                @if (!string.IsNullOrEmpty(_bookingSettingsError))
+                {
+                    <p class="nn-note nn-note--error">@_bookingSettingsError</p>
+                }
+                @if (!string.IsNullOrEmpty(_bookingSettingsSuccess))
+                {
+                    <p class="nn-note nn-note--success">@_bookingSettingsSuccess</p>
+                }
+            </section>
 
             <section class="theme-panel">
                 <h2 class="theme-panel-title">Presets</h2>
@@ -129,6 +154,10 @@
     private bool _loading = true;
     private string? _error;
     private string? _success;
+    private bool _directBookingsEnabled = true;
+    private bool _bookingSettingsSaving;
+    private string? _bookingSettingsError;
+    private string? _bookingSettingsSuccess;
 
     private readonly (string Name, string Label)[] _colorFields =
     [
@@ -152,9 +181,37 @@
     protected override async Task OnInitializedAsync()
     {
         _theme = await SiteThemeService.GetCurrentAsync();
+        var siteSettings = await SiteSettingsService.GetAsync();
+        _directBookingsEnabled = siteSettings.DirectBookingsEnabled;
         await RefreshPreviewStatusAsync();
         ApplyStatusFromQuery();
         _loading = false;
+    }
+
+    private async Task OnDirectBookingsToggled(ChangeEventArgs args)
+    {
+        var enabled = args.Value is true;
+        _bookingSettingsSaving = true;
+        _bookingSettingsError = null;
+        _bookingSettingsSuccess = null;
+        StateHasChanged();
+
+        var result = await SiteSettingsService.SetDirectBookingsEnabledAsync(enabled);
+        _bookingSettingsSaving = false;
+
+        if (result.Succeeded)
+        {
+            _directBookingsEnabled = enabled;
+            _bookingSettingsSuccess = enabled
+                ? "Direct bookings are open to the public."
+                : "Direct bookings are closed to the public. You can still test as Owner.";
+        }
+        else
+        {
+            _bookingSettingsError = result.ErrorMessage ?? "Could not update booking settings.";
+        }
+
+        StateHasChanged();
     }
 
     private void ApplyStatusFromQuery()

@@ -169,6 +169,16 @@ public static class DatabaseSchemaRepair
             cancellationToken).ConfigureAwait(false);
 
         logger.LogInformation("Verified SiteSettings guest email wrapper columns.");
+
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            IF COL_LENGTH('SiteSettings', 'DirectBookingsEnabled') IS NULL
+                ALTER TABLE [SiteSettings] ADD [DirectBookingsEnabled] bit NOT NULL
+                    CONSTRAINT [DF_SiteSettings_DirectBookingsEnabled] DEFAULT (1);
+            """,
+            cancellationToken).ConfigureAwait(false);
+
+        logger.LogInformation("Verified SiteSettings.DirectBookingsEnabled column.");
     }
 
     public static async Task EnsureRentalPropertyCleaningFeeColumnAsync(
