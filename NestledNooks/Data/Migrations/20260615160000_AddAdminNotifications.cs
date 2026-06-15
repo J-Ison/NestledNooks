@@ -8,60 +8,35 @@ namespace NestledNooks.Data.Migrations
     {
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.AddColumn<DateTime>(
-                name: "RegisteredAtUtc",
-                table: "AspNetUsers",
-                type: "datetime2",
-                nullable: false,
-                defaultValue: new DateTime(2000, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc));
+            migrationBuilder.Sql(
+                """
+                IF COL_LENGTH('AspNetUsers', 'RegisteredAtUtc') IS NULL
+                    ALTER TABLE [AspNetUsers] ADD [RegisteredAtUtc] datetime2 NOT NULL
+                        CONSTRAINT [DF_AspNetUsers_RegisteredAtUtc] DEFAULT ('2000-01-01T00:00:00');
 
-            migrationBuilder.CreateTable(
-                name: "AdminBookingSeens",
-                columns: table => new
-                {
-                    UserId = table.Column<string>(type: "nvarchar(450)", nullable: false),
-                    BookingRequestId = table.Column<int>(type: "int", nullable: false),
-                    SeenAtUtc = table.Column<DateTime>(type: "datetime2", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_AdminBookingSeens", x => new { x.UserId, x.BookingRequestId });
-                    table.ForeignKey(
-                        name: "FK_AdminBookingSeens_AspNetUsers_UserId",
-                        column: x => x.UserId,
-                        principalTable: "AspNetUsers",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "FK_AdminBookingSeens_BookingRequests_BookingRequestId",
-                        column: x => x.BookingRequestId,
-                        principalTable: "BookingRequests",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                });
+                IF OBJECT_ID(N'[AdminBookingSeens]', N'U') IS NULL
+                BEGIN
+                    CREATE TABLE [AdminBookingSeens] (
+                        [UserId] nvarchar(450) NOT NULL,
+                        [BookingRequestId] int NOT NULL,
+                        [SeenAtUtc] datetime2 NOT NULL,
+                        CONSTRAINT [PK_AdminBookingSeens] PRIMARY KEY ([UserId], [BookingRequestId]),
+                        CONSTRAINT [FK_AdminBookingSeens_AspNetUsers_UserId] FOREIGN KEY ([UserId]) REFERENCES [AspNetUsers] ([Id]) ON DELETE CASCADE,
+                        CONSTRAINT [FK_AdminBookingSeens_BookingRequests_BookingRequestId] FOREIGN KEY ([BookingRequestId]) REFERENCES [BookingRequests] ([Id]) ON DELETE CASCADE
+                    );
+                    CREATE INDEX [IX_AdminBookingSeens_BookingRequestId] ON [AdminBookingSeens] ([BookingRequestId]);
+                END
 
-            migrationBuilder.CreateTable(
-                name: "AdminUserNotificationStates",
-                columns: table => new
-                {
-                    UserId = table.Column<string>(type: "nvarchar(450)", nullable: false),
-                    UsersSectionSeenAtUtc = table.Column<DateTime>(type: "datetime2", nullable: true)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_AdminUserNotificationStates", x => x.UserId);
-                    table.ForeignKey(
-                        name: "FK_AdminUserNotificationStates_AspNetUsers_UserId",
-                        column: x => x.UserId,
-                        principalTable: "AspNetUsers",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                });
-
-            migrationBuilder.CreateIndex(
-                name: "IX_AdminBookingSeens_BookingRequestId",
-                table: "AdminBookingSeens",
-                column: "BookingRequestId");
+                IF OBJECT_ID(N'[AdminUserNotificationStates]', N'U') IS NULL
+                BEGIN
+                    CREATE TABLE [AdminUserNotificationStates] (
+                        [UserId] nvarchar(450) NOT NULL,
+                        [UsersSectionSeenAtUtc] datetime2 NULL,
+                        CONSTRAINT [PK_AdminUserNotificationStates] PRIMARY KEY ([UserId]),
+                        CONSTRAINT [FK_AdminUserNotificationStates_AspNetUsers_UserId] FOREIGN KEY ([UserId]) REFERENCES [AspNetUsers] ([Id]) ON DELETE CASCADE
+                    );
+                END
+                """);
         }
 
         protected override void Down(MigrationBuilder migrationBuilder)

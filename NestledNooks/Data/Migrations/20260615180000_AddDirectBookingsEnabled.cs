@@ -8,12 +8,12 @@ namespace NestledNooks.Data.Migrations
     {
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.AddColumn<bool>(
-                name: "DirectBookingsEnabled",
-                table: "SiteSettings",
-                type: "bit",
-                nullable: false,
-                defaultValue: true);
+            migrationBuilder.Sql(
+                """
+                IF COL_LENGTH('SiteSettings', 'DirectBookingsEnabled') IS NULL
+                    ALTER TABLE [SiteSettings] ADD [DirectBookingsEnabled] bit NOT NULL
+                        CONSTRAINT [DF_SiteSettings_DirectBookingsEnabled] DEFAULT (1);
+                """);
         }
 
         protected override void Down(MigrationBuilder migrationBuilder)

@@ -8,29 +8,24 @@ namespace NestledNooks.Data.Migrations
     {
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.CreateTable(
-                name: "GuestEmailTemplates",
-                columns: table => new
-                {
-                    Id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
-                    PropertySlug = table.Column<string>(type: "nvarchar(120)", maxLength: 120, nullable: false),
-                    Category = table.Column<string>(type: "nvarchar(40)", maxLength: 40, nullable: false),
-                    Title = table.Column<string>(type: "nvarchar(120)", maxLength: 120, nullable: false),
-                    EmailSubject = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: true),
-                    Body = table.Column<string>(type: "nvarchar(max)", maxLength: 8000, nullable: false),
-                    SortOrder = table.Column<int>(type: "int", nullable: false),
-                    UpdatedAtUtc = table.Column<DateTime>(type: "datetime2", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_GuestEmailTemplates", x => x.Id);
-                });
-
-            migrationBuilder.CreateIndex(
-                name: "IX_GuestEmailTemplates_PropertySlug_SortOrder",
-                table: "GuestEmailTemplates",
-                columns: new[] { "PropertySlug", "SortOrder" });
+            migrationBuilder.Sql(
+                """
+                IF OBJECT_ID(N'[GuestEmailTemplates]', N'U') IS NULL
+                BEGIN
+                    CREATE TABLE [GuestEmailTemplates] (
+                        [Id] int NOT NULL IDENTITY(1,1),
+                        [PropertySlug] nvarchar(120) NOT NULL,
+                        [Category] nvarchar(40) NOT NULL,
+                        [Title] nvarchar(120) NOT NULL,
+                        [EmailSubject] nvarchar(200) NULL,
+                        [Body] nvarchar(max) NOT NULL,
+                        [SortOrder] int NOT NULL,
+                        [UpdatedAtUtc] datetime2 NOT NULL,
+                        CONSTRAINT [PK_GuestEmailTemplates] PRIMARY KEY ([Id])
+                    );
+                    CREATE INDEX [IX_GuestEmailTemplates_PropertySlug_SortOrder] ON [GuestEmailTemplates] ([PropertySlug], [SortOrder]);
+                END
+                """);
         }
 
         protected override void Down(MigrationBuilder migrationBuilder)

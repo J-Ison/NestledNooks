@@ -8,19 +8,14 @@ namespace NestledNooks.Data.Migrations
     {
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.AddColumn<string>(
-                name: "GuestEmailHeaderTemplate",
-                table: "SiteSettings",
-                type: "nvarchar(2000)",
-                maxLength: 2000,
-                nullable: true);
+            migrationBuilder.Sql(
+                """
+                IF COL_LENGTH('SiteSettings', 'GuestEmailHeaderTemplate') IS NULL
+                    ALTER TABLE [SiteSettings] ADD [GuestEmailHeaderTemplate] nvarchar(2000) NULL;
 
-            migrationBuilder.AddColumn<string>(
-                name: "GuestEmailFooterTemplate",
-                table: "SiteSettings",
-                type: "nvarchar(4000)",
-                maxLength: 4000,
-                nullable: true);
+                IF COL_LENGTH('SiteSettings', 'GuestEmailFooterTemplate') IS NULL
+                    ALTER TABLE [SiteSettings] ADD [GuestEmailFooterTemplate] nvarchar(4000) NULL;
+                """);
         }
 
         protected override void Down(MigrationBuilder migrationBuilder)

@@ -12,6 +12,7 @@ public static class DatabaseSchemaRepair
         CancellationToken cancellationToken = default)
     {
         await EnsureAspNetUserProfileColumnsAsync(db, logger, cancellationToken).ConfigureAwait(false);
+        await EnsureBookingRequestPaymentColumnsAsync(db, logger, cancellationToken).ConfigureAwait(false);
         await EnsureMessagingTablesAsync(db, logger, cancellationToken).ConfigureAwait(false);
         await EnsureContactInquiryTableAsync(db, logger, cancellationToken).ConfigureAwait(false);
         await EnsureSiteSettingsTableAsync(db, logger, cancellationToken).ConfigureAwait(false);
@@ -37,6 +38,34 @@ public static class DatabaseSchemaRepair
             cancellationToken).ConfigureAwait(false);
 
         logger.LogInformation("Verified AspNetUsers profile columns (Nickname, MessageTagsJson).");
+    }
+
+    public static async Task EnsureBookingRequestPaymentColumnsAsync(
+        ApplicationDbContext db,
+        ILogger logger,
+        CancellationToken cancellationToken = default)
+    {
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            IF COL_LENGTH('BookingRequests', 'PaymentStatus') IS NULL
+                ALTER TABLE [BookingRequests] ADD [PaymentStatus] nvarchar(40) NOT NULL
+                    CONSTRAINT [DF_BookingRequests_PaymentStatus] DEFAULT ('Unpaid');
+
+            IF COL_LENGTH('BookingRequests', 'AmountPaid') IS NULL
+                ALTER TABLE [BookingRequests] ADD [AmountPaid] decimal(18,2) NOT NULL
+                    CONSTRAINT [DF_BookingRequests_AmountPaid] DEFAULT (0);
+
+            IF COL_LENGTH('BookingRequests', 'PaymentReceivedAtUtc') IS NULL
+                ALTER TABLE [BookingRequests] ADD [PaymentReceivedAtUtc] datetime2 NULL;
+
+            IF COL_LENGTH('BookingRequests', 'PaymentStatus') IS NOT NULL
+                UPDATE [BookingRequests]
+                SET [PaymentStatus] = 'Unpaid'
+                WHERE [PaymentStatus] IS NULL OR [PaymentStatus] = '';
+            """,
+            cancellationToken).ConfigureAwait(false);
+
+        logger.LogInformation("Verified BookingRequests payment columns.");
     }
 
     public static async Task EnsureMessagingTablesAsync(
@@ -179,6 +208,18 @@ public static class DatabaseSchemaRepair
             cancellationToken).ConfigureAwait(false);
 
         logger.LogInformation("Verified SiteSettings.DirectBookingsEnabled column.");
+
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            IF NOT EXISTS (SELECT 1 FROM [SiteSettings] WHERE [Id] = 1)
+            BEGIN
+                INSERT INTO [SiteSettings] ([Id], [UpdatedAtUtc], [DirectBookingsEnabled])
+                VALUES (1, SYSUTCDATETIME(), 1);
+            END
+            """,
+            cancellationToken).ConfigureAwait(false);
+
+        logger.LogInformation("Verified SiteSettings default row (Id = 1).");
     }
 
     public static async Task EnsureRentalPropertyCleaningFeeColumnAsync(

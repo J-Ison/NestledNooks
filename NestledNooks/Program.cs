@@ -116,6 +116,21 @@ if (!app.Environment.IsEnvironment("Testing"))
 
         try
         {
+            var applied = (await db.Database.GetAppliedMigrationsAsync(cancellationToken: default).ConfigureAwait(false)).ToList();
+            var pending = (await db.Database.GetPendingMigrationsAsync(cancellationToken: default).ConfigureAwait(false)).ToList();
+
+            migrateLogger.LogInformation(
+                "Database migrations: {AppliedCount} applied, {PendingCount} pending.",
+                applied.Count,
+                pending.Count);
+
+            if (pending.Count > 0)
+            {
+                migrateLogger.LogInformation(
+                    "Pending migrations: {Pending}",
+                    string.Join(", ", pending));
+            }
+
             await db.Database.MigrateAsync().ConfigureAwait(false);
             migrateLogger.LogInformation("Database migrations applied.");
         }
@@ -129,6 +144,7 @@ if (!app.Environment.IsEnvironment("Testing"))
         try
         {
             await DatabaseSchemaRepair.EnsureAllAsync(db, migrateLogger).ConfigureAwait(false);
+            await DatabaseSchemaVerification.VerifyAndLogAsync(db, migrateLogger).ConfigureAwait(false);
         }
         catch (Exception ex)
         {

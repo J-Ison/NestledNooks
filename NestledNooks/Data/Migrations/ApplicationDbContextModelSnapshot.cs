@@ -299,12 +299,19 @@ namespace NestledNooks.Migrations
                         .HasMaxLength(40)
                         .HasColumnType("nvarchar(40)");
 
+                    b.Property<decimal?>("RequiredDepositAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
                     b.Property<int>("PetCount")
                         .HasColumnType("int");
 
                     b.Property<decimal>("PetFee")
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
+
+                    b.Property<bool>("DepositNonRefundable")
+                        .HasColumnType("bit");
 
                     b.Property<string>("PropertySlug")
                         .IsRequired()
@@ -348,6 +355,96 @@ namespace NestledNooks.Migrations
                     b.HasIndex("PropertySlug", "CheckIn", "CheckOut");
 
                     b.ToTable("BookingRequests");
+                });
+
+            modelBuilder.Entity("NestledNooks.Data.BookingPaymentLink", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("BookingRequestId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("CompletedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Purpose")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("StripeCheckoutSessionId")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("Token")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BookingRequestId");
+
+                    b.HasIndex("Token")
+                        .IsUnique();
+
+                    b.ToTable("BookingPaymentLinks");
+                });
+
+            modelBuilder.Entity("NestledNooks.Data.GuestEmailTemplate", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Body")
+                        .IsRequired()
+                        .HasMaxLength(8000)
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)");
+
+                    b.Property<string>("EmailSubject")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("PropertySlug")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PropertySlug", "SortOrder");
+
+                    b.ToTable("GuestEmailTemplates");
                 });
 
             modelBuilder.Entity("NestledNooks.Data.AdminBookingSeen", b =>
@@ -992,6 +1089,17 @@ namespace NestledNooks.Migrations
                         .OnDelete(DeleteBehavior.SetNull);
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("NestledNooks.Data.BookingPaymentLink", b =>
+                {
+                    b.HasOne("NestledNooks.Data.BookingRequest", "BookingRequest")
+                        .WithMany()
+                        .HasForeignKey("BookingRequestId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("BookingRequest");
                 });
 
             modelBuilder.Entity("NestledNooks.Data.AdminBookingSeen", b =>

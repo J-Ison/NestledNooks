@@ -4,77 +4,44 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 namespace NestledNooks.Data.Migrations
 {
-    /// <inheritdoc />
     public partial class AddStripeBookingPayments : Migration
     {
-        /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.AddColumn<decimal>(
-                name: "RequiredDepositAmount",
-                table: "BookingRequests",
-                type: "decimal(18,2)",
-                precision: 18,
-                scale: 2,
-                nullable: true);
+            migrationBuilder.Sql(
+                """
+                IF COL_LENGTH('BookingRequests', 'RequiredDepositAmount') IS NULL
+                    ALTER TABLE [BookingRequests] ADD [RequiredDepositAmount] decimal(18,2) NULL;
 
-            migrationBuilder.AddColumn<bool>(
-                name: "DepositNonRefundable",
-                table: "BookingRequests",
-                type: "bit",
-                nullable: false,
-                defaultValue: false);
+                IF COL_LENGTH('BookingRequests', 'DepositNonRefundable') IS NULL
+                    ALTER TABLE [BookingRequests] ADD [DepositNonRefundable] bit NOT NULL CONSTRAINT [DF_BookingRequests_DepositNonRefundable] DEFAULT (0);
 
-            migrationBuilder.CreateTable(
-                name: "BookingPaymentLinks",
-                columns: table => new
-                {
-                    Id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
-                    BookingRequestId = table.Column<int>(type: "int", nullable: false),
-                    Token = table.Column<string>(type: "nvarchar(64)", maxLength: 64, nullable: false),
-                    Purpose = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: false),
-                    Amount = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
-                    StripeCheckoutSessionId = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: true),
-                    CreatedAtUtc = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    CompletedAtUtc = table.Column<DateTime>(type: "datetime2", nullable: true)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_BookingPaymentLinks", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_BookingPaymentLinks_BookingRequests_BookingRequestId",
-                        column: x => x.BookingRequestId,
-                        principalTable: "BookingRequests",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                });
-
-            migrationBuilder.CreateIndex(
-                name: "IX_BookingPaymentLinks_BookingRequestId",
-                table: "BookingPaymentLinks",
-                column: "BookingRequestId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_BookingPaymentLinks_Token",
-                table: "BookingPaymentLinks",
-                column: "Token",
-                unique: true);
+                IF OBJECT_ID(N'[BookingPaymentLinks]', N'U') IS NULL
+                BEGIN
+                    CREATE TABLE [BookingPaymentLinks] (
+                        [Id] int NOT NULL IDENTITY(1,1),
+                        [BookingRequestId] int NOT NULL,
+                        [Token] nvarchar(64) NOT NULL,
+                        [Purpose] nvarchar(20) NOT NULL,
+                        [Amount] decimal(18,2) NOT NULL,
+                        [StripeCheckoutSessionId] nvarchar(200) NULL,
+                        [CreatedAtUtc] datetime2 NOT NULL,
+                        [CompletedAtUtc] datetime2 NULL,
+                        CONSTRAINT [PK_BookingPaymentLinks] PRIMARY KEY ([Id]),
+                        CONSTRAINT [FK_BookingPaymentLinks_BookingRequests_BookingRequestId]
+                            FOREIGN KEY ([BookingRequestId]) REFERENCES [BookingRequests] ([Id]) ON DELETE CASCADE
+                    );
+                    CREATE INDEX [IX_BookingPaymentLinks_BookingRequestId] ON [BookingPaymentLinks] ([BookingRequestId]);
+                    CREATE UNIQUE INDEX [IX_BookingPaymentLinks_Token] ON [BookingPaymentLinks] ([Token]);
+                END
+                """);
         }
 
-        /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropTable(
-                name: "BookingPaymentLinks");
-
-            migrationBuilder.DropColumn(
-                name: "RequiredDepositAmount",
-                table: "BookingRequests");
-
-            migrationBuilder.DropColumn(
-                name: "DepositNonRefundable",
-                table: "BookingRequests");
+            migrationBuilder.DropTable(name: "BookingPaymentLinks");
+            migrationBuilder.DropColumn(name: "RequiredDepositAmount", table: "BookingRequests");
+            migrationBuilder.DropColumn(name: "DepositNonRefundable", table: "BookingRequests");
         }
     }
 }
