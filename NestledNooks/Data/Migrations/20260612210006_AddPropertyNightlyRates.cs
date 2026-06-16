@@ -1,5 +1,4 @@
-﻿using System;
-using Microsoft.EntityFrameworkCore.Migrations;
+﻿using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
@@ -11,28 +10,23 @@ namespace NestledNooks.Data.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.CreateTable(
-                name: "PropertyNightlyRates",
-                columns: table => new
-                {
-                    Id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
-                    PropertySlug = table.Column<string>(type: "nvarchar(120)", maxLength: 120, nullable: false),
-                    Date = table.Column<DateOnly>(type: "date", nullable: false),
-                    Rate = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
-                    MinimumStay = table.Column<int>(type: "int", nullable: true),
-                    UpdatedAtUtc = table.Column<DateTime>(type: "datetime2", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_PropertyNightlyRates", x => x.Id);
-                });
-
-            migrationBuilder.CreateIndex(
-                name: "IX_PropertyNightlyRates_PropertySlug_Date",
-                table: "PropertyNightlyRates",
-                columns: new[] { "PropertySlug", "Date" },
-                unique: true);
+            migrationBuilder.Sql(
+                """
+                IF OBJECT_ID(N'[PropertyNightlyRates]', N'U') IS NULL
+                BEGIN
+                    CREATE TABLE [PropertyNightlyRates] (
+                        [Id] int NOT NULL IDENTITY(1,1),
+                        [PropertySlug] nvarchar(120) NOT NULL,
+                        [Date] date NOT NULL,
+                        [Rate] decimal(18,2) NOT NULL,
+                        [MinimumStay] int NULL,
+                        [UpdatedAtUtc] datetime2 NOT NULL,
+                        CONSTRAINT [PK_PropertyNightlyRates] PRIMARY KEY ([Id])
+                    );
+                    CREATE UNIQUE INDEX [IX_PropertyNightlyRates_PropertySlug_Date]
+                        ON [PropertyNightlyRates] ([PropertySlug], [Date]);
+                END
+                """);
         }
 
         /// <inheritdoc />

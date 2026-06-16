@@ -21,6 +21,12 @@ public sealed class PropertyBookingOptions
     public int MaxPets { get; set; } = 4;
     public int MinimumNights { get; set; } = 2;
 
+    /// <summary>Standard check-in time (24h), e.g. 16:00 for 4:00 PM.</summary>
+    public string CheckInTime { get; set; } = PropertyStayTimes.DefaultCheckInTime;
+
+    /// <summary>Standard check-out time (24h), e.g. 10:00 for 10:00 AM.</summary>
+    public string CheckOutTime { get; set; } = PropertyStayTimes.DefaultCheckOutTime;
+
     /// <summary>Airbnb calendar export (.ics) URL — import only.</summary>
     public string? AirbnbIcalUrl { get; set; }
 

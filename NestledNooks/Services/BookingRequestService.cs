@@ -53,26 +53,24 @@ public sealed class BookingRequestService : IBookingRequestService
         if (!siteSettings.DirectBookingsEnabled &&
             !HostStaffAuthorization.IsOwner(_httpContextAccessor.HttpContext?.User))
         {
-            return new BookingSubmitResult(
-                false,
-                null,
-                null,
+            return Fail(
+                BookingSubmitErrorCodes.DirectBookingDisabled,
                 "Direct booking is temporarily unavailable. Please contact us or check back soon.");
         }
 
         var slug = model.PropertySlug.Trim().ToLowerInvariant();
         var property = _pricing.GetProperty(slug);
         if (property is null)
-            return new BookingSubmitResult(false, null, null, "Unknown property.");
+            return Fail(BookingSubmitErrorCodes.UnknownProperty, "Unknown property.");
 
         if (model.CheckIn is not { } checkIn || model.CheckOut is not { } checkOut)
-            return new BookingSubmitResult(false, null, null, "Check-in and check-out are required.");
+            return Fail(BookingSubmitErrorCodes.MissingDates, "Check-in and check-out are required.");
 
         if (model.GuestCount > property.MaxGuests)
-            return new BookingSubmitResult(false, null, null, $"Maximum {property.MaxGuests} guests.");
+            return Fail(BookingSubmitErrorCodes.TooManyGuests, $"Maximum {property.MaxGuests} guests.");
 
         if (model.PetCount > property.MaxPets)
-            return new BookingSubmitResult(false, null, null, $"Maximum {property.MaxPets} pets.");
+            return Fail(BookingSubmitErrorCodes.TooManyPets, $"Maximum {property.MaxPets} pets.");
 
         BookingQuote quote;
         try
@@ -82,16 +80,14 @@ public sealed class BookingRequestService : IBookingRequestService
         }
         catch (InvalidOperationException ex)
         {
-            return new BookingSubmitResult(false, null, null, ex.Message);
+            return Fail(BookingSubmitErrorCodes.QuoteFailed, ex.Message);
         }
 
         if (!await _availability.IsRangeAvailableAsync(slug, checkIn, checkOut, cancellationToken: cancellationToken)
                 .ConfigureAwait(false))
         {
-            return new BookingSubmitResult(
-                false,
-                null,
-                null,
+            return Fail(
+                BookingSubmitErrorCodes.DatesUnavailable,
                 "Those dates are no longer available. Please choose different dates.");
         }
 
@@ -134,7 +130,8 @@ public sealed class BookingRequestService : IBookingRequestService
         catch (DbUpdateException ex)
         {
             var detail = ex.InnerException?.Message ?? ex.Message;
-            return new BookingSubmitResult(false, null, null, $"Could not save booking: {detail}");
+            _logger.LogError(ex, "Booking save failed ({ErrorCode}).", BookingSubmitErrorCodes.SaveFailed);
+            return Fail(BookingSubmitErrorCodes.SaveFailed, $"Could not save booking: {detail}");
         }
 
         var emailPayload = new BookingRequestEmailPayload(
@@ -169,8 +166,45 @@ public sealed class BookingRequestService : IBookingRequestService
                 "We will still review your booking.";
         }
 
-        return new BookingSubmitResult(true, entity.Id, entity.BookingNumber, null, emailWarning);
+        return new BookingSubmitResult(true, entity.Id, entity.BookingNumber, null, null, emailWarning);
     }
+
+    public async Task<BookingConfirmationSummary?> GetPublicConfirmationAsync(
+        string bookingNumber,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(bookingNumber))
+            return null;
+
+        var normalized = bookingNumber.Trim();
+        var entity = await _db.BookingRequests
+            .AsNoTracking()
+            .FirstOrDefaultAsync(b => b.BookingNumber == normalized, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (entity is null)
+            return null;
+
+        var property = _pricing.GetProperty(entity.PropertySlug);
+        var displayName = property?.DisplayName ?? entity.PropertySlug;
+        var (checkInTime, checkOutTime) = PropertyStayTimes.Resolve(property);
+
+        return new BookingConfirmationSummary(
+            entity.BookingNumber,
+            entity.PropertySlug,
+            displayName,
+            entity.GuestFullName,
+            entity.CheckIn,
+            entity.CheckOut,
+            checkInTime,
+            checkOutTime,
+            entity.NightCount,
+            entity.TotalAmount,
+            entity.Status);
+    }
+
+    private static BookingSubmitResult Fail(string code, string message) =>
+        new(false, null, null, code, message);
 
     public async Task<BookingQuote?> GetQuoteAsync(
         string propertySlug,

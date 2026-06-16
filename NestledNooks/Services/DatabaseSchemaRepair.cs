@@ -17,6 +17,7 @@ public static class DatabaseSchemaRepair
         await EnsureContactInquiryTableAsync(db, logger, cancellationToken).ConfigureAwait(false);
         await EnsureSiteSettingsTableAsync(db, logger, cancellationToken).ConfigureAwait(false);
         await EnsureRentalPropertyCleaningFeeColumnAsync(db, logger, cancellationToken).ConfigureAwait(false);
+        await EnsurePropertyNightlyRatesTableAsync(db, logger, cancellationToken).ConfigureAwait(false);
         await EnsureStripeBookingPaymentSchemaAsync(db, logger, cancellationToken).ConfigureAwait(false);
         await EnsureGuestEmailTemplatesTableAsync(db, logger, cancellationToken).ConfigureAwait(false);
         await EnsureAdminNotificationSchemaAsync(db, logger, cancellationToken).ConfigureAwait(false);
@@ -235,6 +236,33 @@ public static class DatabaseSchemaRepair
             cancellationToken).ConfigureAwait(false);
 
         logger.LogInformation("Verified RentalProperties.CleaningFee column.");
+    }
+
+    public static async Task EnsurePropertyNightlyRatesTableAsync(
+        ApplicationDbContext db,
+        ILogger logger,
+        CancellationToken cancellationToken = default)
+    {
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            IF OBJECT_ID(N'[PropertyNightlyRates]', N'U') IS NULL
+            BEGIN
+                CREATE TABLE [PropertyNightlyRates] (
+                    [Id] int NOT NULL IDENTITY(1,1),
+                    [PropertySlug] nvarchar(120) NOT NULL,
+                    [Date] date NOT NULL,
+                    [Rate] decimal(18,2) NOT NULL,
+                    [MinimumStay] int NULL,
+                    [UpdatedAtUtc] datetime2 NOT NULL,
+                    CONSTRAINT [PK_PropertyNightlyRates] PRIMARY KEY ([Id])
+                );
+                CREATE UNIQUE INDEX [IX_PropertyNightlyRates_PropertySlug_Date]
+                    ON [PropertyNightlyRates] ([PropertySlug], [Date]);
+            END
+            """,
+            cancellationToken).ConfigureAwait(false);
+
+        logger.LogInformation("Verified PropertyNightlyRates table.");
     }
 
     public static async Task EnsureStripeBookingPaymentSchemaAsync(

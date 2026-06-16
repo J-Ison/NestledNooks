@@ -13,6 +13,7 @@ public static class DatabaseSchemaVerification
     {
         var checks = new (string Name, string Sql)[]
         {
+            ("PropertyNightlyRates", "SELECT CASE WHEN OBJECT_ID(N'[PropertyNightlyRates]', N'U') IS NOT NULL THEN 1 ELSE 0 END"),
             ("BookingPaymentLinks", "SELECT CASE WHEN OBJECT_ID(N'[BookingPaymentLinks]', N'U') IS NOT NULL THEN 1 ELSE 0 END"),
             ("GuestEmailTemplates", "SELECT CASE WHEN OBJECT_ID(N'[GuestEmailTemplates]', N'U') IS NOT NULL THEN 1 ELSE 0 END"),
             ("AdminBookingSeens", "SELECT CASE WHEN OBJECT_ID(N'[AdminBookingSeens]', N'U') IS NOT NULL THEN 1 ELSE 0 END"),

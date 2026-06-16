@@ -1,0 +1,143 @@
+@page "/booking/confirmation"
+@rendermode InteractiveServer
+
+@using Microsoft.AspNetCore.WebUtilities
+@using NestledNooks.Models
+@using NestledNooks.Services
+
+@inject NavigationManager Navigation
+@inject IBookingRequestService BookingService
+
+<PageTitle>@SiteBranding.PageTitle("Booking request received")</PageTitle>
+<HeadContent>
+    <meta name="description" content="Your Deerfield Retreat booking request was received. We will review your dates and email you when your stay is approved or declined." />
+</HeadContent>
+
+<div class="guide-page">
+    <header class="guide-hero guide-hero--booking">
+        <div class="wrap guide-hero-inner">
+            <p class="guide-hero-eyebrow">Deerfield Retreat · @SiteBranding.RegionLine</p>
+            <h1 class="guide-hero-title">Request received</h1>
+            <p class="guide-hero-lead">
+                @if (_summary is not null)
+                {
+                    <span>Thanks, @_summary.GuestFullName — we saved your booking request and will be in touch soon.</span>
+                }
+                else
+                {
+                    <span>We could not find that booking reference. If you just submitted a request, check your email for confirmation.</span>
+                }
+            </p>
+        </div>
+    </header>
+
+    <main class="wrap guide-main">
+        @if (_loading)
+        {
+            <p class="nn-loading">Loading confirmation…</p>
+        }
+        else if (_summary is null)
+        {
+            <article class="guide-card guide-card--booking">
+                <div class="guide-card-body">
+                    <p class="nn-note nn-note--warn">
+                        Booking reference not found. Double-check the link from your confirmation email, or
+                        <a class="mgmt-link" href="/contact">contact us</a> for help.
+                    </p>
+                    <a class="guide-footer-btn guide-footer-btn--primary" href="/booking?property=deerfield-retreat">Start a new request</a>
+                </div>
+            </article>
+        }
+        else
+        {
+            <article class="guide-card guide-card--booking nn-booking-confirmation">
+                <header class="guide-card-header">
+                    <span class="guide-card-icon" aria-hidden="true">✓</span>
+                    <div>
+                        <h2 class="guide-card-title">@_summary.PropertyDisplayName</h2>
+                        <p class="guide-card-subtitle">Reference @_summary.BookingNumber</p>
+                    </div>
+                </header>
+
+                <div class="guide-card-body">
+                    <dl class="nn-booking-confirmation-details">
+                        <div>
+                            <dt>Check-in</dt>
+                            <dd>@_summary.CheckIn.ToString("MMMM d, yyyy") · @_summary.CheckInTimeDisplay</dd>
+                        </div>
+                        <div>
+                            <dt>Check-out</dt>
+                            <dd>@_summary.CheckOut.ToString("MMMM d, yyyy") · @_summary.CheckOutTimeDisplay</dd>
+                        </div>
+                        <div>
+                            <dt>Nights</dt>
+                            <dd>@_summary.NightCount</dd>
+                        </div>
+                        <div>
+                            <dt>Estimated total</dt>
+                            <dd>@_summary.TotalAmount.ToString("C")</dd>
+                        </div>
+                        <div>
+                            <dt>Status</dt>
+                            <dd>@_summary.Status — pending host review</dd>
+                        </div>
+                    </dl>
+
+                    <p class="nn-note nn-note--success">
+                        We emailed a copy of this request to you. Dates are held while we review your request.
+                        Standard check-in is @_summary.CheckInTimeDisplay; check-out is @_summary.CheckOutTimeDisplay (unless we agree otherwise).
+                        Final total and payment are confirmed after approval.
+                    </p>
+
+                    @if (_emailWarning)
+                    {
+                        <p class="nn-note nn-note--warn">
+                            Your request was saved, but we could not send email (SMTP may need configuration).
+                            We will still review your booking.
+                        </p>
+                    }
+
+                    <div class="nn-booking-confirmation-actions">
+                        <a class="guide-footer-btn guide-footer-btn--primary"
+                           href="@PropertyGuideHref">Guest guide</a>
+                        <a class="guide-footer-btn guide-footer-btn--secondary"
+                           href="@PropertyPageHref">Property page</a>
+                        <a class="guide-footer-btn guide-footer-btn--secondary"
+                           href="/contact">Contact us</a>
+                    </div>
+                </div>
+            </article>
+        }
+    </main>
+</div>
+
+@code {
+    private BookingConfirmationSummary? _summary;
+    private bool _loading = true;
+    private bool _emailWarning;
+
+    private string PropertySlug =>
+        _summary?.PropertySlug ?? BookingFormModel.DeerfieldSlug;
+
+    private string PropertyPageHref => $"/properties/{PropertySlug}";
+
+    private string PropertyGuideHref => PropertySlug.Equals(BookingFormModel.DeerfieldSlug, StringComparison.OrdinalIgnoreCase)
+        ? "/properties/deerfield-retreat/guide"
+        : PropertyPageHref;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var uri = Navigation.ToAbsoluteUri(Navigation.Uri);
+        var query = QueryHelpers.ParseQuery(uri.Query);
+
+        query.TryGetValue("ref", out var refValue);
+        query.TryGetValue("emailWarning", out var emailWarningValue);
+        _emailWarning = string.Equals(emailWarningValue.ToString(), "1", StringComparison.Ordinal);
+
+        var bookingNumber = refValue.ToString();
+        if (!string.IsNullOrWhiteSpace(bookingNumber))
+            _summary = await BookingService.GetPublicConfirmationAsync(bookingNumber);
+
+        _loading = false;
+    }
+}

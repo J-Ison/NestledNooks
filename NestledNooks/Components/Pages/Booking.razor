@@ -18,10 +18,12 @@
 @inject ISiteSettingsService SiteSettingsService
 @inject UserManager<ApplicationUser> UserManager
 @inject AuthenticationStateProvider AuthStateProvider
+@inject IBookingIntegrationStatusService IntegrationStatusService
+@inject ILogger<Booking> Logger
 
 <PageTitle>@SiteBranding.PageTitle("Request booking")</PageTitle>
 <HeadContent>
-    <meta name="description" content="Request a reservation at Deerfield Retreat. Only available dates can be selected — synced with Airbnb and Vrbo." />
+    <meta name="description" content="Request a reservation at Deerfield Retreat. Choose available dates and submit a direct booking request." />
 </HeadContent>
 
 <div class="guide-page">
@@ -51,7 +53,7 @@
                     <span class="guide-card-icon" aria-hidden="true">📅</span>
                     <div>
                         <h2 class="guide-card-title">Booking request</h2>
-                        <p class="guide-card-subtitle">Direct request — calendars stay in sync with Airbnb and Vrbo</p>
+                        <p class="guide-card-subtitle">Submit your stay dates and details</p>
                     </div>
                 </header>
 
@@ -73,8 +75,30 @@
                             </p>
                         }
 
+                    @if (_isHostStaff && _integrationStatus is not null)
+                    {
+                        <div class="nn-booking-integration-panel" aria-label="Integration sync status (staff only)">
+                            <p class="nn-booking-section-title">Integration sync (staff)</p>
+                            <p class="nn-booking-section-hint">Status after calendar refresh on this page load.</p>
+                            <ul class="nn-booking-integration-list">
+                                @foreach (var channel in new[] { _integrationStatus.Airbnb, _integrationStatus.Vrbo, _integrationStatus.PriceLabs })
+                                {
+                                    <li class="nn-booking-integration-item @GetIntegrationClass(channel)">
+                                        <span class="nn-booking-integration-name">@channel.Name</span>
+                                        <span class="nn-booking-integration-state">@GetIntegrationLabel(channel)</span>
+                                        <span class="nn-booking-integration-detail">@channel.Detail</span>
+                                        @if (channel.LastSyncedAtUtc is { } synced)
+                                        {
+                                            <span class="nn-booking-integration-time">Last sync @synced.ToLocalTime().ToString("g")</span>
+                                        }
+                                    </li>
+                                }
+                            </ul>
+                        </div>
+                    }
+
                     <p class="nn-note">
-                        Calendar blocks include Airbnb/Vrbo bookings (when iCal URLs are configured) and pending site requests.
+                        Unavailable dates are grayed out. Pending requests hold dates until we approve or decline.
                     </p>
 
                     <EditForm Model="@_model" OnValidSubmit="SubmitAsync">
@@ -197,13 +221,16 @@
                                     }
                                     <li><strong>Total @_quote.TotalAmount.ToString("C")</strong></li>
                                 </ul>
-                                @if (_quote.UsesDynamicPricing)
+                                @if (_isHostStaff)
                                 {
-                                    <p class="nn-booking-section-hint">Rates synced from PriceLabs (@(_quote.NightlyRate.ToString("C")) avg/night).</p>
-                                }
-                                else
-                                {
-                                    <p class="nn-booking-section-hint">Using site base rate until PriceLabs sync is configured.</p>
+                                    @if (_quote.UsesDynamicPricing)
+                                    {
+                                        <p class="nn-booking-section-hint">Staff: rates from PriceLabs (@(_quote.NightlyRate.ToString("C")) avg/night).</p>
+                                    }
+                                    else
+                                    {
+                                        <p class="nn-booking-section-hint">Staff: using site base rate (PriceLabs not synced).</p>
+                                    }
                                 }
                             </div>
                         }
@@ -218,12 +245,13 @@
 
                         @if (!string.IsNullOrEmpty(_error))
                         {
-                            <p class="nn-note nn-note--error">@_error</p>
-                        }
-
-                        @if (!string.IsNullOrEmpty(_success))
-                        {
-                            <p class="nn-note nn-note--success">@_success</p>
+                            <div class="nn-note nn-note--error" role="alert">
+                                <p>@_error</p>
+                                @if (!string.IsNullOrEmpty(_errorCode))
+                                {
+                                    <p class="nn-booking-error-ref"><strong>Ref: @_errorCode</strong></p>
+                                }
+                            </div>
                         }
 
                         <MudButton ButtonType="ButtonType.Submit"
@@ -263,18 +291,21 @@
     private bool _submitting;
     private bool _quoteLoading;
     private string? _error;
-    private string? _success;
+    private string? _errorCode;
     private string? _quoteError;
     private BookingQuote? _quote;
     private string? _userId;
     private bool _directBookingsEnabled = true;
     private bool _isOwner;
+    private bool _isHostStaff;
+    private BookingIntegrationStatusSnapshot? _integrationStatus;
 
     protected override async Task OnInitializedAsync()
     {
         var auth = await AuthStateProvider.GetAuthenticationStateAsync();
         _userId = UserManager.GetUserId(auth.User);
         _isOwner = HostStaffAuthorization.IsOwner(auth.User);
+        _isHostStaff = HostStaffAuthorization.IsHostStaff(auth.User);
 
         var siteSettings = await SiteSettingsService.GetAsync();
         _directBookingsEnabled = siteSettings.DirectBookingsEnabled;
@@ -313,7 +344,29 @@
         }
 
         await RefreshUnavailableDatesAsync();
+
+        if (_isHostStaff)
+            _integrationStatus = await IntegrationStatusService.GetSnapshotAsync(_model.PropertySlug);
+
         _loading = false;
+    }
+
+    private static string GetIntegrationClass(IntegrationChannelSnapshot channel)
+    {
+        if (!channel.IsConfigured)
+            return "nn-booking-integration-item--off";
+
+        return channel.IsSynced
+            ? "nn-booking-integration-item--ok"
+            : "nn-booking-integration-item--warn";
+    }
+
+    private static string GetIntegrationLabel(IntegrationChannelSnapshot channel)
+    {
+        if (!channel.IsConfigured)
+            return "Not configured";
+
+        return channel.IsSynced ? "Synced" : "Not synced";
     }
 
     private async Task RefreshUnavailableDatesAsync()
@@ -388,26 +441,34 @@
 
         _submitting = true;
         _error = null;
-        _success = null;
+        _errorCode = null;
 
         try
         {
             var result = await BookingService.SubmitAsync(_model, _userId);
             if (!result.Succeeded)
             {
+                _errorCode = result.ErrorCode;
                 _error = result.ErrorMessage ?? "Could not submit request.";
                 return;
             }
 
-            _success = string.IsNullOrEmpty(result.EmailWarning)
-                ? $"Booking request {result.BookingNumber} was saved. " +
-                  "We emailed you a confirmation and will notify you when your stay is approved or declined."
-                : $"Booking request {result.BookingNumber} was saved. {result.EmailWarning}";
-            await RefreshUnavailableDatesAsync();
+            var query = new Dictionary<string, object?>
+            {
+                ["ref"] = result.BookingNumber!,
+            };
+
+            if (!string.IsNullOrEmpty(result.EmailWarning))
+                query["emailWarning"] = "1";
+
+            var confirmationUrl = Navigation.GetUriWithQueryParameters("/booking/confirmation", query);
+            Navigation.NavigateTo(confirmationUrl, forceLoad: true);
         }
         catch (Exception ex)
         {
-            _error = $"Could not submit: {ex.Message}";
+            _errorCode = BookingSubmitErrorCodes.Unexpected;
+            _error = "Could not submit your request. Please try again or contact us.";
+            Logger.LogError(ex, "Booking submit failed ({ErrorCode}).", BookingSubmitErrorCodes.Unexpected);
         }
         finally
         {

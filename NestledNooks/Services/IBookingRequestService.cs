@@ -10,6 +10,10 @@ public interface IBookingRequestService
         string? userId,
         CancellationToken cancellationToken = default);
 
+    Task<BookingConfirmationSummary?> GetPublicConfirmationAsync(
+        string bookingNumber,
+        CancellationToken cancellationToken = default);
+
     Task<BookingQuote?> GetQuoteAsync(
         string propertySlug,
         DateOnly checkIn,
@@ -80,8 +84,22 @@ public sealed record BookingSubmitResult(
     bool Succeeded,
     int? BookingId,
     string? BookingNumber,
+    string? ErrorCode,
     string? ErrorMessage,
     string? EmailWarning = null);
+
+public sealed record BookingConfirmationSummary(
+    string BookingNumber,
+    string PropertySlug,
+    string PropertyDisplayName,
+    string GuestFullName,
+    DateOnly CheckIn,
+    DateOnly CheckOut,
+    string CheckInTimeDisplay,
+    string CheckOutTimeDisplay,
+    int NightCount,
+    decimal TotalAmount,
+    string Status);
 
 public sealed record BookingStatusUpdateResult(bool Succeeded, string? ErrorMessage);
 

@@ -62,6 +62,7 @@ builder.Services.AddScoped<IStripePaymentService, StripePaymentService>();
 builder.Services.AddScoped<BookingPricingService>();
 builder.Services.AddScoped<IPriceLabsPricingSyncService, PriceLabsPricingSyncService>();
 builder.Services.AddScoped<IBookingAvailabilityService, BookingAvailabilityService>();
+builder.Services.AddScoped<IBookingIntegrationStatusService, BookingIntegrationStatusService>();
 builder.Services.AddScoped<IBookingRequestService, BookingRequestService>();
 builder.Services.AddScoped<BookingIcalExportService>();
 builder.Services.AddSingleton<SiteThemeCache>();

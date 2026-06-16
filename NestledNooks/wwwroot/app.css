@@ -1749,6 +1749,92 @@ footer {
         margin: 4px 0;
     }
 
+.nn-booking-integration-panel {
+    margin: 0 0 16px;
+    padding: 14px 16px;
+    border-radius: 12px;
+    border: 1px dashed color-mix(in srgb, var(--nn-primary) 35%, var(--nn-line));
+    background: color-mix(in srgb, var(--nn-primary) 6%, var(--nn-surface));
+}
+
+.nn-booking-integration-list {
+    list-style: none;
+    margin: 10px 0 0;
+    padding: 0;
+    display: grid;
+    gap: 10px;
+}
+
+.nn-booking-integration-item {
+    display: grid;
+    gap: 2px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    border: 1px solid var(--nn-line);
+    background: var(--nn-surface);
+}
+
+.nn-booking-integration-item--ok {
+    border-left: 4px solid var(--nn-booking);
+}
+
+.nn-booking-integration-item--warn {
+    border-left: 4px solid #d97706;
+}
+
+.nn-booking-integration-item--off {
+    border-left: 4px solid var(--nn-muted, #94a3b8);
+}
+
+.nn-booking-integration-name {
+    font-weight: 700;
+}
+
+.nn-booking-integration-state {
+    font-size: 0.92rem;
+}
+
+.nn-booking-integration-detail,
+.nn-booking-integration-time {
+    font-size: 0.85rem;
+    color: var(--nn-text-muted, #64748b);
+}
+
+.nn-booking-error-ref {
+    margin: 8px 0 0;
+    font-size: 0.9rem;
+}
+
+.nn-booking-confirmation-details {
+    display: grid;
+    gap: 12px;
+    margin: 0 0 16px;
+}
+
+.nn-booking-confirmation-details div {
+    display: grid;
+    gap: 2px;
+}
+
+.nn-booking-confirmation-details dt {
+    font-size: 0.82rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--nn-text-muted, #64748b);
+}
+
+.nn-booking-confirmation-details dd {
+    margin: 0;
+    font-size: 1.05rem;
+}
+
+.nn-booking-confirmation-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 16px;
+}
+
 .weather-toolbar {
     display: flex;
     flex-wrap: wrap;
