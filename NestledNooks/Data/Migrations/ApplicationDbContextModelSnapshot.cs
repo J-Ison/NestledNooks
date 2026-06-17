@@ -813,6 +813,9 @@ namespace NestledNooks.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
 
+                    b.Property<bool>("AllowFarAdvanceDirectBooking")
+                        .HasColumnType("bit");
+
                     b.Property<string>("AmenitiesJson")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -840,6 +843,9 @@ namespace NestledNooks.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
 
+                    b.Property<int>("ExternalCalendarTrustDays")
+                        .HasColumnType("int");
+
                     b.Property<string>("GuideTeaserText")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -849,6 +855,15 @@ namespace NestledNooks.Migrations
 
                     b.Property<bool>("IsPublished")
                         .HasColumnType("bit");
+
+                    b.Property<int>("MaxBookingDaysAhead")
+                        .HasColumnType("int");
+
+                    b.Property<int>("MinAdvanceBookingDays")
+                        .HasColumnType("int");
+
+                    b.Property<int>("MinimumNights")
+                        .HasColumnType("int");
 
                     b.Property<string>("LocationText")
                         .IsRequired()
@@ -862,6 +877,10 @@ namespace NestledNooks.Migrations
                     b.Property<string>("PhotosJson")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<decimal>("PetDepositPerTwoPets")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
 
                     b.Property<string>("Slug")
                         .IsRequired()

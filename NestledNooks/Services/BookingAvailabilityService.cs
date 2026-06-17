@@ -8,17 +8,20 @@ namespace NestledNooks.Services;
 public sealed class BookingAvailabilityService : IBookingAvailabilityService
 {
     private readonly ApplicationDbContext _db;
+    private readonly IDbContextFactory<ApplicationDbContext> _dbFactory;
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly BookingOptions _options;
     private readonly ILogger<BookingAvailabilityService> _logger;
 
     public BookingAvailabilityService(
         ApplicationDbContext db,
+        IDbContextFactory<ApplicationDbContext> dbFactory,
         IHttpClientFactory httpClientFactory,
         IOptions<BookingOptions> options,
         ILogger<BookingAvailabilityService> logger)
     {
         _db = db;
+        _dbFactory = dbFactory;
         _httpClientFactory = httpClientFactory;
         _options = options.Value;
         _logger = logger;
@@ -36,10 +39,16 @@ public sealed class BookingAvailabilityService : IBookingAvailabilityService
             return [];
 
         var ranges = await GetBlockedRangesAsync(slug, excludeBookingId, cancellationToken).ConfigureAwait(false);
+        var calendarSettings = await GetListingCalendarSettingsAsync(slug, cancellationToken).ConfigureAwait(false);
+        var today = DateOnly.FromDateTime(DateTime.UtcNow.Date);
+
         var dates = new HashSet<DateOnly>();
 
-        foreach (var (start, end) in ranges)
+        foreach (var (start, end, isExternal) in ranges)
         {
+            if (isExternal && calendarSettings.ExternalCalendarTrustDays <= 0)
+                continue;
+
             var cursor = start < from ? from : start;
             var lastNight = end.AddDays(-1);
             if (lastNight > to)
@@ -47,10 +56,20 @@ public sealed class BookingAvailabilityService : IBookingAvailabilityService
 
             while (cursor <= lastNight)
             {
-                dates.Add(cursor);
+                if (!isExternal || cursor >= today)
+                    dates.Add(cursor);
+
                 cursor = cursor.AddDays(1);
             }
         }
+
+        AddChannelHorizonUnavailableDates(
+            dates,
+            ranges,
+            calendarSettings,
+            today,
+            from,
+            to);
 
         return dates.OrderBy(d => d).ToList();
     }
@@ -65,20 +84,62 @@ public sealed class BookingAvailabilityService : IBookingAvailabilityService
         if (checkOut <= checkIn)
             return false;
 
-        var unavailable = await GetUnavailableDatesAsync(
-            propertySlug,
-            checkIn,
-            checkOut.AddDays(-1),
-            excludeBookingId,
-            cancellationToken).ConfigureAwait(false);
+        var slug = NormalizeSlug(propertySlug);
+        if (slug is null)
+            return false;
 
-        return unavailable.Count == 0;
+        var ranges = await GetBlockedRangesAsync(slug, excludeBookingId, cancellationToken).ConfigureAwait(false);
+        var calendarSettings = await GetListingCalendarSettingsAsync(slug, cancellationToken).ConfigureAwait(false);
+        var today = DateOnly.FromDateTime(DateTime.UtcNow.Date);
+
+        foreach (var (blockCheckIn, blockCheckOut, isExternal) in ranges)
+        {
+            if (isExternal && calendarSettings.ExternalCalendarTrustDays <= 0)
+                continue;
+
+            if (!isExternal)
+            {
+                if (BookingStayDates.RangesOverlap(checkIn, checkOut, blockCheckIn, blockCheckOut))
+                    return false;
+
+                continue;
+            }
+
+            if (BookingStayDates.ExternalBlockAffectsStay(checkIn, checkOut, blockCheckIn, blockCheckOut))
+                return false;
+        }
+
+        if (calendarSettings.ExternalCalendarTrustDays > 0)
+        {
+            var externalRanges = ranges
+                .Where(r => r.IsExternal)
+                .Select(r => (r.Start, r.End))
+                .ToList();
+
+            var closureStart = BookingStayDates.FindChannelClosureStart(externalRanges, today);
+            if (closureStart is { } closedFrom &&
+                BookingStayDates.RangesOverlap(checkIn, checkOut, closedFrom, closedFrom.AddYears(5)))
+            {
+                return false;
+            }
+
+            if (!calendarSettings.AllowFarAdvanceDirectBooking)
+            {
+                var trustThrough = today.AddDays(calendarSettings.ExternalCalendarTrustDays);
+                if (checkIn > trustThrough)
+                    return false;
+            }
+        }
+
+        return true;
     }
 
     public async Task SyncExternalCalendarsAsync(CancellationToken cancellationToken = default)
     {
         var client = _httpClientFactory.CreateClient("CalendarSync");
         var syncedAt = DateTime.UtcNow;
+
+        await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
 
         foreach (var property in _options.Properties)
         {
@@ -110,12 +171,12 @@ public sealed class BookingAvailabilityService : IBookingAvailabilityService
                 continue;
             }
 
-            var existing = await _db.ExternalCalendarEvents
+            var existing = await db.ExternalCalendarEvents
                 .Where(e => e.PropertySlug == slug)
                 .ToListAsync(cancellationToken)
                 .ConfigureAwait(false);
-            _db.ExternalCalendarEvents.RemoveRange(existing);
-            _db.ExternalCalendarEvents.AddRange(imported);
+            db.ExternalCalendarEvents.RemoveRange(existing);
+            db.ExternalCalendarEvents.AddRange(imported);
 
             _logger.LogInformation(
                 "Imported {Count} external calendar blocks for {Property} (Airbnb/Vrbo).",
@@ -123,11 +184,11 @@ public sealed class BookingAvailabilityService : IBookingAvailabilityService
                 slug);
         }
 
-        await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         _logger.LogInformation("External calendar sync completed.");
     }
 
-    private async Task<List<(DateOnly Start, DateOnly End)>> GetBlockedRangesAsync(
+    private async Task<List<(DateOnly Start, DateOnly End, bool IsExternal)>> GetBlockedRangesAsync(
         string propertySlug,
         int? excludeBookingId,
         CancellationToken cancellationToken)
@@ -151,11 +212,74 @@ public sealed class BookingAvailabilityService : IBookingAvailabilityService
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
 
-        var ranges = new List<(DateOnly Start, DateOnly End)>();
-        ranges.AddRange(external.Select(e => (e.StartDate, e.EndDate)));
-        ranges.AddRange(local.Select(b => (b.CheckIn, b.CheckOut)));
+        var ranges = new List<(DateOnly Start, DateOnly End, bool IsExternal)>();
+        ranges.AddRange(external.Select(e => (e.StartDate, e.EndDate, true)));
+        ranges.AddRange(local.Select(b => (b.CheckIn, b.CheckOut, false)));
         return ranges;
     }
+
+    private async Task<ListingCalendarSettings> GetListingCalendarSettingsAsync(
+        string propertySlug,
+        CancellationToken cancellationToken)
+    {
+        var row = await _db.RentalProperties
+            .AsNoTracking()
+            .Where(p => p.Slug == propertySlug)
+            .Select(p => new { p.ExternalCalendarTrustDays, p.AllowFarAdvanceDirectBooking })
+            .FirstOrDefaultAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        return new ListingCalendarSettings(
+            ListingSettingsDefaults.ClampExternalCalendarTrustDays(
+                row?.ExternalCalendarTrustDays ?? ListingSettingsDefaults.ExternalCalendarTrustDays),
+            row?.AllowFarAdvanceDirectBooking ?? ListingSettingsDefaults.AllowFarAdvanceDirectBooking);
+    }
+
+    private static void AddChannelHorizonUnavailableDates(
+        HashSet<DateOnly> dates,
+        IReadOnlyList<(DateOnly Start, DateOnly End, bool IsExternal)> ranges,
+        ListingCalendarSettings calendarSettings,
+        DateOnly today,
+        DateOnly from,
+        DateOnly to)
+    {
+        if (calendarSettings.ExternalCalendarTrustDays <= 0)
+            return;
+
+        var externalRanges = ranges
+            .Where(r => r.IsExternal)
+            .Select(r => (r.Start, r.End))
+            .ToList();
+
+        var closureStart = BookingStayDates.FindChannelClosureStart(externalRanges, today);
+        if (closureStart is { } closedFrom)
+            AddUnavailableRange(dates, closedFrom, to, from, to);
+
+        if (!calendarSettings.AllowFarAdvanceDirectBooking)
+        {
+            var closedAfterTrust = today.AddDays(calendarSettings.ExternalCalendarTrustDays + 1);
+            AddUnavailableRange(dates, closedAfterTrust, to, from, to);
+        }
+    }
+
+    private static void AddUnavailableRange(
+        HashSet<DateOnly> dates,
+        DateOnly rangeStart,
+        DateOnly rangeEnd,
+        DateOnly from,
+        DateOnly to)
+    {
+        var cursor = rangeStart < from ? from : rangeStart;
+        var last = rangeEnd < to ? rangeEnd : to;
+
+        while (cursor <= last)
+        {
+            dates.Add(cursor);
+            cursor = cursor.AddDays(1);
+        }
+    }
+
+    private sealed record ListingCalendarSettings(int ExternalCalendarTrustDays, bool AllowFarAdvanceDirectBooking);
 
     private async Task<List<ExternalCalendarEvent>> FetchIcalEventsAsync(
         HttpClient client,

@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Components;
+﻿using System.Globalization;
+using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.Data;
@@ -11,6 +12,10 @@ using NestledNooks.Data;
 using NestledNooks.Services;
 
 var builder = WebApplication.CreateBuilder(args);
+
+var usCulture = CultureInfo.GetCultureInfo("en-US");
+CultureInfo.DefaultThreadCurrentCulture = usCulture;
+CultureInfo.DefaultThreadCurrentUICulture = usCulture;
 
 // Add services to the container.
 builder.Services.AddRazorComponents()
@@ -26,8 +31,9 @@ builder.Services.AddControllers();
 
 
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
-builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseSqlServer(connectionString));
+void ConfigureDb(DbContextOptionsBuilder options) => options.UseSqlServer(connectionString);
+builder.Services.AddDbContextFactory<ApplicationDbContext>(ConfigureDb);
+builder.Services.AddDbContext<ApplicationDbContext>(ConfigureDb);
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 
 builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
@@ -242,6 +248,17 @@ _ = Task.Run(async () =>
         catch (Exception ex)
         {
             logger.LogWarning(ex, "Initial calendar sync skipped.");
+        }
+
+        try
+        {
+            await scope.ServiceProvider.GetRequiredService<IPriceLabsPricingSyncService>()
+                .SyncAllConfiguredPropertiesAsync()
+                .ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Initial PriceLabs sync skipped.");
         }
     }
     catch (Exception ex)

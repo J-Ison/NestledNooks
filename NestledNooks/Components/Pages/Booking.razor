@@ -16,6 +16,7 @@
 @inject IBookingAvailabilityService AvailabilityService
 @inject BookingPricingService PricingService
 @inject ISiteSettingsService SiteSettingsService
+@inject IPropertyService PropertyService
 @inject UserManager<ApplicationUser> UserManager
 @inject AuthenticationStateProvider AuthStateProvider
 @inject IBookingIntegrationStatusService IntegrationStatusService
@@ -33,9 +34,10 @@
             <h1 class="guide-hero-title">Request a stay</h1>
             <p class="guide-hero-lead">
                 Choose available dates below. Pending requests hold dates until we approve or decline.
-                @if (_property is not null)
+                @if (_listingSettings is not null)
                 {
-                    <span> Minimum @_property.MinimumNights nights.</span>
+                    <span> Minimum @_listingSettings.MinimumNights nights.</span>
+                    <span> Book @_listingSettings.MinAdvanceBookingDays–@_listingSettings.EffectiveMaxBookingDaysAhead days ahead.</span>
                 }
             </p>
         </div>
@@ -79,7 +81,7 @@
                     {
                         <div class="nn-booking-integration-panel" aria-label="Integration sync status (staff only)">
                             <p class="nn-booking-section-title">Integration sync (staff)</p>
-                            <p class="nn-booking-section-hint">Status after calendar refresh on this page load.</p>
+                            <p class="nn-booking-section-hint">Rates sync on a schedule; calendar refresh runs on this page load.</p>
                             <ul class="nn-booking-integration-list">
                                 @foreach (var channel in new[] { _integrationStatus.Airbnb, _integrationStatus.Vrbo, _integrationStatus.PriceLabs })
                                 {
@@ -107,6 +109,7 @@
                         @if (_properties.Count > 1)
                         {
                             <MudSelect T="string" @bind-Value="_model.PropertySlug"
+                                       @bind-Value:after="OnPropertyChangedAsync"
                                        Label="Property"
                                        Variant="Variant.Outlined"
                                        Class="mb-3"
@@ -145,34 +148,45 @@
                                       Disabled="_submitting" />
 
                         <p class="nn-booking-section-title">Dates</p>
-                        <p class="nn-booking-section-hint">Grayed-out days are unavailable. Select check-in, then check-out.</p>
+                        <p class="nn-booking-section-hint">
+                            Tap your check-in, then your check-out on the same calendar.
+                            Check-in from @_minSelectable.ToString("MMM d, yyyy") through @_maxCheckIn.ToString("MMM d, yyyy").
+                            Grayed-out nights are booked or held. Ranges cannot cross gray dates.
+                        </p>
 
-                        <div class="nn-booking-dates">
-                            <div class="nn-booking-date-panel">
-                                <MudText Typo="Typo.caption" Class="mb-2 px-1">Check-in</MudText>
-                                <MudDatePicker @bind-Date="_checkInDate"
-                                               @bind-Date:after="OnDatesUpdatedAsync"
-                                               PickerVariant="PickerVariant.Static"
-                                               MinDate="_minSelectable"
-                                               MaxDate="_maxSelectable"
-                                               IsDateDisabledFunc="@IsDateUnavailable"
-                                               AdditionalDateClassesFunc="@GetUnavailableDateClass"
-                                               Disabled="_submitting"
-                                               ShowToolbar="false" />
-                            </div>
-                            <div class="nn-booking-date-panel">
-                                <MudText Typo="Typo.caption" Class="mb-2 px-1">Check-out</MudText>
-                                <MudDatePicker @bind-Date="_checkOutDate"
-                                               @bind-Date:after="OnDatesUpdatedAsync"
-                                               PickerVariant="PickerVariant.Static"
-                                               MinDate="_checkOutMinDate"
-                                               MaxDate="_maxSelectable"
-                                               IsDateDisabledFunc="@IsDateUnavailable"
-                                               AdditionalDateClassesFunc="@GetUnavailableDateClass"
-                                               Disabled="_submitting"
-                                               ShowToolbar="false" />
-                            </div>
+                        <div class="nn-booking-dates nn-booking-dates--range">
+                            @if (_dateRange?.Start is DateTime start && _dateRange.End is DateTime end)
+                            {
+                                <p class="nn-booking-range-summary">
+                                    @start.ToString("MMM d, yyyy") → @end.ToString("MMM d, yyyy")
+                                    · @((end.Date - start.Date).Days) night@((end.Date - start.Date).Days == 1 ? "" : "s")
+                                </p>
+                            }
+                            else if (_dateRange?.Start is DateTime checkInOnly)
+                            {
+                                <p class="nn-booking-range-summary">Check-in @checkInOnly.ToString("MMM d, yyyy") — now choose check-out</p>
+                            }
+
+                            <MudDateRangePicker @bind-DateRange="_dateRange"
+                                                @bind-DateRange:after="OnDateRangeUpdatedAsync"
+                                                PickerVariant="PickerVariant.Static"
+                                                MinDate="_minSelectable"
+                                                MaxDate="_maxCheckOut"
+                                                IsDateDisabledFunc="@IsDateUnavailable"
+                                                AdditionalDateClassesFunc="@GetUnavailableDateClass"
+                                                Disabled="_submitting"
+                                                ShowToolbar="false"
+                                                Class="nn-booking-range-picker" />
                         </div>
+
+                        @if (_model.CheckIn is { } farCheckIn && _listingSettings is not null && _listingSettings.IsBeyondExternalCalendarTrust(farCheckIn))
+                        {
+                            <p class="nn-note">
+                                This stay is more than @_listingSettings.ExternalCalendarTrustDays days out — Airbnb doesn't show availability that far ahead.
+                                You can still submit a request; we'll confirm the dates before approving.
+                                <a class="mgmt-link" href="/contact">Contact us</a> if you prefer to talk first.
+                            </p>
+                        }
 
                         <MudNumericField @bind-Value="_model.GuestCount"
                                          For="@(() => _model.GuestCount)"
@@ -192,6 +206,12 @@
                                          Class="mb-3"
                                          Disabled="_submitting"
                                          @bind-Value:after="OnPetCountUpdatedAsync" />
+                        @if (_listingSettings is { PetDepositPerTwoPets: > 0 })
+                        {
+                            <p class="nn-booking-section-hint mb-3">
+                                Pet deposit @MoneyFormat.Usd(_listingSettings.PetDepositPerTwoPets) per 2 pets (rounded up).
+                            </p>
+                        }
 
                         <MudTextField @bind-Value="_model.Notes"
                                       For="@(() => _model.Notes)"
@@ -210,22 +230,22 @@
                             <div class="nn-booking-quote">
                                 <p class="nn-booking-section-title">Estimated total</p>
                                 <ul class="nn-booking-quote-lines">
-                                    <li>@_quote.Nights night@(_quote.Nights == 1 ? "" : "s") · lodging @_quote.Subtotal.ToString("C")</li>
+                                    <li>@_quote.Nights night@(_quote.Nights == 1 ? "" : "s") · lodging @MoneyFormat.Usd(_quote.Subtotal)</li>
                                     @if (_quote.CleaningFee > 0)
                                     {
-                                        <li>Cleaning fee @_quote.CleaningFee.ToString("C")</li>
+                                        <li>Cleaning fee @MoneyFormat.Usd(_quote.CleaningFee)</li>
                                     }
                                     @if (_quote.PetFee > 0)
                                     {
-                                        <li>Pet fee @_quote.PetFee.ToString("C")</li>
+                                        <li>Pet deposit @MoneyFormat.Usd(_quote.PetFee)</li>
                                     }
-                                    <li><strong>Total @_quote.TotalAmount.ToString("C")</strong></li>
+                                    <li><strong>Total @MoneyFormat.Usd(_quote.TotalAmount)</strong></li>
                                 </ul>
                                 @if (_isHostStaff)
                                 {
                                     @if (_quote.UsesDynamicPricing)
                                     {
-                                        <p class="nn-booking-section-hint">Staff: rates from PriceLabs (@(_quote.NightlyRate.ToString("C")) avg/night).</p>
+                                        <p class="nn-booking-section-hint">Staff: rates from PriceLabs (@MoneyFormat.Usd(_quote.NightlyRate) avg/night).</p>
                                     }
                                     else
                                     {
@@ -280,12 +300,11 @@
     private PropertyBookingOptions? _property;
     private HashSet<DateOnly> _unavailableDates = [];
 
-    private DateTime? _checkInDate;
-    private DateTime? _checkOutDate;
+    private DateRange? _dateRange;
     private DateTime _minSelectable = DateTime.Today;
-    private DateTime _maxSelectable = DateTime.Today.AddMonths(18);
-
-    private DateTime _checkOutMinDate => _checkInDate?.Date.AddDays(1) ?? _minSelectable;
+    private DateTime _maxCheckIn = DateTime.Today.AddDays(365);
+    private DateTime _maxCheckOut = DateTime.Today.AddDays(395);
+    private PropertyListingSettings? _listingSettings;
 
     private bool _loading = true;
     private bool _submitting;
@@ -334,6 +353,10 @@
         if (_property is not null)
             _model.PropertySlug = _property.Slug;
 
+        SyncModelDatesFromRange();
+
+        await ApplyListingSettingsAsync();
+
         try
         {
             await AvailabilityService.SyncExternalCalendarsAsync();
@@ -369,10 +392,32 @@
         return channel.IsSynced ? "Synced" : "Not synced";
     }
 
+    private async Task OnPropertyChangedAsync()
+    {
+        _property = PricingService.GetProperty(_model.PropertySlug);
+        _dateRange = null;
+        _model.CheckIn = null;
+        _model.CheckOut = null;
+        _quote = null;
+        await ApplyListingSettingsAsync();
+        await RefreshUnavailableDatesAsync();
+        if (_isHostStaff)
+            _integrationStatus = await IntegrationStatusService.GetSnapshotAsync(_model.PropertySlug);
+    }
+
+    private async Task ApplyListingSettingsAsync()
+    {
+        _listingSettings = await PropertyService.GetListingSettingsAsync(_model.PropertySlug);
+        var today = DateTime.Today;
+        _minSelectable = today.AddDays(_listingSettings.MinAdvanceBookingDays);
+        _maxCheckIn = today.AddDays(_listingSettings.EffectiveMaxBookingDaysAhead);
+        _maxCheckOut = today.AddDays(_listingSettings.EffectiveMaxBookingDaysAhead + 30);
+    }
+
     private async Task RefreshUnavailableDatesAsync()
     {
         var from = DateOnly.FromDateTime(_minSelectable);
-        var to = DateOnly.FromDateTime(_maxSelectable);
+        var to = DateOnly.FromDateTime(_maxCheckOut);
         var list = await AvailabilityService.GetUnavailableDatesAsync(_model.PropertySlug, from, to);
         _unavailableDates = list.ToHashSet();
     }
@@ -383,15 +428,30 @@
     private string GetUnavailableDateClass(DateTime date) =>
         IsDateUnavailable(date) ? "nn-booking-date-blocked" : "";
 
-    private async Task OnDatesUpdatedAsync()
+    private async Task OnDateRangeUpdatedAsync()
     {
-        _model.CheckIn = _checkInDate.HasValue ? DateOnly.FromDateTime(_checkInDate.Value.Date) : null;
-        _model.CheckOut = _checkOutDate.HasValue ? DateOnly.FromDateTime(_checkOutDate.Value.Date) : null;
+        SyncModelDatesFromRange();
 
         if (_model.CheckIn is { } ci && _model.CheckOut is { } co && co <= ci)
-            _checkOutDate = null;
+        {
+            _dateRange = new DateRange(_dateRange?.Start, null);
+            _model.CheckOut = null;
+        }
 
         await RefreshQuoteAsync();
+    }
+
+    private void SyncModelDatesFromRange()
+    {
+        if (_dateRange?.Start is DateTime start)
+            _model.CheckIn = DateOnly.FromDateTime(start.Date);
+        else
+            _model.CheckIn = null;
+
+        if (_dateRange?.End is DateTime end)
+            _model.CheckOut = DateOnly.FromDateTime(end.Date);
+        else
+            _model.CheckOut = null;
     }
 
     private async Task RefreshQuoteAsync()
@@ -408,6 +468,17 @@
 
         _quoteLoading = true;
         await InvokeAsync(StateHasChanged);
+
+        if (!await AvailabilityService.IsRangeAvailableAsync(
+                _model.PropertySlug,
+                checkIn,
+                checkOut))
+        {
+            _quoteError = "Those dates overlap an existing reservation or hold. Please choose a different range.";
+            _quoteLoading = false;
+            await InvokeAsync(StateHasChanged);
+            return;
+        }
 
         try
         {
@@ -436,8 +507,7 @@
 
     private async Task SubmitAsync()
     {
-        _model.CheckIn = _checkInDate.HasValue ? DateOnly.FromDateTime(_checkInDate.Value) : null;
-        _model.CheckOut = _checkOutDate.HasValue ? DateOnly.FromDateTime(_checkOutDate.Value) : null;
+        SyncModelDatesFromRange();
 
         _submitting = true;
         _error = null;

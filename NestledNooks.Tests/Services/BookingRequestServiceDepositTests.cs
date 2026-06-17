@@ -108,6 +108,7 @@ public sealed class BookingRequestServiceDepositTests
 
         var db = new ApplicationDbContext(options);
         await db.Database.EnsureCreatedAsync();
+        var dbFactory = new TestDbContextFactory(options);
 
         var email = new FakeEmailService();
         var availability = new FakeAvailabilityService();
@@ -123,6 +124,7 @@ public sealed class BookingRequestServiceDepositTests
 
         var service = new BookingRequestService(
             db,
+            dbFactory,
             email,
             availability,
             pricing,
@@ -191,7 +193,7 @@ public sealed class BookingRequestServiceDepositTests
         public bool DirectBookingsEnabled { get; set; } = true;
 
         public Task<SiteSettingsSnapshot> GetAsync(CancellationToken cancellationToken = default) =>
-            Task.FromResult(new SiteSettingsSnapshot(DirectBookingsEnabled));
+            Task.FromResult(SiteSettingsSnapshot.Defaults() with { DirectBookingsEnabled = DirectBookingsEnabled });
 
         public Task<SiteSettingsSaveResult> SetDirectBookingsEnabledAsync(
             bool enabled,
@@ -297,5 +299,14 @@ public sealed class BookingRequestServiceDepositTests
             string sessionId,
             CancellationToken cancellationToken = default) =>
             Task.FromResult(new StripeCheckoutConfirmResult(true, true, "NN-TEST-001", null));
+    }
+
+    private sealed class TestDbContextFactory(DbContextOptions<ApplicationDbContext> options)
+        : IDbContextFactory<ApplicationDbContext>
+    {
+        public ApplicationDbContext CreateDbContext() => new(options);
+
+        public Task<ApplicationDbContext> CreateDbContextAsync(CancellationToken cancellationToken = default) =>
+            Task.FromResult(CreateDbContext());
     }
 }

@@ -35,6 +35,20 @@ public sealed class BookingIntegrationStatusServiceTests
     }
 
     [Fact]
+    public async Task GetSnapshotAsync_ReportsPriceLabsNotSyncedWithListingHint()
+    {
+        await using var scope = await CreateScopeAsync(
+            priceLabsEnabled: true,
+            priceLabsListingId: "1385672541118250169");
+
+        var snapshot = await scope.Service.GetSnapshotAsync(PropertySeedData.DeerfieldSlug);
+
+        Assert.True(snapshot.PriceLabs.IsConfigured);
+        Assert.False(snapshot.PriceLabs.IsSynced);
+        Assert.Contains("1385672541118250169"[^6..], snapshot.PriceLabs.Detail, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task GetSnapshotAsync_ReportsPriceLabsSyncedWhenRatesExist()
     {
         await using var scope = await CreateScopeAsync(

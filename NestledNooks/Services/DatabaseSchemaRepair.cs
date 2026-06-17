@@ -17,6 +17,7 @@ public static class DatabaseSchemaRepair
         await EnsureContactInquiryTableAsync(db, logger, cancellationToken).ConfigureAwait(false);
         await EnsureSiteSettingsTableAsync(db, logger, cancellationToken).ConfigureAwait(false);
         await EnsureRentalPropertyCleaningFeeColumnAsync(db, logger, cancellationToken).ConfigureAwait(false);
+        await EnsureRentalPropertyListingSettingsColumnsAsync(db, logger, cancellationToken).ConfigureAwait(false);
         await EnsurePropertyNightlyRatesTableAsync(db, logger, cancellationToken).ConfigureAwait(false);
         await EnsureStripeBookingPaymentSchemaAsync(db, logger, cancellationToken).ConfigureAwait(false);
         await EnsureGuestEmailTemplatesTableAsync(db, logger, cancellationToken).ConfigureAwait(false);
@@ -212,6 +213,32 @@ public static class DatabaseSchemaRepair
 
         await db.Database.ExecuteSqlRawAsync(
             """
+            IF COL_LENGTH('SiteSettings', 'MinimumNights') IS NULL
+                ALTER TABLE [SiteSettings] ADD [MinimumNights] int NOT NULL
+                    CONSTRAINT [DF_SiteSettings_MinimumNights] DEFAULT (2);
+
+            IF COL_LENGTH('SiteSettings', 'MinAdvanceBookingDays') IS NULL
+                ALTER TABLE [SiteSettings] ADD [MinAdvanceBookingDays] int NOT NULL
+                    CONSTRAINT [DF_SiteSettings_MinAdvanceBookingDays] DEFAULT (10);
+
+            IF COL_LENGTH('SiteSettings', 'MaxBookingDaysAhead') IS NULL
+                ALTER TABLE [SiteSettings] ADD [MaxBookingDaysAhead] int NOT NULL
+                    CONSTRAINT [DF_SiteSettings_MaxBookingDaysAhead] DEFAULT (365);
+
+            IF COL_LENGTH('SiteSettings', 'CleaningFee') IS NULL
+                ALTER TABLE [SiteSettings] ADD [CleaningFee] decimal(18,2) NOT NULL
+                    CONSTRAINT [DF_SiteSettings_CleaningFee] DEFAULT (200);
+
+            IF COL_LENGTH('SiteSettings', 'PetDepositPerTwoPets') IS NULL
+                ALTER TABLE [SiteSettings] ADD [PetDepositPerTwoPets] decimal(18,2) NOT NULL
+                    CONSTRAINT [DF_SiteSettings_PetDepositPerTwoPets] DEFAULT (50);
+            """,
+            cancellationToken).ConfigureAwait(false);
+
+        logger.LogInformation("Verified SiteSettings listing booking columns.");
+
+        await db.Database.ExecuteSqlRawAsync(
+            """
             IF NOT EXISTS (SELECT 1 FROM [SiteSettings] WHERE [Id] = 1)
             BEGIN
                 INSERT INTO [SiteSettings] ([Id], [UpdatedAtUtc], [DirectBookingsEnabled])
@@ -236,6 +263,42 @@ public static class DatabaseSchemaRepair
             cancellationToken).ConfigureAwait(false);
 
         logger.LogInformation("Verified RentalProperties.CleaningFee column.");
+    }
+
+    public static async Task EnsureRentalPropertyListingSettingsColumnsAsync(
+        ApplicationDbContext db,
+        ILogger logger,
+        CancellationToken cancellationToken = default)
+    {
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            IF COL_LENGTH('RentalProperties', 'MinimumNights') IS NULL
+                ALTER TABLE [RentalProperties] ADD [MinimumNights] int NOT NULL
+                    CONSTRAINT [DF_RentalProperties_MinimumNights] DEFAULT (2);
+
+            IF COL_LENGTH('RentalProperties', 'MinAdvanceBookingDays') IS NULL
+                ALTER TABLE [RentalProperties] ADD [MinAdvanceBookingDays] int NOT NULL
+                    CONSTRAINT [DF_RentalProperties_MinAdvanceBookingDays] DEFAULT (10);
+
+            IF COL_LENGTH('RentalProperties', 'MaxBookingDaysAhead') IS NULL
+                ALTER TABLE [RentalProperties] ADD [MaxBookingDaysAhead] int NOT NULL
+                    CONSTRAINT [DF_RentalProperties_MaxBookingDaysAhead] DEFAULT (365);
+
+            IF COL_LENGTH('RentalProperties', 'PetDepositPerTwoPets') IS NULL
+                ALTER TABLE [RentalProperties] ADD [PetDepositPerTwoPets] decimal(18,2) NOT NULL
+                    CONSTRAINT [DF_RentalProperties_PetDepositPerTwoPets] DEFAULT (50);
+
+            IF COL_LENGTH('RentalProperties', 'ExternalCalendarTrustDays') IS NULL
+                ALTER TABLE [RentalProperties] ADD [ExternalCalendarTrustDays] int NOT NULL
+                    CONSTRAINT [DF_RentalProperties_ExternalCalendarTrustDays] DEFAULT (180);
+
+            IF COL_LENGTH('RentalProperties', 'AllowFarAdvanceDirectBooking') IS NULL
+                ALTER TABLE [RentalProperties] ADD [AllowFarAdvanceDirectBooking] bit NOT NULL
+                    CONSTRAINT [DF_RentalProperties_AllowFarAdvanceDirectBooking] DEFAULT (1);
+            """,
+            cancellationToken).ConfigureAwait(false);
+
+        logger.LogInformation("Verified RentalProperties listing booking columns.");
     }
 
     public static async Task EnsurePropertyNightlyRatesTableAsync(

@@ -1,4 +1,5 @@
 using NestledNooks.Data;
+using NestledNooks.Services;
 
 namespace NestledNooks.Models;
 
@@ -44,7 +45,19 @@ public sealed class PropertyEditModel
 
     public string? VrboUrl { get; set; }
 
-    public decimal CleaningFee { get; set; } = 150m;
+    public decimal CleaningFee { get; set; } = ListingSettingsDefaults.CleaningFee;
+
+    public int MinimumNights { get; set; } = ListingSettingsDefaults.MinimumNights;
+
+    public int MinAdvanceBookingDays { get; set; } = ListingSettingsDefaults.MinAdvanceBookingDays;
+
+    public int MaxBookingDaysAhead { get; set; } = ListingSettingsDefaults.MaxBookingDaysAhead;
+
+    public decimal PetDepositPerTwoPets { get; set; } = ListingSettingsDefaults.PetDepositPerTwoPets;
+
+    public int ExternalCalendarTrustDays { get; set; } = ListingSettingsDefaults.ExternalCalendarTrustDays;
+
+    public bool AllowFarAdvanceDirectBooking { get; set; } = ListingSettingsDefaults.AllowFarAdvanceDirectBooking;
 
     public List<PropertyPhoto> Photos { get; set; } = [];
 
@@ -71,6 +84,12 @@ public sealed class PropertyEditModel
         AirbnbUrl = entity.AirbnbUrl,
         VrboUrl = entity.VrboUrl,
         CleaningFee = entity.CleaningFee,
+        MinimumNights = entity.MinimumNights,
+        MinAdvanceBookingDays = entity.MinAdvanceBookingDays,
+        MaxBookingDaysAhead = entity.MaxBookingDaysAhead,
+        PetDepositPerTwoPets = entity.PetDepositPerTwoPets,
+        ExternalCalendarTrustDays = entity.ExternalCalendarTrustDays,
+        AllowFarAdvanceDirectBooking = entity.AllowFarAdvanceDirectBooking,
         Photos = PropertyContentJson.ParsePhotos(entity.PhotosJson).ToList(),
     };
 
@@ -97,6 +116,12 @@ public sealed class PropertyEditModel
         AirbnbUrl = string.IsNullOrWhiteSpace(AirbnbUrl) ? null : AirbnbUrl.Trim(),
         VrboUrl = string.IsNullOrWhiteSpace(VrboUrl) ? null : VrboUrl.Trim(),
         CleaningFee = CleaningFee,
+        MinimumNights = MinimumNights,
+        MinAdvanceBookingDays = MinAdvanceBookingDays,
+        MaxBookingDaysAhead = MaxBookingDaysAhead,
+        PetDepositPerTwoPets = PetDepositPerTwoPets,
+        ExternalCalendarTrustDays = ExternalCalendarTrustDays,
+        AllowFarAdvanceDirectBooking = AllowFarAdvanceDirectBooking,
         PhotosJson = PropertyContentJson.SerializePhotos(Photos),
         UpdatedAtUtc = DateTime.UtcNow,
     };

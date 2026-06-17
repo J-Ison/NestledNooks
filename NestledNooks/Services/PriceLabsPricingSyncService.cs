@@ -5,7 +5,7 @@ using NestledNooks.Data;
 namespace NestledNooks.Services;
 
 public sealed class PriceLabsPricingSyncService(
-    ApplicationDbContext db,
+    IDbContextFactory<ApplicationDbContext> dbFactory,
     IPriceLabsApiClient apiClient,
     IOptions<BookingOptions> bookingOptions,
     IOptions<PriceLabsOptions> priceLabsOptions,
@@ -62,7 +62,9 @@ public sealed class PriceLabsPricingSyncService(
 
             try
             {
+                await using var db = await dbFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
                 await SyncPropertyAsync(
+                    db,
                     property.Slug.Trim().ToLowerInvariant(),
                     listingId,
                     pms,
@@ -93,6 +95,7 @@ public sealed class PriceLabsPricingSyncService(
     }
 
     private async Task SyncPropertyAsync(
+        ApplicationDbContext db,
         string slug,
         string listingId,
         string pms,
@@ -115,18 +118,21 @@ public sealed class PriceLabsPricingSyncService(
             return;
         }
 
+        var pricesByDate = prices
+            .GroupBy(p => p.Date)
+            .ToDictionary(g => g.Key, g => g.Last());
+
+        var syncedDates = pricesByDate.Keys.ToHashSet();
         var existingRows = await db.PropertyNightlyRates
-            .Where(r => r.PropertySlug == slug && r.Date >= startDate && r.Date <= endDate)
+            .Where(r => r.PropertySlug == slug &&
+                        (syncedDates.Contains(r.Date) || (r.Date >= startDate && r.Date <= endDate)))
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
 
         var existingByDate = existingRows.ToDictionary(r => r.Date);
-        var syncedDates = new HashSet<DateOnly>();
 
-        foreach (var day in prices)
+        foreach (var day in pricesByDate.Values)
         {
-            syncedDates.Add(day.Date);
-
             if (existingByDate.TryGetValue(day.Date, out var row))
             {
                 row.Rate = day.Rate;
@@ -135,27 +141,48 @@ public sealed class PriceLabsPricingSyncService(
             }
             else
             {
-                db.PropertyNightlyRates.Add(new PropertyNightlyRate
+                var added = new PropertyNightlyRate
                 {
                     PropertySlug = slug,
                     Date = day.Date,
                     Rate = day.Rate,
                     MinimumStay = day.MinimumStay,
                     UpdatedAtUtc = syncedAt,
-                });
+                };
+                db.PropertyNightlyRates.Add(added);
+                existingByDate[day.Date] = added;
             }
         }
 
         foreach (var stale in existingRows.Where(r => !syncedDates.Contains(r.Date)))
             db.PropertyNightlyRates.Remove(stale);
 
-        await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch (DbUpdateException ex) when (IsDuplicatePropertyRate(ex))
+        {
+            db.ChangeTracker.Clear();
+            logger.LogWarning(
+                ex,
+                "PriceLabs rate upsert raced for {Slug}; another sync already wrote overlapping dates.",
+                slug);
+        }
 
         logger.LogInformation(
             "PriceLabs synced {Count} nightly rates for {Slug} ({Start} to {End}).",
-            prices.Count,
+            pricesByDate.Count,
             slug,
             startDate,
             endDate);
+    }
+
+    private static bool IsDuplicatePropertyRate(DbUpdateException ex)
+    {
+        var message = ex.InnerException?.Message ?? ex.Message;
+        return message.Contains("IX_PropertyNightlyRates_PropertySlug_Date", StringComparison.OrdinalIgnoreCase)
+            || (message.Contains("PropertyNightlyRates", StringComparison.OrdinalIgnoreCase)
+                && message.Contains("duplicate", StringComparison.OrdinalIgnoreCase));
     }
 }

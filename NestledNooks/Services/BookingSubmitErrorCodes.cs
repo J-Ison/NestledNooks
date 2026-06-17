@@ -12,6 +12,7 @@ public static class BookingSubmitErrorCodes
     public const string DatesUnavailable = "BK-007";
     public const string SaveFailed = "BK-008";
     public const string Unexpected = "BK-009";
+    public const string OutsideBookingWindow = "BK-010";
 
     public static string FormatGuestMessage(string code, string message) =>
         $"{message} (Ref: {code})";
@@ -26,6 +27,7 @@ public static class BookingSubmitErrorCodes
         QuoteFailed => "Pricing failed (minimum stay, missing rates table, or bad date range).",
         DatesUnavailable => "Selected range overlaps a hold or external calendar block.",
         SaveFailed => "SQL/EF error while saving BookingRequests row.",
+        OutsideBookingWindow => "Check-in outside allowed booking window (advance notice or max days ahead).",
         Unexpected => "Unhandled exception during submit.",
         _ => null,
     };

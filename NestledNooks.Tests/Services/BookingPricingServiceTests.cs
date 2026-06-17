@@ -23,7 +23,7 @@ public sealed class BookingPricingServiceTests
         Assert.False(quote.UsesDynamicPricing);
         Assert.Equal(3, quote.Nights);
         Assert.Equal(675m, quote.Subtotal);
-        Assert.Equal(825m, quote.TotalAmount);
+        Assert.Equal(875m, quote.TotalAmount);
     }
 
     [Fact]
@@ -47,12 +47,12 @@ public sealed class BookingPricingServiceTests
         Assert.True(quote.UsesDynamicPricing);
         Assert.Equal(1050m, quote.Subtotal);
         Assert.Equal(350m, quote.NightlyRate);
-        Assert.Equal(75m, quote.PetFee);
-        Assert.Equal(1275m, quote.TotalAmount);
+        Assert.Equal(50m, quote.PetFee);
+        Assert.Equal(1300m, quote.TotalAmount);
     }
 
     [Fact]
-    public async Task CalculateAsync_UsesPriceLabsMinimumStayOnCheckIn()
+    public async Task CalculateAsync_UsesPropertyMinimumStay_NotPriceLabsCheckInMinimum()
     {
         await using var scope = await CreateScopeAsync(minimumNights: 2);
 
@@ -67,13 +67,13 @@ public sealed class BookingPricingServiceTests
 
         await scope.Db.SaveChangesAsync();
 
-        var tooShort = () => scope.Service.CalculateAsync(
+        var quote = await scope.Service.CalculateAsync(
             PropertySeedData.DeerfieldSlug,
             new DateOnly(2026, 9, 10),
             new DateOnly(2026, 9, 12),
             petCount: 0);
 
-        await Assert.ThrowsAsync<InvalidOperationException>(tooShort);
+        Assert.Equal(2, quote.Nights);
     }
 
     private static async Task<PricingTestScope> CreateScopeAsync(int minimumNights = 2)
@@ -104,6 +104,14 @@ public sealed class BookingPricingServiceTests
         var scope = provider.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
         await db.Database.EnsureCreatedAsync().ConfigureAwait(false);
+
+        var listing = PropertySeedData.CreateDeerfieldRetreat();
+        listing.MinimumNights = minimumNights;
+        listing.MinAdvanceBookingDays = 0;
+        listing.MaxBookingDaysAhead = 730;
+        listing.CleaningFee = ListingSettingsDefaults.CleaningFee;
+        db.RentalProperties.Add(listing);
+        await db.SaveChangesAsync().ConfigureAwait(false);
 
         return new PricingTestScope(provider, scope, db, connection);
     }

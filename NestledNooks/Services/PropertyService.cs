@@ -10,6 +10,7 @@ public interface IPropertyService
     Task<RentalProperty?> GetBySlugAsync(string slug, CancellationToken cancellationToken = default);
     Task<RentalProperty?> GetHomepageAsync(CancellationToken cancellationToken = default);
     Task<RentalProperty> SaveAsync(RentalProperty property, CancellationToken cancellationToken = default);
+    Task<PropertyListingSettings> GetListingSettingsAsync(string slug, CancellationToken cancellationToken = default);
     Task EnsureSeededAsync(CancellationToken cancellationToken = default);
 }
 
@@ -43,6 +44,14 @@ public sealed class PropertyService(ApplicationDbContext db) : IPropertyService
             .ConfigureAwait(false);
     }
 
+    public async Task<PropertyListingSettings> GetListingSettingsAsync(
+        string slug,
+        CancellationToken cancellationToken = default)
+    {
+        var property = await GetBySlugAsync(slug, cancellationToken).ConfigureAwait(false);
+        return PropertyListingSettings.FromEntity(property);
+    }
+
     public async Task<RentalProperty?> GetHomepageAsync(CancellationToken cancellationToken = default) =>
         await db.RentalProperties
             .AsNoTracking()
@@ -62,6 +71,24 @@ public sealed class PropertyService(ApplicationDbContext db) : IPropertyService
         property.Slug = property.Slug.Trim().ToLowerInvariant();
         property.DisplayName = property.DisplayName.Trim();
         property.UpdatedAtUtc = DateTime.UtcNow;
+        property.MinimumNights = ListingSettingsDefaults.ClampMinimumNights(property.MinimumNights);
+        property.MinAdvanceBookingDays = ListingSettingsDefaults.ClampMinAdvanceBookingDays(property.MinAdvanceBookingDays);
+        property.MaxBookingDaysAhead = ListingSettingsDefaults.ClampMaxBookingDaysAhead(property.MaxBookingDaysAhead);
+        property.CleaningFee = ListingSettingsDefaults.ClampCleaningFee(property.CleaningFee);
+        property.PetDepositPerTwoPets = ListingSettingsDefaults.ClampPetDepositPerTwoPets(property.PetDepositPerTwoPets);
+        property.ExternalCalendarTrustDays = ListingSettingsDefaults.ClampExternalCalendarTrustDays(property.ExternalCalendarTrustDays);
+
+        if (property.MinAdvanceBookingDays > property.MaxBookingDaysAhead)
+            throw new InvalidOperationException("Earliest booking window cannot be later than the furthest booking window.");
+
+        var effectiveMax = !property.AllowFarAdvanceDirectBooking && property.ExternalCalendarTrustDays > 0
+            ? Math.Min(property.MaxBookingDaysAhead, property.ExternalCalendarTrustDays)
+            : property.MaxBookingDaysAhead;
+
+        if (property.MinAdvanceBookingDays > effectiveMax)
+            throw new InvalidOperationException(
+                "Minimum advance notice cannot be later than the furthest bookable check-in. " +
+                "Raise the calendar trust window, enable far-ahead requests, or lower minimum advance notice.");
 
         if (property.IsHomepage)
         {

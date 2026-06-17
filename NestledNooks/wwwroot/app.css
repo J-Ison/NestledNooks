@@ -1711,6 +1711,25 @@ footer {
     margin-bottom: 16px;
 }
 
+.nn-booking-dates--range {
+    grid-template-columns: 1fr;
+}
+
+.nn-booking-range-summary {
+    margin: 0 0 10px;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--nn-text);
+}
+
+.nn-booking-range-picker {
+    width: 100%;
+}
+
+.nn-booking-range-picker .mud-picker-calendar-container {
+    margin-inline: auto;
+}
+
 .nn-booking-date-panel {
     padding: 10px;
     border: 1px solid #e2e8f0;

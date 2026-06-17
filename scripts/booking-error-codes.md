@@ -11,7 +11,8 @@ When a booking request fails, the guest sees a message plus **Ref: BK-xxx**. Use
 | **BK-005** | Maximum N pets. | Over `MaxPets`. |
 | **BK-006** | Minimum stay is N nights. / pricing message | Quote/pricing failed (min stay, DB rates table, etc.). |
 | **BK-007** | Those dates are no longer available… | Overlap with calendar hold or external block. |
-| **BK-008** | Could not save booking… | SQL error saving `BookingRequests` (migration/schema). |
+| **BK-008** | Could not save booking… | SQL error saving `BookingRequests` (schema/migration), or unrelated pending EF changes flushed with the booking (fixed by isolated save context). |
 | **BK-009** | Could not submit… | Unexpected server error — check Log stream. |
+| **BK-010** | Check-in must be at least N days… / cannot be more than N days… | Check-in outside this property's booking window (`MinAdvanceBookingDays` / `MaxBookingDaysAhead` on the property). |
 
 Success redirects to `/booking/confirmation?ref=…` — no error code.

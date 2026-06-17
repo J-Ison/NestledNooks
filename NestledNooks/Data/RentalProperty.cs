@@ -50,7 +50,24 @@ public class RentalProperty
     public string? VrboUrl { get; set; }
 
     /// <summary>One-time cleaning fee for direct bookings (USD).</summary>
-    public decimal CleaningFee { get; set; }
+    public decimal CleaningFee { get; set; } = 200m;
+
+    public int MinimumNights { get; set; } = 2;
+
+    /// <summary>Earliest check-in is today + this many days (e.g. 10 = book at least 10 days out).</summary>
+    public int MinAdvanceBookingDays { get; set; } = 10;
+
+    /// <summary>Latest check-in is today + this many days (e.g. 365 = one year ahead).</summary>
+    public int MaxBookingDaysAhead { get; set; } = 365;
+
+    /// <summary>Pet deposit charged per pair of pets (1–2 pets = one deposit, 3–4 = two, etc.).</summary>
+    public decimal PetDepositPerTwoPets { get; set; } = 50m;
+
+    /// <summary>Only apply Airbnb/Vrbo iCal blocks through today + this many days (0 = ignore external calendar).</summary>
+    public int ExternalCalendarTrustDays { get; set; } = 180;
+
+    /// <summary>When true, guests may request stays beyond the calendar trust window (manual confirmation).</summary>
+    public bool AllowFarAdvanceDirectBooking { get; set; } = true;
 
     /// <summary>JSON array of { url, alt } photo objects.</summary>
     public string PhotosJson { get; set; } = "[]";

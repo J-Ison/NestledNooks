@@ -10,6 +10,7 @@ namespace NestledNooks.Services;
 public sealed class BookingRequestService : IBookingRequestService
 {
     private readonly ApplicationDbContext _db;
+    private readonly IDbContextFactory<ApplicationDbContext> _dbFactory;
     private readonly IEmailService _email;
     private readonly IBookingAvailabilityService _availability;
     private readonly BookingPricingService _pricing;
@@ -22,6 +23,7 @@ public sealed class BookingRequestService : IBookingRequestService
 
     public BookingRequestService(
         ApplicationDbContext db,
+        IDbContextFactory<ApplicationDbContext> dbFactory,
         IEmailService email,
         IBookingAvailabilityService availability,
         BookingPricingService pricing,
@@ -33,6 +35,7 @@ public sealed class BookingRequestService : IBookingRequestService
         ILogger<BookingRequestService> logger)
     {
         _db = db;
+        _dbFactory = dbFactory;
         _email = email;
         _availability = availability;
         _pricing = pricing;
@@ -71,6 +74,16 @@ public sealed class BookingRequestService : IBookingRequestService
 
         if (model.PetCount > property.MaxPets)
             return Fail(BookingSubmitErrorCodes.TooManyPets, $"Maximum {property.MaxPets} pets.");
+
+        var listing = await _pricing.GetListingSettingsAsync(slug, cancellationToken).ConfigureAwait(false);
+        try
+        {
+            BookingPricingService.ValidateBookingWindow(checkIn, listing);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Fail(BookingSubmitErrorCodes.OutsideBookingWindow, ex.Message);
+        }
 
         BookingQuote quote;
         try
@@ -119,13 +132,16 @@ public sealed class BookingRequestService : IBookingRequestService
             BookingNumber = Guid.NewGuid().ToString("N")
         };
 
-        _db.BookingRequests.Add(entity);
+        _db.ChangeTracker.Clear();
+
         try
         {
-            await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+            await using var saveDb = await _dbFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            saveDb.BookingRequests.Add(entity);
+            await saveDb.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
             entity.BookingNumber = $"NN-{DateTime.UtcNow:yyyyMMdd}-{entity.Id:D5}";
-            await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+            await saveDb.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         }
         catch (DbUpdateException ex)
         {
@@ -717,4 +733,5 @@ public sealed class BookingRequestService : IBookingRequestService
             or PaymentStatuses.PartiallyPaid
             or PaymentStatuses.Paid
             or PaymentStatuses.Refunded;
+
 }

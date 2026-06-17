@@ -20,7 +20,7 @@
             <p class="mgmt-hero-eyebrow">@SiteBranding.Name · Owner tools</p>
             <h1 class="mgmt-hero-title">@_model.DisplayName</h1>
             <p class="mgmt-hero-lead">
-                Update descriptions, tags, amenities, and photos for this listing.
+                Update descriptions, tags, amenities, photos, and direct booking rules for this listing.
                 <a class="mgmt-link" href="/account/manage/properties">← All properties</a>
                 · <a class="mgmt-link" href="/account/manage/properties/@Slug/operations">Contacts &amp; equipment</a>
             </p>
@@ -156,15 +156,62 @@
                 </section>
 
                 <section class="theme-panel">
-                    <h2 class="theme-panel-title">Booking sidebar</h2>
+                    <h2 class="theme-panel-title">Direct booking rules</h2>
+                    <p class="theme-panel-lead">
+                        Nightly rates still come from PriceLabs when synced. Minimum stay here applies to direct bookings only (not Airbnb/PriceLabs channel rules).
+                    </p>
                     <div class="prop-edit-grid">
                         <div class="nn-form-group">
-                            <label>Cleaning fee</label>
+                            <label>Minimum nights</label>
+                            <InputNumber class="nn-form-control" @bind-Value="_model.MinimumNights" min="1" max="30" />
+                        </div>
+                        <div class="nn-form-group">
+                            <label>Minimum advance notice (days)</label>
+                            <InputNumber class="nn-form-control" @bind-Value="_model.MinAdvanceBookingDays" min="0" max="90" />
+                            <p class="prop-field-hint">How soon guests may check in — e.g. 10 means the earliest check-in is 10 days from today.</p>
+                        </div>
+                        <div class="nn-form-group">
+                            <label>Book up to (days ahead)</label>
+                            <InputNumber class="nn-form-control" @bind-Value="_model.MaxBookingDaysAhead" min="30" max="730" />
+                            <p class="prop-field-hint">Furthest check-in allowed — e.g. 365 = one year out; 90 ≈ three months (like Airbnb).</p>
+                        </div>
+                        <div class="nn-form-group">
+                            <label>Trust Airbnb/Vrbo calendar (days)</label>
+                            <InputNumber class="nn-form-control" @bind-Value="_model.ExternalCalendarTrustDays" min="0" max="730" />
+                            <p class="prop-field-hint">
+                                Synced Airbnb/Vrbo blocks always gray out dates on the direct booking calendar.
+                                Short-term trust window (default 180 ≈ 6 months) controls far-ahead requests below.
+                                Use 0 to ignore external calendars entirely.
+                            </p>
+                        </div>
+                        <div class="nn-form-group prop-edit-checkbox">
+                            <label>
+                                <InputCheckbox @bind-Value="_model.AllowFarAdvanceDirectBooking" />
+                                Allow far-ahead direct requests
+                            </label>
+                            <p class="prop-field-hint">
+                                When on, guests can request stays beyond the calendar trust window (e.g. more than ~6 months out).
+                                Airbnb availability is not reliable that far ahead — you confirm dates before approving.
+                                When off, the latest check-in matches the trust window (or book-up-to limit, whichever is sooner).
+                            </p>
+                        </div>
+                        <div class="nn-form-group">
+                            <label>Cleaning fee (USD)</label>
                             <InputNumber class="nn-form-control"
                                          @bind-Value="_model.CleaningFee"
                                          min="0"
                                          step="0.01" />
                             <p class="prop-field-hint">Applied once per direct booking request.</p>
+                        </div>
+                        <div class="nn-form-group">
+                            <label>Pet deposit per 2 pets (USD)</label>
+                            <InputNumber class="nn-form-control"
+                                         @bind-Value="_model.PetDepositPerTwoPets"
+                                         min="0"
+                                         step="0.01" />
+                            <p class="prop-field-hint">
+                                Example: 3 dogs = @MoneyFormat.Usd(ListingSettingsDefaults.CalculatePetDeposit(3, _model.PetDepositPerTwoPets)).
+                            </p>
                         </div>
                         <div class="nn-form-group prop-edit-full">
                             <label>Booking card subtext</label>
@@ -259,6 +306,12 @@
             if (_model.CleaningFee < 0)
             {
                 _error = "Cleaning fee cannot be negative.";
+                return;
+            }
+
+            if (_model.MinAdvanceBookingDays > _model.MaxBookingDaysAhead)
+            {
+                _error = "Earliest booking window cannot be later than the furthest booking window.";
                 return;
             }
 

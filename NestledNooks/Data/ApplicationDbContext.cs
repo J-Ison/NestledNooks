@@ -106,6 +106,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             e.Property(x => x.AirbnbUrl).HasMaxLength(500);
             e.Property(x => x.VrboUrl).HasMaxLength(500);
             e.Property(x => x.CleaningFee).HasPrecision(18, 2);
+            e.Property(x => x.PetDepositPerTwoPets).HasPrecision(18, 2);
         });
 
         builder.Entity<MessageThread>(e =>

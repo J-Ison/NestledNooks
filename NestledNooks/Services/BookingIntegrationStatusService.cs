@@ -45,15 +45,16 @@ public sealed class BookingIntegrationStatusService(
             .ConfigureAwait(false);
 
         var plOpts = priceLabsOptions.Value;
-        var priceLabsConfigured = plOpts.Enabled
-            && !string.IsNullOrWhiteSpace(plOpts.ApiKey)
-            && !string.IsNullOrWhiteSpace(property?.PriceLabsListingId);
 
         return new BookingIntegrationStatusSnapshot
         {
             Airbnb = BuildCalendarChannel("Airbnb", airbnbUrl, airbnbRows.Count, MaxSyncedAt(airbnbRows)),
             Vrbo = BuildCalendarChannel("Vrbo", vrboUrl, vrboRows.Count, MaxSyncedAt(vrboRows)),
-            PriceLabs = BuildPriceLabsChannel(priceLabsConfigured, rateStats?.Count ?? 0, rateStats?.LastUpdatedUtc),
+            PriceLabs = BuildPriceLabsChannel(
+                plOpts,
+                property,
+                rateStats?.Count ?? 0,
+                rateStats?.LastUpdatedUtc),
         };
     }
 
@@ -98,10 +99,15 @@ public sealed class BookingIntegrationStatusService(
     }
 
     private static IntegrationChannelSnapshot BuildPriceLabsChannel(
-        bool configured,
+        PriceLabsOptions plOpts,
+        PropertyBookingOptions? property,
         int rateCount,
         DateTime? lastUpdatedUtc)
     {
+        var configured = plOpts.Enabled
+            && !string.IsNullOrWhiteSpace(plOpts.ApiKey)
+            && !string.IsNullOrWhiteSpace(property?.PriceLabsListingId);
+
         if (!configured)
         {
             return new IntegrationChannelSnapshot(
@@ -110,7 +116,7 @@ public sealed class BookingIntegrationStatusService(
                 IsSynced: false,
                 rateCount,
                 lastUpdatedUtc,
-                "Disabled or missing ApiKey / PriceLabsListingId.");
+                "Set PriceLabs__Enabled, PriceLabs__ApiKey, and Booking__Properties__0__PriceLabsListingId.");
         }
 
         if (rateCount > 0)
@@ -124,13 +130,20 @@ public sealed class BookingIntegrationStatusService(
                 $"{rateCount} nightly rate(s) in database.");
         }
 
+        var listingId = property!.PriceLabsListingId!.Trim();
+        var listingHint = listingId.Length > 6 ? $"…{listingId[^6..]}" : listingId;
+        var pmsHint = string.IsNullOrWhiteSpace(property.PriceLabsPms)
+            ? "PMS not set (auto-detect from API)"
+            : $"PMS {property.PriceLabsPms.Trim()}";
+
         return new IntegrationChannelSnapshot(
             "PriceLabs",
             IsConfigured: true,
             IsSynced: false,
             rateCount,
             lastUpdatedUtc,
-            "Configured but no rates synced yet (check API key and listing ID).");
+            $"Listing {listingHint}, {pmsHint}. Sync ran but DB is empty — check Log stream for " +
+            "\"could not resolve PMS\", \"returned no prices\", or API errors. Try PriceLabsPms=airbnb.");
     }
 }
 

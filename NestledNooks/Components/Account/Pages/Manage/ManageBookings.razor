@@ -141,10 +141,10 @@
                                         <span class="bk-fact-meta">@b.NightCount nights · @FormatPropertyName(b.PropertySlug)</span>
                                     </span>
                                     <span class="bk-fact">
-                                        @b.TotalAmount.ToString("C0")
+                                        @MoneyFormat.UsdWhole(b.TotalAmount)
                                         @if (balance > 0 && b.PaymentStatus != PaymentStatuses.Paid)
                                         {
-                                            <span class="bk-due">@balance.ToString("C0") due</span>
+                                            <span class="bk-due">@MoneyFormat.UsdWhole(balance) due</span>
                                         }
                                     </span>
                                     @if (!string.IsNullOrWhiteSpace(b.GuestPhone))
@@ -183,7 +183,7 @@
                                         }
                                         @if (_depositBookingId == b.Id)
                                         {
-                                            <p class="bk-hint">Minimum deposit @MinimumDeposit(b.TotalAmount).ToString("C2") (@_minimumDepositPercent%). Non-refundable.</p>
+                                            <p class="bk-hint">Minimum deposit @MoneyFormat.Usd(MinimumDeposit(b.TotalAmount)) (@_minimumDepositPercent%). Non-refundable.</p>
                                             <div class="bk-field-row">
                                                 <div class="bk-field bk-field--amount">
                                                     <label class="bk-field-label">Deposit amount</label>
@@ -246,7 +246,7 @@
                                     {
                                         <MudButton Class="mb-2" Variant="Variant.Filled" Color="Color.Primary" Disabled="_processingId == b.Id || !_stripeConfigured"
                                                    OnClick="@(() => SendBalanceLinkAsync(b.Id))">
-                                            Email balance link (@RemainingBalance(b).ToString("C2"))
+                                            Email balance link (@MoneyFormat.Usd(RemainingBalance(b)))
                                         </MudButton>
                                     }
                                     @if (ShowSyncPayment(b))
@@ -357,10 +357,10 @@
                                         <div class="mgmt-meta-item"><span class="mgmt-meta-label">Email</span><a class="mgmt-link" href="@($"mailto:{b.GuestEmail}")">@b.GuestEmail</a></div>
                                         <div class="mgmt-meta-item"><span class="mgmt-meta-label">Phone</span><span class="mgmt-meta-value">@(string.IsNullOrWhiteSpace(b.GuestPhone) ? "—" : b.GuestPhone)</span></div>
                                         <div class="mgmt-meta-item"><span class="mgmt-meta-label">Party</span><span class="mgmt-meta-value">@b.GuestCount guests · @b.PetCount pets</span></div>
-                                        <div class="mgmt-meta-item"><span class="mgmt-meta-label">Paid</span><span class="mgmt-meta-value">@b.AmountPaid.ToString("C2") of @b.TotalAmount.ToString("C2")</span></div>
+                                        <div class="mgmt-meta-item"><span class="mgmt-meta-label">Paid</span><span class="mgmt-meta-value">@MoneyFormat.Usd(b.AmountPaid) of @MoneyFormat.Usd(b.TotalAmount)</span></div>
                                         @if (b.RequiredDepositAmount is { } dep)
                                         {
-                                            <div class="mgmt-meta-item"><span class="mgmt-meta-label">Deposit</span><span class="mgmt-meta-value">@dep.ToString("C2")@(b.DepositNonRefundable ? " (non-refundable)" : "")</span></div>
+                                            <div class="mgmt-meta-item"><span class="mgmt-meta-label">Deposit</span><span class="mgmt-meta-value">@MoneyFormat.Usd(dep)@(b.DepositNonRefundable ? " (non-refundable)" : "")</span></div>
                                         }
                                     </div>
                                 </details>

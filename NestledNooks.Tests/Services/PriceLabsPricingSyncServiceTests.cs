@@ -39,6 +39,21 @@ public sealed class PriceLabsPricingSyncServiceTests
         Assert.Equal(0, client.PriceCalls);
     }
 
+    [Fact]
+    public async Task SyncAllConfiguredPropertiesAsync_DedupesDuplicateApiDates()
+    {
+        await using var scope = await CreateScopeAsync(new DuplicateDatePriceLabsApiClient());
+
+        await scope.Service.SyncAllConfiguredPropertiesAsync();
+
+        var rates = await scope.Db.PropertyNightlyRates
+            .Where(r => r.PropertySlug == PropertySeedData.DeerfieldSlug)
+            .ToListAsync();
+
+        Assert.Single(rates);
+        Assert.Equal(310m, rates[0].Rate);
+    }
+
     private static async Task<SyncTestScope> CreateScopeAsync(
         IPriceLabsApiClient apiClient,
         bool enabled = true)
@@ -49,6 +64,8 @@ public sealed class PriceLabsPricingSyncServiceTests
         var services = new ServiceCollection();
         services.AddLogging();
         services.AddDbContext<ApplicationDbContext>(options => options.UseSqlite(connection));
+        services.AddDbContextFactory<ApplicationDbContext>(options => options.UseSqlite(connection));
+        services.AddSingleton(connection);
         services.AddSingleton(apiClient);
         services.Configure<BookingOptions>(opts =>
         {
@@ -77,6 +94,24 @@ public sealed class PriceLabsPricingSyncServiceTests
         await db.Database.EnsureCreatedAsync().ConfigureAwait(false);
 
         return new SyncTestScope(provider, scope, db, connection);
+    }
+
+    private sealed class DuplicateDatePriceLabsApiClient : IPriceLabsApiClient
+    {
+        public Task<IReadOnlyList<PriceLabsListingInfo>> GetListingsAsync(CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<PriceLabsListingInfo>>([]);
+
+        public Task<IReadOnlyList<PriceLabsDayPrice>> GetListingPricesAsync(
+            string listingId,
+            string pms,
+            DateOnly startDate,
+            DateOnly endDate,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<PriceLabsDayPrice>>(
+            [
+                new PriceLabsDayPrice { Date = startDate, Rate = 300m, MinimumStay = 2 },
+                new PriceLabsDayPrice { Date = startDate, Rate = 310m, MinimumStay = 3 },
+            ]);
     }
 
     private sealed class FakePriceLabsApiClient : IPriceLabsApiClient
