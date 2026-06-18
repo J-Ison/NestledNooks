@@ -66,6 +66,8 @@ builder.Services.Configure<AdminOptions>(builder.Configuration.GetSection(AdminO
 builder.Services.Configure<StripeOptions>(builder.Configuration.GetSection(StripeOptions.SectionName));
 builder.Services.AddScoped<IStripePaymentService, StripePaymentService>();
 builder.Services.AddScoped<BookingPricingService>();
+builder.Services.AddScoped<IStayPriceComparisonService, StayPriceComparisonService>();
+builder.Services.AddScoped<IPriceLabsChannelListingResolver, PriceLabsChannelListingResolver>();
 builder.Services.AddScoped<IPriceLabsPricingSyncService, PriceLabsPricingSyncService>();
 builder.Services.AddScoped<IBookingAvailabilityService, BookingAvailabilityService>();
 builder.Services.AddScoped<IBookingIntegrationStatusService, BookingIntegrationStatusService>();
@@ -88,6 +90,7 @@ builder.Services.AddScoped<IAdminNotificationService, AdminNotificationService>(
 builder.Services.AddScoped<IPropertyOperationsService, PropertyOperationsService>();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddDistributedMemoryCache();
+builder.Services.AddMemoryCache();
 builder.Services.AddSession(options =>
 {
     options.IdleTimeout = TimeSpan.FromHours(2);

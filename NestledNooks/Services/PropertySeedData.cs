@@ -1,4 +1,5 @@
 using NestledNooks.Data;
+using NestledNooks.Models;
 
 namespace NestledNooks.Services;
 
@@ -131,11 +132,12 @@ public static class PropertySeedData
             LocationText =
                 "Deerfield Retreat is in north Rapid City, so you're close to groceries, restaurants, and attractions — but far enough out that nights stay quiet and the stars stay bright.",
             GuideTeaserText = DefaultGuideTeaserText,
-            BookingSubtext = "Direct request, Airbnb, or Vrbo — calendars stay in sync.",
+            BookingSubtext = "Compare direct, Airbnb, and Vrbo pricing — request your stay here.",
             BookingFinePrint = "Most accurate pricing and availability appear on each platform.",
             AirbnbUrl = "https://airbnb.com/h/mydeerfieldretreat",
             VrboUrl = "https://www.vrbo.com/4507873?dateless=true",
             CleaningFee = 200m,
+            DiscountsJson = PropertyDiscountsJson.Serialize(PropertyBookingDiscounts.Defaults()),
             MinimumNights = 2,
             MinAdvanceBookingDays = 10,
             MaxBookingDaysAhead = 365,

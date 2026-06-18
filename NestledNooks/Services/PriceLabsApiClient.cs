@@ -90,8 +90,16 @@ public sealed class PriceLabsApiClient(
             if (listing.ValueKind != JsonValueKind.Object)
                 continue;
 
-            if (listing.TryGetProperty("error", out _))
+            if (listing.TryGetProperty("error", out var listingError))
+            {
+                var message = ReadString(listing, "desc", "description", "message") ?? listingError.ToString();
+                logger.LogWarning(
+                    "PriceLabs listing_prices error for listing {ListingId}/{Pms}: {Message}",
+                    listingId,
+                    pms,
+                    message);
                 continue;
+            }
 
             if (!listing.TryGetProperty("data", out var data) || data.ValueKind != JsonValueKind.Array)
                 continue;

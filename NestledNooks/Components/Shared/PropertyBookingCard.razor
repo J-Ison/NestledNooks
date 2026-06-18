@@ -1,0 +1,322 @@
+@using MudBlazor
+@using NestledNooks.Data
+@using NestledNooks.Models
+@using NestledNooks.Services
+
+@inject NavigationManager Navigation
+@inject IBookingAvailabilityService AvailabilityService
+@inject BookingPricingService PricingService
+@inject IPropertyService PropertyService
+@inject ISiteSettingsService SiteSettingsService
+
+<div class="booking-card nn-listing-booking-card">
+    <div class="booking-head">
+        <div class="booking-title">Book your stay</div>
+        @if (!string.IsNullOrWhiteSpace(EffectiveBookingSubtext))
+        {
+            <div class="booking-sub">@EffectiveBookingSubtext</div>
+        }
+    </div>
+
+    @if (_loading)
+    {
+        <p class="nn-loading nn-listing-booking-loading">Loading availability…</p>
+    }
+    else if (!_directBookingsEnabled)
+    {
+        <p class="nn-note nn-note--warn">
+            Direct booking is temporarily unavailable.
+            Please <a class="mgmt-link" href="/contact">contact us</a> to plan your stay.
+        </p>
+    }
+    else
+    {
+        <div class="nn-listing-booking-widget nn-booking-mud">
+            @if (_listingSettings is not null)
+            {
+                <p class="nn-listing-booking-hint">
+                    Minimum @_listingSettings.MinimumNights nights.
+                    Choose check-in, then check-out.
+                </p>
+            }
+
+            <div class="nn-booking-dates nn-booking-dates--range nn-listing-booking-dates">
+                @if (_dateRange?.Start is DateTime start && _dateRange.End is DateTime end)
+                {
+                    <p class="nn-booking-range-summary">
+                        @start.ToString("MMM d") → @end.ToString("MMM d")
+                        · @((end.Date - start.Date).Days) night@((end.Date - start.Date).Days == 1 ? "" : "s")
+                    </p>
+                }
+                else if (_dateRange?.Start is DateTime checkInOnly)
+                {
+                    <p class="nn-booking-range-summary">Check-in @checkInOnly.ToString("MMM d") — choose check-out</p>
+                }
+
+                <MudDateRangePicker @bind-DateRange="_dateRange"
+                                    @bind-DateRange:after="OnDateRangeUpdatedAsync"
+                                    PickerVariant="PickerVariant.Static"
+                                    DisplayMonths="1"
+                                    MaxMonthColumns="1"
+                                    MinDate="_minSelectable"
+                                    MaxDate="_maxCheckOut"
+                                    IsDateDisabledFunc="@IsDateUnavailable"
+                                    AdditionalDateClassesFunc="@GetUnavailableDateClass"
+                                    ShowToolbar="false"
+                                    Class="nn-booking-range-picker nn-listing-booking-range-picker" />
+            </div>
+
+            @if (_quoteLoading)
+            {
+                <p class="nn-note">Calculating prices…</p>
+            }
+            else if (_quote is not null)
+            {
+                <div class="nn-listing-price-compare" aria-label="@(_showChannelPriceLinks ? "Price comparison" : "Estimated price")">
+                    <div class="nn-listing-price-row nn-listing-price-row--direct">
+                        <span class="nn-listing-price-label">@(_showChannelPriceLinks ? "Book direct" : "Estimated total")</span>
+                        <DiscountedTotalDisplay Quote="_quote" CssClass="nn-discounted-total--card" />
+                    </div>
+                    @if (_showChannelPriceLinks && !string.IsNullOrWhiteSpace(_airbnbUrl))
+                    {
+                        <div class="nn-listing-price-row nn-listing-price-row--airbnb">
+                            <span class="nn-listing-price-label">Airbnb</span>
+                            <a class="nn-listing-price-link nn-listing-price-link--airbnb"
+                               href="@_airbnbUrl"
+                               target="_blank"
+                               rel="noopener noreferrer">
+                                See price on Airbnb ↗
+                            </a>
+                        </div>
+                    }
+                    @if (_showChannelPriceLinks && !string.IsNullOrWhiteSpace(_vrboUrl))
+                    {
+                        <div class="nn-listing-price-row nn-listing-price-row--vrbo">
+                            <span class="nn-listing-price-label">Vrbo</span>
+                            <a class="nn-listing-price-link nn-listing-price-link--vrbo"
+                               href="@_vrboUrl"
+                               target="_blank"
+                               rel="noopener noreferrer">
+                                See price on Vrbo ↗
+                            </a>
+                        </div>
+                    }
+                </div>
+
+                <p class="nn-listing-booking-fees-note">
+                    Total for @_quote.Nights night@(_quote.Nights == 1 ? "" : "s") incl. cleaning fee.
+                    @if (!string.IsNullOrWhiteSpace(_airbnbUrl) || !string.IsNullOrWhiteSpace(_vrboUrl))
+                    {
+                        <text> Airbnb and Vrbo open in a new tab with your dates for the exact channel price.</text>
+                    }
+                </p>
+
+                <button type="button"
+                        class="primary-btn site-book nn-listing-booking-proceed"
+                        @onclick="ProceedToBookingAsync">
+                    Continue to request booking
+                </button>
+            }
+            else if (_checkIn is not null && _checkOut is not null)
+            {
+                <p class="nn-note nn-note--error">@(_quoteError ?? "Could not calculate an estimate for those dates.")</p>
+            }
+        </div>
+    }
+
+    @if (!string.IsNullOrWhiteSpace(EffectiveBookingFinePrint))
+    {
+        <div class="fineprint">@EffectiveBookingFinePrint</div>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public string PropertySlug { get; set; } = "";
+
+    [Parameter]
+    public string? BookingSubtext { get; set; }
+
+    [Parameter]
+    public string? BookingFinePrint { get; set; }
+
+    private DateRange? _dateRange;
+    private DateOnly? _checkIn;
+    private DateOnly? _checkOut;
+    private DateTime _minSelectable = DateTime.Today;
+    private DateTime _maxCheckIn = DateTime.Today.AddDays(365);
+    private DateTime _maxCheckOut = DateTime.Today.AddDays(395);
+    private PropertyListingSettings? _listingSettings;
+    private RentalProperty? _property;
+    private HashSet<DateOnly> _unavailableDates = [];
+
+    private bool _loading = true;
+    private bool _quoteLoading;
+    private bool _directBookingsEnabled = true;
+    private string? _quoteError;
+    private BookingQuote? _quote;
+    private string? _airbnbUrl;
+    private string? _vrboUrl;
+
+    private bool _showChannelPriceLinks = true;
+
+    private string? EffectiveBookingSubtext =>
+        GuestFacingText(BookingSubtext);
+
+    private string? EffectiveBookingFinePrint =>
+        GuestFacingText(BookingFinePrint);
+
+    private string? GuestFacingText(string? value) =>
+        _showChannelPriceLinks || !MentionsExternalChannels(value)
+            ? value
+            : null;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (string.IsNullOrWhiteSpace(PropertySlug))
+            return;
+
+        _loading = true;
+        _quote = null;
+        _quoteError = null;
+        _airbnbUrl = null;
+        _vrboUrl = null;
+
+        var siteSettings = await SiteSettingsService.GetAsync();
+        _directBookingsEnabled = siteSettings.DirectBookingsEnabled;
+
+        _property = await PropertyService.GetBySlugAsync(PropertySlug);
+        _showChannelPriceLinks = _property?.ShowChannelPriceLinks ?? true;
+        await ApplyListingSettingsAsync();
+
+        try
+        {
+            await AvailabilityService.SyncExternalCalendarsAsync();
+        }
+        catch
+        {
+            // Use cached calendar blocks
+        }
+
+        await RefreshUnavailableDatesAsync();
+        _loading = false;
+    }
+
+    private async Task ApplyListingSettingsAsync()
+    {
+        _listingSettings = await PropertyService.GetListingSettingsAsync(PropertySlug);
+        var today = DateTime.Today;
+        _minSelectable = today.AddDays(_listingSettings.MinAdvanceBookingDays);
+        _maxCheckIn = today.AddDays(_listingSettings.EffectiveMaxBookingDaysAhead);
+        _maxCheckOut = today.AddDays(_listingSettings.EffectiveMaxBookingDaysAhead + 30);
+    }
+
+    private async Task RefreshUnavailableDatesAsync()
+    {
+        var from = DateOnly.FromDateTime(_minSelectable);
+        var to = DateOnly.FromDateTime(_maxCheckOut);
+        var list = await AvailabilityService.GetUnavailableDatesAsync(PropertySlug, from, to);
+        _unavailableDates = list.ToHashSet();
+    }
+
+    private bool IsDateUnavailable(DateTime date) =>
+        _unavailableDates.Contains(DateOnly.FromDateTime(date.Date));
+
+    private string GetUnavailableDateClass(DateTime date) =>
+        IsDateUnavailable(date) ? "nn-booking-date-blocked" : "";
+
+    private async Task OnDateRangeUpdatedAsync()
+    {
+        SyncDatesFromRange();
+
+        if (_checkIn is { } ci && _checkOut is { } co && co <= ci)
+        {
+            _dateRange = new DateRange(_dateRange?.Start, null);
+            _checkOut = null;
+        }
+
+        await RefreshQuoteAsync();
+    }
+
+    private void SyncDatesFromRange()
+    {
+        if (_dateRange?.Start is DateTime start)
+            _checkIn = DateOnly.FromDateTime(start.Date);
+        else
+            _checkIn = null;
+
+        if (_dateRange?.End is DateTime end)
+            _checkOut = DateOnly.FromDateTime(end.Date);
+        else
+            _checkOut = null;
+    }
+
+    private async Task RefreshQuoteAsync()
+    {
+        _quoteError = null;
+        _quote = null;
+        _airbnbUrl = null;
+        _vrboUrl = null;
+
+        if (_checkIn is not { } checkIn || _checkOut is not { } checkOut || checkOut <= checkIn)
+        {
+            _quoteLoading = false;
+            return;
+        }
+
+        _quoteLoading = true;
+        await InvokeAsync(StateHasChanged);
+
+        if (!await AvailabilityService.IsRangeAvailableAsync(PropertySlug, checkIn, checkOut))
+        {
+            _quoteError = "Those dates are not available. Please choose a different range.";
+            _quoteLoading = false;
+            await InvokeAsync(StateHasChanged);
+            return;
+        }
+
+        try
+        {
+            _quote = await PricingService.CalculateAsync(PropertySlug, checkIn, checkOut, petCount: 0);
+            if (_showChannelPriceLinks)
+            {
+                _airbnbUrl = ChannelListingLinks.BuildAirbnbUrl(_property?.AirbnbUrl, checkIn, checkOut);
+                _vrboUrl = ChannelListingLinks.BuildVrboUrl(_property?.VrboUrl, checkIn, checkOut);
+            }
+        }
+        catch (InvalidOperationException ex)
+        {
+            _quoteError = ex.Message;
+        }
+        catch (Exception)
+        {
+            _quoteError = "Could not calculate an estimate for those dates.";
+        }
+        finally
+        {
+            _quoteLoading = false;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private Task ProceedToBookingAsync()
+    {
+        if (_checkIn is not { } checkIn || _checkOut is not { } checkOut)
+            return Task.CompletedTask;
+
+        var url = Navigation.GetUriWithQueryParameters("/booking", new Dictionary<string, object?>
+        {
+            ["property"] = PropertySlug,
+            ["checkIn"] = checkIn.ToString("yyyy-MM-dd"),
+            ["checkOut"] = checkOut.ToString("yyyy-MM-dd"),
+        });
+
+        Navigation.NavigateTo(url);
+        return Task.CompletedTask;
+    }
+
+    private static bool MentionsExternalChannels(string? value) =>
+        !string.IsNullOrWhiteSpace(value) &&
+        (value.Contains("airbnb", StringComparison.OrdinalIgnoreCase) ||
+         value.Contains("vrbo", StringComparison.OrdinalIgnoreCase));
+}

@@ -49,8 +49,29 @@ public class RentalProperty
 
     public string? VrboUrl { get; set; }
 
+    /// <summary>When false, guests do not see Airbnb/Vrbo price links or channel mentions.</summary>
+    public bool ShowChannelPriceLinks { get; set; } = true;
+
     /// <summary>One-time cleaning fee for direct bookings (USD).</summary>
     public decimal CleaningFee { get; set; } = 200m;
+
+    /// <summary>Optional cleaning fee shown on Airbnb checkout (USD). Defaults to <see cref="CleaningFee"/> when null.</summary>
+    public decimal? AirbnbCleaningFee { get; set; }
+
+    /// <summary>Optional cleaning fee shown on Vrbo checkout (USD). Defaults to <see cref="CleaningFee"/> when null.</summary>
+    public decimal? VrboCleaningFee { get; set; }
+
+    /// <summary>Estimated Airbnb guest service fee percent (e.g. 14.2). Used only for channel estimates.</summary>
+    public decimal? AirbnbGuestServiceFeePercent { get; set; }
+
+    /// <summary>Estimated Vrbo guest service fee percent (e.g. 8). Used only for channel estimates.</summary>
+    public decimal? VrboGuestServiceFeePercent { get; set; }
+
+    /// <summary>Estimated Vrbo occupancy/lodging tax percent. Used only for channel estimates.</summary>
+    public decimal? VrboOccupancyTaxPercent { get; set; }
+
+    /// <summary>JSON discount rules for direct bookings (weekly, monthly, promotions).</summary>
+    public string DiscountsJson { get; set; } = "";
 
     public int MinimumNights { get; set; } = 2;
 

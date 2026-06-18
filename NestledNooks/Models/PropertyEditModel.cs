@@ -1,4 +1,5 @@
 using NestledNooks.Data;
+using NestledNooks.Models;
 using NestledNooks.Services;
 
 namespace NestledNooks.Models;
@@ -45,7 +46,11 @@ public sealed class PropertyEditModel
 
     public string? VrboUrl { get; set; }
 
+    public bool ShowChannelPriceLinks { get; set; } = true;
+
     public decimal CleaningFee { get; set; } = ListingSettingsDefaults.CleaningFee;
+
+    public PropertyBookingDiscounts Discounts { get; set; } = PropertyBookingDiscounts.Defaults();
 
     public int MinimumNights { get; set; } = ListingSettingsDefaults.MinimumNights;
 
@@ -83,7 +88,9 @@ public sealed class PropertyEditModel
         BookingFinePrint = entity.BookingFinePrint,
         AirbnbUrl = entity.AirbnbUrl,
         VrboUrl = entity.VrboUrl,
+        ShowChannelPriceLinks = entity.ShowChannelPriceLinks,
         CleaningFee = entity.CleaningFee,
+        Discounts = PropertyDiscountsJson.Parse(entity.DiscountsJson),
         MinimumNights = entity.MinimumNights,
         MinAdvanceBookingDays = entity.MinAdvanceBookingDays,
         MaxBookingDaysAhead = entity.MaxBookingDaysAhead,
@@ -115,7 +122,9 @@ public sealed class PropertyEditModel
         BookingFinePrint = BookingFinePrint.Trim(),
         AirbnbUrl = string.IsNullOrWhiteSpace(AirbnbUrl) ? null : AirbnbUrl.Trim(),
         VrboUrl = string.IsNullOrWhiteSpace(VrboUrl) ? null : VrboUrl.Trim(),
+        ShowChannelPriceLinks = ShowChannelPriceLinks,
         CleaningFee = CleaningFee,
+        DiscountsJson = PropertyDiscountsJson.Serialize(Discounts),
         MinimumNights = MinimumNights,
         MinAdvanceBookingDays = MinAdvanceBookingDays,
         MaxBookingDaysAhead = MaxBookingDaysAhead,

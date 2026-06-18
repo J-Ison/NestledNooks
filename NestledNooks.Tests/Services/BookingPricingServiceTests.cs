@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using NestledNooks.Data;
+using NestledNooks.Models;
 using NestledNooks.Services;
 
 namespace NestledNooks.Tests.Services;
@@ -16,8 +17,8 @@ public sealed class BookingPricingServiceTests
 
         var quote = await scope.Service.CalculateAsync(
             PropertySeedData.DeerfieldSlug,
-            new DateOnly(2026, 7, 1),
-            new DateOnly(2026, 7, 4),
+            new DateOnly(2026, 8, 1),
+            new DateOnly(2026, 8, 4),
             petCount: 0);
 
         Assert.False(quote.UsesDynamicPricing);
@@ -74,6 +75,28 @@ public sealed class BookingPricingServiceTests
             petCount: 0);
 
         Assert.Equal(2, quote.Nights);
+    }
+
+    [Fact]
+    public async Task CalculateAsync_AppliesWeeklyDiscount()
+    {
+        await using var scope = await CreateScopeAsync();
+
+        var property = await scope.Db.RentalProperties.SingleAsync(p => p.Slug == PropertySeedData.DeerfieldSlug);
+        property.DiscountsJson = PropertyDiscountsJson.Serialize(PropertyBookingDiscounts.Defaults());
+        await scope.Db.SaveChangesAsync();
+
+        var quote = await scope.Service.CalculateAsync(
+            PropertySeedData.DeerfieldSlug,
+            new DateOnly(2026, 8, 1),
+            new DateOnly(2026, 8, 8),
+            petCount: 0);
+
+        Assert.Equal(7, quote.Nights);
+        Assert.Equal(1417.50m, quote.Subtotal);
+        Assert.Equal(157.50m, quote.DiscountAmount);
+        Assert.Equal("Weekly discount", quote.DiscountLabel);
+        Assert.Equal(1617.50m, quote.TotalAmount);
     }
 
     private static async Task<PricingTestScope> CreateScopeAsync(int minimumNights = 2)

@@ -182,8 +182,16 @@
                         @if (_model.CheckIn is { } farCheckIn && _listingSettings is not null && _listingSettings.IsBeyondExternalCalendarTrust(farCheckIn))
                         {
                             <p class="nn-note">
-                                This stay is more than @_listingSettings.ExternalCalendarTrustDays days out — Airbnb doesn't show availability that far ahead.
-                                You can still submit a request; we'll confirm the dates before approving.
+                                @if (_showChannelPriceLinks)
+                                {
+                                    <text>This stay is more than @_listingSettings.ExternalCalendarTrustDays days out — Airbnb doesn't show availability that far ahead.
+                                    You can still submit a request; we'll confirm the dates before approving.</text>
+                                }
+                                else
+                                {
+                                    <text>This stay is more than @_listingSettings.ExternalCalendarTrustDays days out — synced calendars may not show availability that far ahead.
+                                    You can still submit a request; we'll confirm the dates before approving.</text>
+                                }
                                 <a class="mgmt-link" href="/contact">Contact us</a> if you prefer to talk first.
                             </p>
                         }
@@ -197,15 +205,16 @@
                                          Class="mb-3"
                                          Disabled="_submitting" />
 
-                        <MudNumericField @bind-Value="_model.PetCount"
+                        <MudNumericField T="int"
+                                         Value="_model.PetCount"
+                                         ValueChanged="OnPetCountChangedAsync"
                                          For="@(() => _model.PetCount)"
                                          Label="Pets"
                                          Variant="Variant.Outlined"
                                          Min="0"
                                          Max="@(_property?.MaxPets ?? 4)"
                                          Class="mb-3"
-                                         Disabled="_submitting"
-                                         @bind-Value:after="OnPetCountUpdatedAsync" />
+                                         Disabled="_submitting" />
                         @if (_listingSettings is { PetDepositPerTwoPets: > 0 })
                         {
                             <p class="nn-booking-section-hint mb-3">
@@ -221,16 +230,23 @@
                                       Class="mb-3"
                                       Disabled="_submitting" />
 
-                        @if (_quoteLoading)
+                        @if (_quoteLoading && _quote is null)
                         {
                             <p class="nn-note">Calculating estimate…</p>
                         }
                         else if (_quote is not null)
                         {
-                            <div class="nn-booking-quote">
-                                <p class="nn-booking-section-title">Estimated total</p>
+                            <div class="nn-booking-quote @(_quoteLoading ? "nn-booking-quote--updating" : null)">
+                                <div class="nn-booking-quote-head">
+                                    <p class="nn-booking-section-title">Estimated total</p>
+                                    <DiscountedTotalDisplay Quote="_quote" CssClass="nn-discounted-total--booking" />
+                                </div>
                                 <ul class="nn-booking-quote-lines">
-                                    <li>@_quote.Nights night@(_quote.Nights == 1 ? "" : "s") · lodging @MoneyFormat.Usd(_quote.Subtotal)</li>
+                                    <li>@_quote.Nights night@(_quote.Nights == 1 ? "" : "s") · lodging @MoneyFormat.Usd(_quote.Subtotal + _quote.DiscountAmount)</li>
+                                    @if (_quote.HasDiscount)
+                                    {
+                                        <li class="nn-booking-quote-discount">@_quote.DiscountLabel −@MoneyFormat.Usd(_quote.DiscountAmount)</li>
+                                    }
                                     @if (_quote.CleaningFee > 0)
                                     {
                                         <li>Cleaning fee @MoneyFormat.Usd(_quote.CleaningFee)</li>
@@ -241,6 +257,10 @@
                                     }
                                     <li><strong>Total @MoneyFormat.Usd(_quote.TotalAmount)</strong></li>
                                 </ul>
+                                @if (_quoteLoading)
+                                {
+                                    <p class="nn-booking-section-hint">Updating estimate…</p>
+                                }
                                 @if (_isHostStaff)
                                 {
                                     @if (_quote.UsesDynamicPricing)
@@ -309,6 +329,8 @@
     private bool _loading = true;
     private bool _submitting;
     private bool _quoteLoading;
+    private readonly SemaphoreSlim _quoteRefreshGate = new(1, 1);
+    private int _quoteRefreshVersion;
     private string? _error;
     private string? _errorCode;
     private string? _quoteError;
@@ -317,6 +339,7 @@
     private bool _directBookingsEnabled = true;
     private bool _isOwner;
     private bool _isHostStaff;
+    private bool _showChannelPriceLinks = true;
     private BookingIntegrationStatusSnapshot? _integrationStatus;
 
     protected override async Task OnInitializedAsync()
@@ -341,8 +364,33 @@
         }
 
         var uri = Navigation.ToAbsoluteUri(Navigation.Uri);
-        if (QueryHelpers.ParseQuery(uri.Query).TryGetValue("property", out var slug) && !string.IsNullOrWhiteSpace(slug))
+        var query = QueryHelpers.ParseQuery(uri.Query);
+        if (query.TryGetValue("property", out var slug) && !string.IsNullOrWhiteSpace(slug))
             _model.PropertySlug = slug.ToString();
+
+        if (query.TryGetValue("checkIn", out var checkInRaw) &&
+            DateOnly.TryParse(checkInRaw.ToString(), out var parsedCheckIn))
+        {
+            _model.CheckIn = parsedCheckIn;
+        }
+
+        if (query.TryGetValue("checkOut", out var checkOutRaw) &&
+            DateOnly.TryParse(checkOutRaw.ToString(), out var parsedCheckOut))
+        {
+            _model.CheckOut = parsedCheckOut;
+        }
+
+        if (query.TryGetValue("pets", out var petsRaw) &&
+            int.TryParse(petsRaw.ToString(), out var pets) &&
+            pets >= 0)
+        {
+            _model.PetCount = pets;
+        }
+
+        if (_model.CheckIn is { } ci && _model.CheckOut is { } co && co > ci)
+        {
+            _dateRange = new DateRange(ci.ToDateTime(TimeOnly.MinValue), co.ToDateTime(TimeOnly.MinValue));
+        }
 
         _properties = PricingService.GetAllProperties().ToList();
         if (_properties.Count == 0)
@@ -352,6 +400,9 @@
             ?? _properties.FirstOrDefault();
         if (_property is not null)
             _model.PropertySlug = _property.Slug;
+
+        var rentalProperty = await PropertyService.GetBySlugAsync(_model.PropertySlug);
+        _showChannelPriceLinks = rentalProperty?.ShowChannelPriceLinks ?? true;
 
         SyncModelDatesFromRange();
 
@@ -370,6 +421,9 @@
 
         if (_isHostStaff)
             _integrationStatus = await IntegrationStatusService.GetSnapshotAsync(_model.PropertySlug);
+
+        if (_model.CheckIn is not null && _model.CheckOut is not null)
+            await RefreshQuoteAsync();
 
         _loading = false;
     }
@@ -454,56 +508,88 @@
             _model.CheckOut = null;
     }
 
-    private async Task RefreshQuoteAsync()
+    private async Task RefreshQuoteAsync(bool skipAvailabilityCheck = false, bool preserveExistingQuote = false)
     {
+        var version = Interlocked.Increment(ref _quoteRefreshVersion);
         _quoteError = null;
-        _quote = null;
+
+        if (!preserveExistingQuote)
+            _quote = null;
 
         if (_model.CheckIn is not { } checkIn || _model.CheckOut is not { } checkOut || checkOut <= checkIn)
         {
+            _quote = null;
             _quoteLoading = false;
             await InvokeAsync(StateHasChanged);
             return;
         }
 
-        _quoteLoading = true;
-        await InvokeAsync(StateHasChanged);
-
-        if (!await AvailabilityService.IsRangeAvailableAsync(
-                _model.PropertySlug,
-                checkIn,
-                checkOut))
-        {
-            _quoteError = "Those dates overlap an existing reservation or hold. Please choose a different range.";
-            _quoteLoading = false;
-            await InvokeAsync(StateHasChanged);
-            return;
-        }
-
+        await _quoteRefreshGate.WaitAsync();
         try
         {
-            _quote = await PricingService.CalculateAsync(
-                _model.PropertySlug,
-                checkIn,
-                checkOut,
-                _model.PetCount);
-        }
-        catch (InvalidOperationException ex)
-        {
-            _quoteError = ex.Message;
-        }
-        catch (Exception)
-        {
-            _quoteError = "Could not calculate an estimate for those dates.";
+            if (version != _quoteRefreshVersion)
+                return;
+
+            _quoteLoading = true;
+            await InvokeAsync(StateHasChanged);
+
+            try
+            {
+                if (!skipAvailabilityCheck)
+                {
+                    if (!await AvailabilityService.IsRangeAvailableAsync(
+                            _model.PropertySlug,
+                            checkIn,
+                            checkOut))
+                    {
+                        _quoteError = "Those dates overlap an existing reservation or hold. Please choose a different range.";
+                        if (!preserveExistingQuote)
+                            _quote = null;
+                        return;
+                    }
+                }
+
+                if (version != _quoteRefreshVersion)
+                    return;
+
+                _quote = await PricingService.CalculateAsync(
+                    _model.PropertySlug,
+                    checkIn,
+                    checkOut,
+                    _model.PetCount);
+            }
+            catch (InvalidOperationException ex)
+            {
+                _quoteError = ex.Message;
+                if (!preserveExistingQuote)
+                    _quote = null;
+            }
+            catch (Exception)
+            {
+                _quoteError = "Could not calculate an estimate for those dates.";
+                if (!preserveExistingQuote)
+                    _quote = null;
+            }
         }
         finally
         {
-            _quoteLoading = false;
+            if (version == _quoteRefreshVersion)
+                _quoteLoading = false;
+
+            _quoteRefreshGate.Release();
             await InvokeAsync(StateHasChanged);
         }
     }
 
-    private Task OnPetCountUpdatedAsync() => RefreshQuoteAsync();
+    private async Task OnPetCountChangedAsync(int value)
+    {
+        if (_model.PetCount == value)
+            return;
+
+        _model.PetCount = value;
+        await Task.Yield();
+        await RefreshQuoteAsync(skipAvailabilityCheck: true, preserveExistingQuote: true);
+    }
 
     private async Task SubmitAsync()
     {

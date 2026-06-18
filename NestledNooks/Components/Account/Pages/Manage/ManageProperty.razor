@@ -213,6 +213,129 @@
                                 Example: 3 dogs = @MoneyFormat.Usd(ListingSettingsDefaults.CalculatePetDeposit(3, _model.PetDepositPerTwoPets)).
                             </p>
                         </div>
+                    </div>
+
+                    <h3 class="theme-panel-subtitle">Discounts</h3>
+                    <p class="theme-panel-lead">
+                        Match Airbnb-style savings on direct bookings. The best eligible discount is applied to lodging.
+                    </p>
+                    <div class="prop-edit-grid">
+                        <div class="nn-form-group prop-edit-checkbox">
+                            <label>
+                                <InputCheckbox @bind-Value="_model.Discounts.WeeklyEnabled" />
+                                Weekly discount
+                            </label>
+                            <p class="prop-field-hint">For longer stays (default: 7+ nights).</p>
+                        </div>
+                        <div class="nn-form-group">
+                            <label>Weekly %</label>
+                            <InputNumber class="nn-form-control"
+                                         @bind-Value="_model.Discounts.WeeklyPercent"
+                                         min="0"
+                                         max="100"
+                                         step="0.1" />
+                        </div>
+                        <div class="nn-form-group">
+                            <label>Weekly min nights</label>
+                            <InputNumber class="nn-form-control"
+                                         @bind-Value="_model.Discounts.WeeklyMinNights"
+                                         min="1"
+                                         max="365" />
+                        </div>
+                        <div class="nn-form-group prop-edit-checkbox">
+                            <label>
+                                <InputCheckbox @bind-Value="_model.Discounts.MonthlyEnabled" />
+                                Monthly discount
+                            </label>
+                            <p class="prop-field-hint">For extended stays (default: 28+ nights).</p>
+                        </div>
+                        <div class="nn-form-group">
+                            <label>Monthly %</label>
+                            <InputNumber class="nn-form-control"
+                                         @bind-Value="_model.Discounts.MonthlyPercent"
+                                         min="0"
+                                         max="100"
+                                         step="0.1" />
+                        </div>
+                        <div class="nn-form-group">
+                            <label>Monthly min nights</label>
+                            <InputNumber class="nn-form-control"
+                                         @bind-Value="_model.Discounts.MonthlyMinNights"
+                                         min="1"
+                                         max="365" />
+                        </div>
+                        <div class="nn-form-group prop-edit-checkbox">
+                            <label>
+                                <InputCheckbox @bind-Value="_model.Discounts.LastMinuteEnabled" />
+                                Last-minute discount
+                            </label>
+                            <p class="prop-field-hint">When check-in is soon (default: within 14 days).</p>
+                        </div>
+                        <div class="nn-form-group">
+                            <label>Last-minute %</label>
+                            <InputNumber class="nn-form-control"
+                                         @bind-Value="_model.Discounts.LastMinutePercent"
+                                         min="0"
+                                         max="100"
+                                         step="0.1" />
+                        </div>
+                        <div class="nn-form-group">
+                            <label>Last-minute within (days)</label>
+                            <InputNumber class="nn-form-control"
+                                         @bind-Value="_model.Discounts.LastMinuteMaxDaysBeforeArrival"
+                                         min="0"
+                                         max="365" />
+                        </div>
+                        <div class="nn-form-group prop-edit-checkbox">
+                            <label>
+                                <InputCheckbox @bind-Value="_model.Discounts.EarlyBirdEnabled" />
+                                Early-bird discount
+                            </label>
+                            <p class="prop-field-hint">When guests book far ahead (default: 90+ days).</p>
+                        </div>
+                        <div class="nn-form-group">
+                            <label>Early-bird %</label>
+                            <InputNumber class="nn-form-control"
+                                         @bind-Value="_model.Discounts.EarlyBirdPercent"
+                                         min="0"
+                                         max="100"
+                                         step="0.1" />
+                        </div>
+                        <div class="nn-form-group">
+                            <label>Early-bird min days ahead</label>
+                            <InputNumber class="nn-form-control"
+                                         @bind-Value="_model.Discounts.EarlyBirdMinDaysBeforeArrival"
+                                         min="0"
+                                         max="730" />
+                        </div>
+                    </div>
+
+                    <h4 class="theme-panel-subtitle theme-panel-subtitle--minor">Custom promotions</h4>
+                    <p class="theme-panel-lead">Add your own date-based promotions. Check-in must fall in the date range.</p>
+                    @for (var i = 0; i < _model.Discounts.CustomPromotions.Count; i++)
+                    {
+                        var index = i;
+                        var promo = _model.Discounts.CustomPromotions[index];
+                        <div class="prop-promo-row">
+                            <InputText class="nn-form-control" @bind-Value="promo.Name" placeholder="Promotion name" />
+                            <InputNumber class="nn-form-control"
+                                         @bind-Value="promo.Percent"
+                                         min="0"
+                                         max="100"
+                                         step="0.1"
+                                         placeholder="%" />
+                            <InputDate class="nn-form-control" @bind-Value="promo.StayCheckInFromDate" />
+                            <InputDate class="nn-form-control" @bind-Value="promo.StayCheckInToDate" />
+                            <label class="prop-check prop-check--compact">
+                                <InputCheckbox @bind-Value="promo.Enabled" />
+                                <span>On</span>
+                            </label>
+                            <button type="button" class="prop-list-remove" @onclick="() => RemovePromotion(index)">Remove</button>
+                        </div>
+                    }
+                    <button type="button" class="nn-btn-secondary prop-list-add" @onclick="AddPromotion">+ Add promotion</button>
+
+                    <div class="prop-edit-grid prop-edit-grid--spaced">
                         <div class="nn-form-group prop-edit-full">
                             <label>Booking card subtext</label>
                             <InputText class="nn-form-control" @bind-Value="_model.BookingSubtext" />
@@ -224,10 +347,21 @@
                         <div class="nn-form-group prop-edit-full">
                             <label>Airbnb URL</label>
                             <InputText class="nn-form-control" @bind-Value="_model.AirbnbUrl" />
+                            <p class="prop-field-hint">Used for calendar sync and optional guest price links.</p>
                         </div>
                         <div class="nn-form-group prop-edit-full">
                             <label>Vrbo URL</label>
                             <InputText class="nn-form-control" @bind-Value="_model.VrboUrl" />
+                        </div>
+                        <div class="nn-form-group prop-edit-checkbox prop-edit-full">
+                            <label>
+                                <InputCheckbox @bind-Value="_model.ShowChannelPriceLinks" />
+                                Show Airbnb/Vrbo price links to guests
+                            </label>
+                            <p class="prop-field-hint">
+                                When off, guests only see direct booking — no channel links or mentions on the listing or booking pages.
+                                Update booking subtext/fine print below if they still name other platforms.
+                            </p>
                         </div>
                     </div>
                 </section>
@@ -339,4 +473,7 @@
 
     private void AddPhoto() => _model.Photos.Add(new PropertyPhoto());
     private void RemovePhoto(int index) => _model.Photos.RemoveAt(index);
+
+    private void AddPromotion() => _model.Discounts.CustomPromotions.Add(new PropertyCustomPromotion());
+    private void RemovePromotion(int index) => _model.Discounts.CustomPromotions.RemoveAt(index);
 }

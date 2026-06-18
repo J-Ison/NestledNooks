@@ -3,7 +3,6 @@
 @rendermode InteractiveServer
 @using NestledNooks.Data
 @using NestledNooks.Services
-@inject NavigationManager Nav
 @inject IPropertyService PropertyService
 
 @if (_loading)
@@ -161,44 +160,9 @@ else
                 </div>
 
                 <aside class="right">
-                    <div class="booking-card">
-                        <div class="booking-head">
-                            <div class="booking-title">Book your stay</div>
-                            <div class="booking-sub">@_property.BookingSubtext</div>
-                        </div>
-
-                        <div class="cta-stack">
-                            <a class="primary-btn site-book"
-                               href="/booking?property=@_property.Slug">
-                                Request booking
-                            </a>
-
-                            @if (!string.IsNullOrWhiteSpace(_property.AirbnbUrl))
-                            {
-                                <a class="primary-btn airbnb"
-                                   href="@_property.AirbnbUrl"
-                                   target="_blank"
-                                   rel="noopener noreferrer">
-                                    View on Airbnb
-                                </a>
-                            }
-
-                            @if (!string.IsNullOrWhiteSpace(_property.VrboUrl))
-                            {
-                                <a class="primary-btn vrbo"
-                                   href="@_property.VrboUrl"
-                                   target="_blank"
-                                   rel="noopener noreferrer">
-                                    View on Vrbo
-                                </a>
-                            }
-                        </div>
-
-                        @if (!string.IsNullOrWhiteSpace(_property.BookingFinePrint))
-                        {
-                            <div class="fineprint">@_property.BookingFinePrint</div>
-                        }
-                    </div>
+                    <PropertyBookingCard PropertySlug="@_property.Slug"
+                                         BookingSubtext="@_property.BookingSubtext"
+                                         BookingFinePrint="@_property.BookingFinePrint" />
                 </aside>
             </section>
         </main>

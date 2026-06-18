@@ -1758,6 +1758,90 @@ footer {
     background: color-mix(in srgb, var(--nn-booking) 8%, var(--nn-surface));
 }
 
+.nn-booking-quote--updating {
+    opacity: 0.88;
+}
+
+.nn-booking-quote-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.nn-booking-quote-head .nn-booking-section-title {
+    margin: 0;
+}
+
+.nn-discounted-total {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+    text-align: right;
+}
+
+.nn-discounted-total__amounts {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+.nn-discounted-total__original {
+    color: var(--muted);
+    font-size: 14px;
+    font-weight: 700;
+    text-decoration: line-through;
+    text-decoration-thickness: 1px;
+}
+
+.nn-discounted-total__current {
+    color: var(--nn-booking);
+    font-size: 22px;
+    font-weight: 900;
+    line-height: 1.1;
+}
+
+.nn-discounted-total__current--solo {
+    font-size: 18px;
+}
+
+.nn-discounted-total--card .nn-discounted-total__current {
+    font-size: 18px;
+}
+
+.nn-discounted-total--card .nn-discounted-total__original {
+    font-size: 13px;
+}
+
+.nn-discounted-total__badge {
+    margin: 0;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--nn-booking) 14%, var(--nn-surface));
+    color: var(--nn-booking-dark);
+    font-size: 11px;
+    font-weight: 800;
+    line-height: 1.4;
+    white-space: nowrap;
+}
+
+.nn-booking-quote-discount {
+    color: var(--nn-booking-dark);
+    font-weight: 800;
+}
+
+.nn-listing-price-row--direct {
+    align-items: flex-start;
+}
+
+.nn-listing-price-row--direct .nn-discounted-total {
+    min-width: 0;
+}
+
 .nn-booking-quote-lines {
     margin: 8px 0 0;
     padding-left: 18px;
@@ -2128,12 +2212,38 @@ footer {
 
 .prop-list-row,
 .prop-badge-row,
-.prop-photo-row {
+.prop-photo-row,
+.prop-promo-row {
     display: grid;
     grid-template-columns: 1fr auto;
     gap: 10px;
     margin-bottom: 10px;
     align-items: center;
+}
+
+.theme-panel-subtitle {
+    margin: 18px 0 8px;
+    font-size: 16px;
+    font-weight: 900;
+    color: var(--nn-ink);
+}
+
+.theme-panel-subtitle--minor {
+    margin-top: 14px;
+    font-size: 14px;
+}
+
+.prop-edit-grid--spaced {
+    margin-top: 16px;
+}
+
+.prop-promo-row {
+    grid-template-columns: 1.2fr 0.7fr 1fr 1fr auto auto;
+}
+
+.prop-check--compact {
+    margin: 0;
+    white-space: nowrap;
 }
 
 .prop-badge-row {
@@ -2174,7 +2284,8 @@ footer {
     }
 
     .prop-badge-row,
-    .prop-photo-row {
+    .prop-photo-row,
+    .prop-promo-row {
         grid-template-columns: 1fr;
     }
 
@@ -3598,6 +3709,134 @@ footer {
     font-weight: 700;
     font-size: 12.5px;
     line-height: 1.45;
+}
+
+.nn-listing-booking-card .nn-listing-booking-loading {
+    margin: 8px 0 0;
+    font-size: 13px;
+}
+
+.nn-listing-booking-hint {
+    margin: 0 0 10px;
+    color: var(--muted);
+    font-size: 12.5px;
+    font-weight: 700;
+    line-height: 1.45;
+}
+
+.nn-listing-booking-dates {
+    margin-bottom: 12px;
+    overflow: visible;
+}
+
+.nn-listing-booking-card {
+    overflow: visible;
+}
+
+.nn-listing-booking-range-picker {
+    width: 100%;
+}
+
+.nn-listing-booking-range-picker .mud-picker-static {
+    width: 100%;
+}
+
+.nn-listing-booking-range-picker .mud-picker-calendar-container {
+    width: 100%;
+    max-width: 100%;
+}
+
+.nn-listing-booking-range-picker .mud-picker-calendar-content {
+    width: 100%;
+}
+
+.nn-listing-booking-range-picker .mud-picker-calendar-header {
+    padding-inline: 0;
+}
+
+.nn-listing-booking-range-picker .mud-picker-nav-button-next,
+.nn-listing-booking-range-picker .mud-picker-nav-button-prev {
+    visibility: visible !important;
+}
+
+.nn-listing-booking-range-picker .mud-day {
+    min-width: 32px;
+    min-height: 32px;
+    font-size: 12px;
+}
+
+.nn-listing-price-compare {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin: 14px 0 10px;
+    padding: 12px;
+    border-radius: 12px;
+    background: color-mix(in srgb, var(--nn-primary) 6%, var(--card));
+    border: 1px solid var(--nn-accent-border);
+}
+
+.nn-listing-price-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.nn-listing-price-row--direct {
+    padding-bottom: 8px;
+    margin-bottom: 2px;
+    border-bottom: 1px dashed var(--nn-line);
+    font-size: 14px;
+}
+
+.nn-listing-price-row--direct .nn-listing-price-value {
+    color: var(--nn-booking);
+    font-size: 18px;
+    font-weight: 900;
+}
+
+.nn-listing-price-row--airbnb .nn-listing-price-value,
+.nn-listing-price-link--airbnb {
+    color: var(--airbnb);
+}
+
+.nn-listing-price-row--vrbo .nn-listing-price-value,
+.nn-listing-price-link--vrbo {
+    color: var(--vrbo);
+}
+
+.nn-listing-price-link {
+    font-weight: 900;
+    font-size: 13px;
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.nn-listing-price-link:hover {
+    text-decoration: underline;
+}
+
+.nn-listing-price-label {
+    color: var(--nn-ink);
+}
+
+.nn-listing-price-value {
+    font-weight: 900;
+}
+
+.nn-listing-booking-fees-note {
+    margin: 0 0 12px;
+    color: var(--muted);
+    font-size: 11.5px;
+    font-weight: 700;
+    line-height: 1.45;
+}
+
+.nn-listing-booking-proceed {
+    margin-top: 4px;
 }
 
 @media (max-width: 980px) {

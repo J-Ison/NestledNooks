@@ -1,0 +1,27 @@
+@using NestledNooks.Models
+@using NestledNooks.Services
+
+@if (Quote.HasDiscount)
+{
+    <div class="nn-discounted-total @CssClass" aria-label="Discounted total">
+        <div class="nn-discounted-total__amounts">
+            <span class="nn-discounted-total__original">@MoneyFormat.Usd(Quote.OriginalTotal)</span>
+            <span class="nn-discounted-total__current">@MoneyFormat.Usd(Quote.TotalAmount)</span>
+        </div>
+        <p class="nn-discounted-total__badge">@Quote.DiscountLabel</p>
+    </div>
+}
+else
+{
+    <span class="nn-discounted-total__current nn-discounted-total__current--solo @CssClass">
+        @MoneyFormat.Usd(Quote.TotalAmount)
+    </span>
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public BookingQuote Quote { get; set; } = null!;
+
+    [Parameter]
+    public string? CssClass { get; set; }
+}

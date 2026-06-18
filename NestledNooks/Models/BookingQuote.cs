@@ -7,4 +7,11 @@ public sealed record BookingQuote(
     decimal CleaningFee,
     decimal PetFee,
     decimal TotalAmount,
-    bool UsesDynamicPricing = false);
+    bool UsesDynamicPricing = false,
+    decimal DiscountAmount = 0,
+    string? DiscountLabel = null)
+{
+    public bool HasDiscount => DiscountAmount > 0;
+
+    public decimal OriginalTotal => TotalAmount + DiscountAmount;
+}

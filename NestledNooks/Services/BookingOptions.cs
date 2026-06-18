@@ -38,4 +38,25 @@ public sealed class PropertyBookingOptions
 
     /// <summary>PriceLabs PMS name for the listing (e.g. airbnb, vrbo). Auto-detected when omitted.</summary>
     public string? PriceLabsPms { get; set; }
+
+    /// <summary>PriceLabs listing ID for Airbnb channel estimates (falls back to auto-detect by PMS/name).</summary>
+    public string? PriceLabsAirbnbListingId { get; set; }
+
+    /// <summary>PriceLabs listing ID for Vrbo channel estimates (falls back to auto-detect by PMS/name).</summary>
+    public string? PriceLabsVrboListingId { get; set; }
+
+    /// <summary>Cleaning fee shown on Airbnb (defaults to property cleaning fee when omitted).</summary>
+    public decimal? AirbnbCleaningFee { get; set; }
+
+    /// <summary>Cleaning fee shown on Vrbo (defaults to property cleaning fee when omitted).</summary>
+    public decimal? VrboCleaningFee { get; set; }
+
+    /// <summary>Estimated Airbnb guest service fee percent applied to rent + cleaning.</summary>
+    public decimal? AirbnbGuestServiceFeePercent { get; set; }
+
+    /// <summary>Estimated Vrbo guest service fee percent applied to rent + cleaning.</summary>
+    public decimal? VrboGuestServiceFeePercent { get; set; }
+
+    /// <summary>Estimated Vrbo occupancy/lodging tax percent applied after service fee.</summary>
+    public decimal? VrboOccupancyTaxPercent { get; set; }
 }

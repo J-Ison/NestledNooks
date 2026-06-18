@@ -17,4 +17,10 @@ public sealed class PriceLabsOptions
 
     /// <summary>How many days ahead to pull from PriceLabs (max ~540).</summary>
     public int SyncDaysAhead { get; set; } = 540;
+
+    /// <summary>Default Airbnb guest service fee percent when not set per property.</summary>
+    public decimal DefaultAirbnbGuestServiceFeePercent { get; set; } = 14.2m;
+
+    /// <summary>Default Vrbo guest service fee percent when not set per property.</summary>
+    public decimal DefaultVrboGuestServiceFeePercent { get; set; } = 8m;
 }
