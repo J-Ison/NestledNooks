@@ -146,6 +146,11 @@ public static class PropertySeedData
             AllowFarAdvanceDirectBooking = true,
             PhotosJson = PropertyContentJson.SerializePhotos(
                 photos.Select(p => new PropertyPhoto { Url = p.Item1, Alt = p.Item2 })),
+            RentalAgreementText = PropertyLegalDefaults.RentalAgreement("Deerfield Retreat"),
+            HouseRulesText = PropertyLegalDefaults.HouseRules("Deerfield Retreat"),
+            LiabilityAcknowledgmentText = PropertyLegalDefaults.LiabilityAcknowledgment("Deerfield Retreat"),
+            LegalDocumentsVersion = 1,
+            RequireGuestLegalAcceptance = true,
             UpdatedAtUtc = DateTime.UtcNow,
         };
     }

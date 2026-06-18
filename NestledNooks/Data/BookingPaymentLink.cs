@@ -21,4 +21,7 @@ public sealed class BookingPaymentLink
     public DateTime CreatedAtUtc { get; set; }
 
     public DateTime? CompletedAtUtc { get; set; }
+
+    /// <summary>JSON audit of legal acceptance immediately before Stripe checkout.</summary>
+    public string? PaymentLegalAcceptanceJson { get; set; }
 }

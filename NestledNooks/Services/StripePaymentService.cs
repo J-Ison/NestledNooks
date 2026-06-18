@@ -352,5 +352,5 @@ public sealed class StripePaymentService : IStripePaymentService
     }
 
     private static string BuildPayUrl(string siteBaseUrl, string token) =>
-        $"{siteBaseUrl.TrimEnd('/')}/pay/{token}";
+        $"{siteBaseUrl.TrimEnd('/')}/pay/review/{token}";
 }

@@ -73,6 +73,21 @@ public class RentalProperty
     /// <summary>JSON discount rules for direct bookings (weekly, monthly, promotions).</summary>
     public string DiscountsJson { get; set; } = "";
 
+    /// <summary>Editable rental agreement shown to guests (plain text).</summary>
+    public string RentalAgreementText { get; set; } = "";
+
+    /// <summary>Editable house rules shown to guests (plain text).</summary>
+    public string HouseRulesText { get; set; } = "";
+
+    /// <summary>Editable liability / assumption-of-risk acknowledgment (plain text).</summary>
+    public string LiabilityAcknowledgmentText { get; set; } = "";
+
+    /// <summary>Bumped when any legal document text changes (stored on guest acceptance records).</summary>
+    public int LegalDocumentsVersion { get; set; } = 1;
+
+    /// <summary>When true, direct booking and payment require agreement checkboxes.</summary>
+    public bool RequireGuestLegalAcceptance { get; set; } = true;
+
     public int MinimumNights { get; set; } = 2;
 
     /// <summary>Earliest check-in is today + this many days (e.g. 10 = book at least 10 days out).</summary>

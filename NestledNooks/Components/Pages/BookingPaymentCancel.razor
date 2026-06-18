@@ -54,6 +54,6 @@
     protected override void OnInitialized()
     {
         if (!string.IsNullOrWhiteSpace(Token))
-            _payUrl = Navigation.ToAbsoluteUri($"/pay/{Token}").ToString();
+            _payUrl = Navigation.ToAbsoluteUri($"/pay/review/{Token}").ToString();
     }
 }

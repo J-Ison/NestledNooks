@@ -1,0 +1,136 @@
+@using NestledNooks.Models
+@using NestledNooks.Services
+
+@if (Documents.RequireGuestLegalAcceptance)
+{
+    <div class="nn-legal-acceptance">
+        <h3 class="nn-booking-section-title">Agreements</h3>
+        <p class="nn-booking-section-hint">
+            Please read and accept before continuing. These apply to direct bookings on this site.
+            @if (ShowAirbnbNote)
+            {
+                <span> Airbnb/Vrbo guests are covered by those platforms' terms — update your listing house rules there separately.</span>
+            }
+        </p>
+
+        <label class="nn-legal-check @(HighlightRentalAgreement ? "nn-legal-check--missing" : null)">
+            <input type="checkbox"
+                   checked="@AgreedToRentalAgreement"
+                   disabled="@Disabled"
+                   @onchange="OnRentalAgreementChanged" />
+            <span>
+                I have read and agree to the
+                <a href="@LegalUrl(PropertyLegalDocumentKind.RentalAgreement)" target="_blank" rel="noopener">Rental agreement</a>.
+            </span>
+        </label>
+        @if (HighlightRentalAgreement)
+        {
+            <p class="nn-legal-field-error">Please accept the Rental agreement.</p>
+        }
+
+        <label class="nn-legal-check @(HighlightHouseRules ? "nn-legal-check--missing" : null)">
+            <input type="checkbox"
+                   checked="@AgreedToHouseRules"
+                   disabled="@Disabled"
+                   @onchange="OnHouseRulesChanged" />
+            <span>
+                I have read and agree to the
+                <a href="@LegalUrl(PropertyLegalDocumentKind.HouseRules)" target="_blank" rel="noopener">House rules</a>.
+            </span>
+        </label>
+        @if (HighlightHouseRules)
+        {
+            <p class="nn-legal-field-error">Please accept the House rules.</p>
+        }
+
+        <label class="nn-legal-check @(HighlightLiability ? "nn-legal-check--missing" : null)">
+            <input type="checkbox"
+                   checked="@AgreedToLiabilityAcknowledgment"
+                   disabled="@Disabled"
+                   @onchange="OnLiabilityChanged" />
+            <span>
+                I have read and accept the
+                <a href="@LegalUrl(PropertyLegalDocumentKind.LiabilityAcknowledgment)" target="_blank" rel="noopener">Liability &amp; risk acknowledgment</a>.
+            </span>
+        </label>
+        @if (HighlightLiability)
+        {
+            <p class="nn-legal-field-error">Please accept the Liability & risk acknowledgment.</p>
+        }
+
+        @if (!string.IsNullOrWhiteSpace(ValidationMessage))
+        {
+            <p class="nn-note nn-note--error" role="alert">@ValidationMessage</p>
+        }
+
+        <p class="nn-legal-draft-note">@PropertyLegalDefaults.DraftNotice</p>
+    </div>
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public PropertyLegalSnapshot Documents { get; set; } = new();
+
+    [Parameter]
+    public bool AgreedToRentalAgreement { get; set; }
+
+    [Parameter]
+    public EventCallback<bool> AgreedToRentalAgreementChanged { get; set; }
+
+    [Parameter]
+    public bool AgreedToHouseRules { get; set; }
+
+    [Parameter]
+    public EventCallback<bool> AgreedToHouseRulesChanged { get; set; }
+
+    [Parameter]
+    public bool AgreedToLiabilityAcknowledgment { get; set; }
+
+    [Parameter]
+    public EventCallback<bool> AgreedToLiabilityAcknowledgmentChanged { get; set; }
+
+    [Parameter]
+    public bool Disabled { get; set; }
+
+    [Parameter]
+    public string? ValidationMessage { get; set; }
+
+    [Parameter]
+    public bool ShowAirbnbNote { get; set; } = true;
+
+    [Parameter]
+    public bool HighlightRentalAgreement { get; set; }
+
+    [Parameter]
+    public bool HighlightHouseRules { get; set; }
+
+    [Parameter]
+    public bool HighlightLiability { get; set; }
+
+    private string LegalUrl(PropertyLegalDocumentKind kind) =>
+        $"/legal/{Uri.EscapeDataString(Documents.PropertySlug)}/{kind.ToRouteSegment()}";
+
+    private async Task OnRentalAgreementChanged(ChangeEventArgs e)
+    {
+        await AgreedToRentalAgreementChanged.InvokeAsync(ParseChecked(e));
+    }
+
+    private async Task OnHouseRulesChanged(ChangeEventArgs e)
+    {
+        await AgreedToHouseRulesChanged.InvokeAsync(ParseChecked(e));
+    }
+
+    private async Task OnLiabilityChanged(ChangeEventArgs e)
+    {
+        await AgreedToLiabilityAcknowledgmentChanged.InvokeAsync(ParseChecked(e));
+    }
+
+    private static bool ParseChecked(ChangeEventArgs e) =>
+        e.Value switch
+        {
+            bool b => b,
+            null => false,
+            _ => string.Equals(e.Value.ToString(), "true", StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(e.Value.ToString(), "on", StringComparison.OrdinalIgnoreCase),
+        };
+}

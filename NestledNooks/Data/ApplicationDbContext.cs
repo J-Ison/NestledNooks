@@ -53,6 +53,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             e.Property(x => x.Subtotal).HasPrecision(18, 2);
             e.Property(x => x.TotalAmount).HasPrecision(18, 2);
             e.Property(x => x.RequiredDepositAmount).HasPrecision(18, 2);
+            e.Property(x => x.BookingLegalAcceptanceJson).HasMaxLength(2000);
 
             e.HasOne(x => x.User)
                 .WithMany()
@@ -222,6 +223,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             e.Property(x => x.Purpose).HasMaxLength(20).IsRequired();
             e.Property(x => x.Amount).HasPrecision(18, 2);
             e.Property(x => x.StripeCheckoutSessionId).HasMaxLength(200);
+            e.Property(x => x.PaymentLegalAcceptanceJson).HasMaxLength(2000);
 
             e.HasOne(x => x.BookingRequest)
                 .WithMany()

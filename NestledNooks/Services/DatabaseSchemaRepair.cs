@@ -22,6 +22,7 @@ public static class DatabaseSchemaRepair
         await EnsureStripeBookingPaymentSchemaAsync(db, logger, cancellationToken).ConfigureAwait(false);
         await EnsureGuestEmailTemplatesTableAsync(db, logger, cancellationToken).ConfigureAwait(false);
         await EnsureAdminNotificationSchemaAsync(db, logger, cancellationToken).ConfigureAwait(false);
+        await EnsurePropertyLegalDocumentsSchemaAsync(db, logger, cancellationToken).ConfigureAwait(false);
     }
 
     public static async Task EnsureAspNetUserProfileColumnsAsync(
@@ -430,5 +431,43 @@ public static class DatabaseSchemaRepair
             cancellationToken).ConfigureAwait(false);
 
         logger.LogInformation("Verified admin notification schema.");
+    }
+
+    public static async Task EnsurePropertyLegalDocumentsSchemaAsync(
+        ApplicationDbContext db,
+        ILogger logger,
+        CancellationToken cancellationToken = default)
+    {
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            IF COL_LENGTH('RentalProperties', 'RentalAgreementText') IS NULL
+                ALTER TABLE [RentalProperties] ADD [RentalAgreementText] nvarchar(max) NOT NULL
+                    CONSTRAINT [DF_RentalProperties_RentalAgreementText] DEFAULT ('');
+
+            IF COL_LENGTH('RentalProperties', 'HouseRulesText') IS NULL
+                ALTER TABLE [RentalProperties] ADD [HouseRulesText] nvarchar(max) NOT NULL
+                    CONSTRAINT [DF_RentalProperties_HouseRulesText] DEFAULT ('');
+
+            IF COL_LENGTH('RentalProperties', 'LiabilityAcknowledgmentText') IS NULL
+                ALTER TABLE [RentalProperties] ADD [LiabilityAcknowledgmentText] nvarchar(max) NOT NULL
+                    CONSTRAINT [DF_RentalProperties_LiabilityAcknowledgmentText] DEFAULT ('');
+
+            IF COL_LENGTH('RentalProperties', 'LegalDocumentsVersion') IS NULL
+                ALTER TABLE [RentalProperties] ADD [LegalDocumentsVersion] int NOT NULL
+                    CONSTRAINT [DF_RentalProperties_LegalDocumentsVersion] DEFAULT (1);
+
+            IF COL_LENGTH('RentalProperties', 'RequireGuestLegalAcceptance') IS NULL
+                ALTER TABLE [RentalProperties] ADD [RequireGuestLegalAcceptance] bit NOT NULL
+                    CONSTRAINT [DF_RentalProperties_RequireGuestLegalAcceptance] DEFAULT (1);
+
+            IF COL_LENGTH('BookingRequests', 'BookingLegalAcceptanceJson') IS NULL
+                ALTER TABLE [BookingRequests] ADD [BookingLegalAcceptanceJson] nvarchar(2000) NULL;
+
+            IF COL_LENGTH('BookingPaymentLinks', 'PaymentLegalAcceptanceJson') IS NULL
+                ALTER TABLE [BookingPaymentLinks] ADD [PaymentLegalAcceptanceJson] nvarchar(2000) NULL;
+            """,
+            cancellationToken).ConfigureAwait(false);
+
+        logger.LogInformation("Verified property legal documents schema.");
     }
 }

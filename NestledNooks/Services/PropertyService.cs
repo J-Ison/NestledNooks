@@ -123,6 +123,11 @@ public sealed class PropertyService(ApplicationDbContext db) : IPropertyService
             if (slugTaken)
                 throw new InvalidOperationException($"A property with slug '{property.Slug}' already exists.");
 
+            if (LegalTextsChanged(existing, property))
+                property.LegalDocumentsVersion = existing.LegalDocumentsVersion + 1;
+            else
+                property.LegalDocumentsVersion = existing.LegalDocumentsVersion;
+
             db.Entry(existing).CurrentValues.SetValues(property);
             property = existing;
         }
@@ -151,5 +156,20 @@ public sealed class PropertyService(ApplicationDbContext db) : IPropertyService
             deerfield.UpdatedAtUtc = DateTime.UtcNow;
             await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         }
+
+        if (deerfield is not null && string.IsNullOrWhiteSpace(deerfield.RentalAgreementText))
+        {
+            var name = deerfield.DisplayName;
+            deerfield.RentalAgreementText = PropertyLegalDefaults.RentalAgreement(name);
+            deerfield.HouseRulesText = PropertyLegalDefaults.HouseRules(name);
+            deerfield.LiabilityAcknowledgmentText = PropertyLegalDefaults.LiabilityAcknowledgment(name);
+            deerfield.UpdatedAtUtc = DateTime.UtcNow;
+            await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        }
     }
+
+    private static bool LegalTextsChanged(RentalProperty existing, RentalProperty updated) =>
+        !string.Equals(existing.RentalAgreementText, updated.RentalAgreementText, StringComparison.Ordinal) ||
+        !string.Equals(existing.HouseRulesText, updated.HouseRulesText, StringComparison.Ordinal) ||
+        !string.Equals(existing.LiabilityAcknowledgmentText, updated.LiabilityAcknowledgmentText, StringComparison.Ordinal);
 }

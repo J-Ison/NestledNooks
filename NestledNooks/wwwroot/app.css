@@ -1762,6 +1762,237 @@ footer {
     opacity: 0.88;
 }
 
+.nn-legal-acceptance {
+    margin: 0 0 20px;
+    padding: 14px 16px;
+    border-radius: 12px;
+    border: 1px solid color-mix(in srgb, var(--nn-line) 80%, transparent);
+    background: color-mix(in srgb, var(--nn-surface) 92%, var(--nn-line));
+}
+
+.nn-legal-check {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin: 0 0 12px;
+    font-size: 0.95rem;
+    line-height: 1.45;
+    cursor: pointer;
+}
+
+.nn-legal-check input {
+    margin-top: 4px;
+    flex-shrink: 0;
+}
+
+.nn-legal-check a {
+    color: var(--nn-booking);
+    text-decoration: underline;
+}
+
+.nn-legal-body {
+    white-space: pre-wrap;
+    font-size: 0.95rem;
+    line-height: 1.55;
+}
+
+/* Legal document reader pages (/legal/...) */
+.nn-legal-page .guide-main--legal {
+    max-width: 52rem;
+    margin: 0 auto;
+    padding: 28px 20px 56px;
+}
+
+.nn-legal-sheet {
+    background: var(--nn-surface);
+    border: 1px solid color-mix(in srgb, var(--nn-line) 85%, var(--nn-ink));
+    border-radius: 4px;
+    box-shadow:
+        0 1px 2px color-mix(in srgb, var(--nn-ink) 6%, transparent),
+        0 12px 40px color-mix(in srgb, var(--nn-primary) 8%, transparent);
+    overflow: visible;
+}
+
+.nn-legal-document {
+    padding: 1.75rem 1.5rem 1.25rem;
+    color: var(--nn-ink);
+}
+
+@media (min-width: 640px) {
+    .nn-legal-page .guide-main--legal {
+        padding-left: 28px;
+        padding-right: 28px;
+    }
+
+    .nn-legal-document {
+        padding: 2.25rem 2.75rem 1.5rem;
+    }
+}
+
+.nn-legal-draft-banner {
+    margin: 0 0 1.75rem;
+    padding: 0.85rem 1rem;
+    border-left: 4px solid color-mix(in srgb, var(--nn-booking) 70%, var(--nn-ink));
+    background: color-mix(in srgb, var(--nn-booking) 10%, var(--nn-surface));
+    font-size: 0.88rem;
+    line-height: 1.5;
+    color: color-mix(in srgb, var(--nn-ink) 78%, transparent);
+    border-radius: 0;
+}
+
+.nn-legal-title {
+    margin: 0 0 1.25rem;
+    font-size: 1.2rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    line-height: 1.35;
+    text-transform: uppercase;
+    color: var(--nn-ink);
+    padding-bottom: 0.85rem;
+    border-bottom: 2px solid color-mix(in srgb, var(--nn-booking) 35%, var(--nn-line));
+}
+
+.nn-legal-subheading {
+    margin: 1.5rem 0 0.65rem;
+    font-size: 1.05rem;
+    font-weight: 600;
+    line-height: 1.35;
+    color: color-mix(in srgb, var(--nn-ink) 92%, var(--nn-booking));
+}
+
+.nn-legal-section {
+    margin: 1.65rem 0 0.5rem;
+    font-size: 1.02rem;
+    font-weight: 600;
+    line-height: 1.45;
+    color: var(--nn-ink);
+}
+
+.nn-legal-paragraph {
+    margin: 0 0 1rem;
+    font-size: 1.02rem;
+    line-height: 1.75;
+    max-width: 68ch;
+}
+
+.nn-legal-list {
+    margin: 0 0 1.25rem;
+    padding-left: 1.4rem;
+    max-width: 68ch;
+}
+
+.nn-legal-list li {
+    margin: 0 0 0.55rem;
+    font-size: 1.02rem;
+    line-height: 1.7;
+    padding-left: 0.15rem;
+}
+
+.nn-legal-list li::marker {
+    color: color-mix(in srgb, var(--nn-booking) 75%, var(--nn-ink));
+}
+
+.nn-legal-sheet-footer {
+    padding: 1rem 1.5rem 1.35rem;
+    border-top: 1px solid var(--nn-line);
+    background: color-mix(in srgb, var(--nn-primary-soft) 18%, var(--nn-surface));
+    border-radius: 0 0 4px 4px;
+}
+
+@media (min-width: 640px) {
+    .nn-legal-sheet-footer {
+        padding: 1.1rem 2.75rem 1.5rem;
+    }
+}
+
+.nn-legal-sheet-footer-label {
+    margin: 0 0 0.35rem;
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: color-mix(in srgb, var(--nn-ink) 55%, transparent);
+}
+
+.nn-legal-sheet-footer-links {
+    margin: 0;
+    font-size: 0.95rem;
+    line-height: 1.5;
+}
+
+.nn-legal-sheet-footer-sep {
+    margin: 0 0.45rem;
+    color: color-mix(in srgb, var(--nn-ink) 40%, transparent);
+}
+
+.nn-legal-sheet-body {
+    padding: 1.5rem;
+}
+
+.nn-legal-document-card {
+    max-width: 52rem;
+}
+
+.nn-legal-draft-note {
+    margin: 16px 0 0;
+    font-size: 0.85rem;
+    color: color-mix(in srgb, var(--nn-ink) 65%, transparent);
+    font-style: italic;
+}
+
+.nn-legal-editor {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.88rem;
+    line-height: 1.45;
+    min-height: 12rem;
+}
+
+.nn-legal-check--missing {
+    color: var(--nn-danger, #b42318);
+}
+
+.nn-legal-check--missing input {
+    outline: 2px solid color-mix(in srgb, var(--nn-danger, #b42318) 55%, transparent);
+    outline-offset: 1px;
+}
+
+.nn-legal-field-error {
+    margin: -6px 0 10px 1.6rem;
+    font-size: 0.88rem;
+    color: var(--nn-danger, #b42318);
+}
+
+.nn-booking-submit-hints {
+    margin: 0 0 16px;
+    padding: 12px 14px;
+    border-radius: 10px;
+    border: 1px solid color-mix(in srgb, var(--nn-booking) 35%, var(--nn-line));
+    background: color-mix(in srgb, var(--nn-booking) 6%, var(--nn-surface));
+}
+
+.nn-booking-submit-hints-title {
+    margin: 0 0 8px;
+    font-size: 0.92rem;
+    font-weight: 600;
+}
+
+.nn-booking-submit-hints-list {
+    margin: 0;
+    padding-left: 1.2rem;
+    font-size: 0.9rem;
+    line-height: 1.45;
+}
+
+.nn-booking-submit-hints-list li + li {
+    margin-top: 4px;
+}
+
+.nn-booking-dates--missing {
+    padding: 8px;
+    border-radius: 10px;
+    outline: 2px solid color-mix(in srgb, var(--nn-danger, #b42318) 45%, transparent);
+}
+
 .nn-booking-quote-head {
     display: flex;
     align-items: flex-start;
@@ -2330,6 +2561,273 @@ footer {
     color: var(--nn-ink-muted);
     font-size: 14px;
     line-height: 1.5;
+}
+
+.theme-panel--collapsible {
+    padding: 0;
+    scroll-margin-top: 96px;
+}
+
+.theme-panel-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    width: 100%;
+    margin: 0;
+    padding: 18px 22px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    text-align: left;
+    font-family: inherit;
+    color: inherit;
+}
+
+.theme-panel-toggle:hover {
+    background: color-mix(in srgb, var(--nn-primary-soft) 35%, transparent);
+}
+
+.theme-panel--collapsible .theme-panel-title {
+    margin: 0;
+}
+
+.theme-panel-chevron {
+    flex-shrink: 0;
+    width: 10px;
+    height: 10px;
+    border-right: 2px solid var(--nn-ink-muted);
+    border-bottom: 2px solid var(--nn-ink-muted);
+    transform: rotate(-45deg);
+    transition: transform 0.2s ease;
+}
+
+.theme-panel--collapsible.is-expanded .theme-panel-chevron {
+    transform: rotate(45deg);
+}
+
+.theme-panel-body {
+    padding: 0 22px 20px;
+}
+
+.theme-panel--collapsible.is-collapsed .theme-panel-toggle {
+    border-radius: 16px;
+}
+
+.theme-panel--collapsible.is-expanded .theme-panel-toggle {
+    border-bottom: 1px solid color-mix(in srgb, var(--nn-line) 80%, transparent);
+}
+
+.mgmt-main--property-edit {
+    padding-bottom: 48px;
+}
+
+.prop-edit-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+    position: relative;
+}
+
+.prop-edit-main {
+    min-width: 0;
+}
+
+.prop-save-banner {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    margin: 0 0 18px;
+    padding: 14px 16px;
+    border: 1px solid #6ee7b7;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+    box-shadow: 0 8px 24px color-mix(in srgb, #10b981 18%, transparent);
+    animation: prop-save-in 0.35s ease-out;
+}
+
+@keyframes prop-save-in {
+    from {
+        opacity: 0;
+        transform: translateY(-8px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.prop-save-banner-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: #10b981;
+    color: #fff;
+    font-size: 14px;
+    font-weight: 800;
+    flex-shrink: 0;
+}
+
+.prop-save-banner-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    color: #065f46;
+    font-size: 14px;
+    line-height: 1.45;
+}
+
+.prop-save-banner-text strong {
+    font-size: 15px;
+}
+
+.prop-edit-nav {
+    display: none;
+}
+
+.prop-edit-nav-fab {
+    position: fixed;
+    right: 16px;
+    bottom: 16px;
+    z-index: 30;
+    padding: 12px 16px;
+    border: 1px solid var(--nn-primary-border);
+    border-radius: 999px;
+    background: var(--nn-surface);
+    box-shadow: 0 10px 28px color-mix(in srgb, var(--nn-ink) 18%, transparent);
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--nn-ink);
+    cursor: pointer;
+}
+
+.prop-edit-nav-fab:hover {
+    background: color-mix(in srgb, var(--nn-primary-soft) 45%, var(--nn-surface));
+}
+
+@media (min-width: 1100px) {
+    .prop-edit-layout {
+        grid-template-columns: minmax(0, 1fr) 220px;
+        gap: 24px;
+        align-items: start;
+    }
+
+    .prop-edit-nav-fab {
+        display: none;
+    }
+
+    .prop-edit-nav {
+        display: block;
+        position: sticky;
+        top: 88px;
+        padding: 16px 14px;
+        border: 1px solid var(--nn-line);
+        border-radius: 14px;
+        background: var(--nn-surface);
+        box-shadow: var(--nn-shadow-soft);
+    }
+}
+
+@media (max-width: 1099px) {
+    .prop-edit-nav {
+        display: block;
+        position: fixed;
+        right: 16px;
+        bottom: 68px;
+        z-index: 29;
+        width: min(280px, calc(100vw - 32px));
+        max-height: min(60vh, 420px);
+        overflow: auto;
+        padding: 14px;
+        border: 1px solid var(--nn-line);
+        border-radius: 14px;
+        background: var(--nn-surface);
+        box-shadow: 0 16px 40px color-mix(in srgb, var(--nn-ink) 22%, transparent);
+        opacity: 0;
+        visibility: hidden;
+        transform: translateY(8px);
+        transition: opacity 0.2s ease, transform 0.2s ease, visibility 0.2s ease;
+        pointer-events: none;
+    }
+
+    .prop-edit-nav.is-open {
+        opacity: 1;
+        visibility: visible;
+        transform: translateY(0);
+        pointer-events: auto;
+    }
+}
+
+.prop-edit-nav-label {
+    margin: 0 0 10px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--nn-ink-muted);
+}
+
+.prop-edit-nav-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.prop-edit-nav-link {
+    display: block;
+    width: 100%;
+    padding: 8px 10px;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    text-align: left;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--nn-ink);
+    cursor: pointer;
+}
+
+.prop-edit-nav-link:hover {
+    background: color-mix(in srgb, var(--nn-primary-soft) 55%, transparent);
+}
+
+.prop-edit-nav-link.is-collapsed {
+    color: color-mix(in srgb, var(--nn-ink) 58%, transparent);
+}
+
+.prop-edit-nav-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--nn-line);
+}
+
+.prop-edit-nav-action {
+    padding: 6px 10px;
+    border: 1px solid var(--nn-line);
+    border-radius: 8px;
+    background: var(--nn-surface-muted);
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--nn-ink-muted);
+    cursor: pointer;
+}
+
+.prop-edit-nav-action:hover {
+    border-color: var(--nn-primary-border);
+    color: var(--nn-ink);
 }
 
 .site-booking-toggle {

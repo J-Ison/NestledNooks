@@ -78,6 +78,18 @@ public interface IBookingRequestService
     Task<IReadOnlyDictionary<int, string>> GetLatestPaymentUrlsAsync(
         IEnumerable<int> bookingIds,
         CancellationToken cancellationToken = default);
+
+    Task<BookingPaymentReviewSnapshot?> GetPaymentReviewAsync(
+        string token,
+        CancellationToken cancellationToken = default);
+
+    Task<BookingPaymentCheckoutResult> ProceedToPaymentCheckoutAsync(
+        string token,
+        string siteBaseUrl,
+        bool agreedToRentalAgreement,
+        bool agreedToHouseRules,
+        bool agreedToLiabilityAcknowledgment,
+        CancellationToken cancellationToken = default);
 }
 
 public sealed record BookingSubmitResult(
@@ -108,3 +120,20 @@ public sealed record BookingApprovalResult(
     string? ErrorMessage,
     string? PaymentUrl,
     string? EmailWarning = null);
+
+public sealed record BookingPaymentReviewSnapshot(
+    string Token,
+    string BookingNumber,
+    string PropertySlug,
+    string PropertyDisplayName,
+    DateOnly CheckIn,
+    DateOnly CheckOut,
+    decimal Amount,
+    string Purpose,
+    string PurposeLabel,
+    PropertyLegalSnapshot LegalDocuments);
+
+public sealed record BookingPaymentCheckoutResult(
+    bool Succeeded,
+    string? CheckoutUrl,
+    string? ErrorMessage);

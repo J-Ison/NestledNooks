@@ -173,6 +173,14 @@
                                     </div>
                                 }
 
+                                @if (LegalAcceptanceSummary(b) is { } legalSummary)
+                                {
+                                    <div class="bk-detail-block">
+                                        <h3 class="bk-detail-title">Legal acceptance</h3>
+                                        <p class="bk-hint">@legalSummary</p>
+                                    </div>
+                                }
+
                                 @if (b.Status == BookingStatuses.Pending)
                                 {
                                     <div class="bk-detail-block">
@@ -931,6 +939,12 @@
         BookingStatuses.Denied => "Denied",
         _ => b.Status
     };
+
+    private static string? LegalAcceptanceSummary(BookingRequest booking)
+    {
+        var record = LegalAcceptanceRecord.TryDeserialize(booking.BookingLegalAcceptanceJson);
+        return record?.FormatSummary();
+    }
 
     private static string FormatDateRange(DateOnly checkIn, DateOnly checkOut) =>
         $"{checkIn:MMM d} → {checkOut:MMM d, yyyy}";

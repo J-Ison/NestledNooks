@@ -4,6 +4,7 @@
 @using System.ComponentModel.DataAnnotations
 @using System.Security.Claims
 @using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Components.Forms
 @using Microsoft.AspNetCore.Identity
 @using Microsoft.AspNetCore.WebUtilities
 @using MudBlazor
@@ -103,7 +104,7 @@
                         Unavailable dates are grayed out. Pending requests hold dates until we approve or decline.
                     </p>
 
-                    <EditForm Model="@_model" OnValidSubmit="SubmitAsync">
+                    <EditForm Model="@_model" OnSubmit="HandleFormSubmitAsync">
                         <DataAnnotationsValidator />
 
                         @if (_properties.Count > 1)
@@ -154,7 +155,7 @@
                             Grayed-out nights are booked or held. Ranges cannot cross gray dates.
                         </p>
 
-                        <div class="nn-booking-dates nn-booking-dates--range">
+                        <div class="nn-booking-dates nn-booking-dates--range @GetDatesHighlightClass()">
                             @if (_dateRange?.Start is DateTime start && _dateRange.End is DateTime end)
                             {
                                 <p class="nn-booking-range-summary">
@@ -294,11 +295,40 @@
                             </div>
                         }
 
-                        <MudButton ButtonType="ButtonType.Submit"
+                        @if (_legalDocuments is not null)
+                        {
+                            <GuestLegalAcceptance Documents="_legalDocuments"
+                                                  AgreedToRentalAgreement="_model.AgreedToRentalAgreement"
+                                                  AgreedToRentalAgreementChanged="OnRentalAgreementChanged"
+                                                  AgreedToHouseRules="_model.AgreedToHouseRules"
+                                                  AgreedToHouseRulesChanged="OnHouseRulesChanged"
+                                                  AgreedToLiabilityAcknowledgment="_model.AgreedToLiabilityAcknowledgment"
+                                                  AgreedToLiabilityAcknowledgmentChanged="OnLiabilityAcknowledgmentChanged"
+                                                  Disabled="_submitting"
+                                                  HighlightRentalAgreement="@ShouldHighlightRentalAgreement"
+                                                  HighlightHouseRules="@ShouldHighlightHouseRules"
+                                                  HighlightLiability="@ShouldHighlightLiability" />
+                        }
+
+                        @if (_showValidationErrors && !CanSubmit)
+                        {
+                            <div class="nn-booking-submit-hints" role="alert">
+                                <p class="nn-booking-submit-hints-title">Before you can request a booking:</p>
+                                <ul class="nn-booking-submit-hints-list">
+                                    @foreach (var issue in SubmitIssues)
+                                    {
+                                        <li>@issue</li>
+                                    }
+                                </ul>
+                            </div>
+                        }
+
+                        <MudButton ButtonType="ButtonType.Button"
                                    Variant="Variant.Filled"
                                    Color="Color.Success"
                                    Class="nn-booking-submit"
-                                   Disabled="_submitting">
+                                   Disabled="_submitting"
+                                   OnClick="HandleSubmitButtonAsync">
                             @(_submitting ? "Submitting…" : "Request booking")
                         </MudButton>
                     </EditForm>
@@ -341,6 +371,52 @@
     private bool _isHostStaff;
     private bool _showChannelPriceLinks = true;
     private BookingIntegrationStatusSnapshot? _integrationStatus;
+    private PropertyLegalSnapshot? _legalDocuments;
+    private bool _showValidationErrors;
+
+    private IReadOnlyList<string> SubmitIssues
+    {
+        get
+        {
+            SyncModelDatesFromRange();
+            return BookingFormReadiness.GetIssues(
+                _model,
+                _property,
+                _legalDocuments,
+                skipLegalAcceptance: false,
+                quoteError: _quoteError,
+                quoteLoading: _quoteLoading);
+        }
+    }
+
+    private bool CanSubmit => SubmitIssues.Count == 0;
+
+    private bool ShouldHighlightRentalAgreement =>
+        _showValidationErrors &&
+        _legalDocuments?.RequireGuestLegalAcceptance == true &&
+        !_model.AgreedToRentalAgreement;
+
+    private bool ShouldHighlightHouseRules =>
+        _showValidationErrors &&
+        _legalDocuments?.RequireGuestLegalAcceptance == true &&
+        !_model.AgreedToHouseRules;
+
+    private bool ShouldHighlightLiability =>
+        _showValidationErrors &&
+        _legalDocuments?.RequireGuestLegalAcceptance == true &&
+        !_model.AgreedToLiabilityAcknowledgment;
+
+    private string? GetDatesHighlightClass()
+    {
+        if (!_showValidationErrors)
+            return null;
+
+        return SubmitIssues.Any(static issue =>
+            issue.Contains("check-in", StringComparison.OrdinalIgnoreCase) ||
+            issue.Contains("check-out", StringComparison.OrdinalIgnoreCase))
+            ? "nn-booking-dates--missing"
+            : null;
+    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -403,6 +479,7 @@
 
         var rentalProperty = await PropertyService.GetBySlugAsync(_model.PropertySlug);
         _showChannelPriceLinks = rentalProperty?.ShowChannelPriceLinks ?? true;
+        _legalDocuments = PropertyLegalSnapshot.FromEntity(rentalProperty);
 
         SyncModelDatesFromRange();
 
@@ -591,9 +668,51 @@
         await RefreshQuoteAsync(skipAvailabilityCheck: true, preserveExistingQuote: true);
     }
 
+    private Task OnRentalAgreementChanged(bool value)
+    {
+        _model.AgreedToRentalAgreement = value;
+        return Task.CompletedTask;
+    }
+
+    private Task OnHouseRulesChanged(bool value)
+    {
+        _model.AgreedToHouseRules = value;
+        return Task.CompletedTask;
+    }
+
+    private Task OnLiabilityAcknowledgmentChanged(bool value)
+    {
+        _model.AgreedToLiabilityAcknowledgment = value;
+        return Task.CompletedTask;
+    }
+
+    private async Task HandleFormSubmitAsync(EditContext editContext)
+    {
+        await TrySubmitAsync(editContext);
+    }
+
+    private Task HandleSubmitButtonAsync() => TrySubmitAsync(null);
+
+    private async Task TrySubmitAsync(EditContext? editContext)
+    {
+        SyncModelDatesFromRange();
+        _showValidationErrors = true;
+
+        if (editContext is not null && !editContext.Validate())
+            return;
+
+        if (!CanSubmit)
+            return;
+
+        await SubmitAsync();
+    }
+
     private async Task SubmitAsync()
     {
         SyncModelDatesFromRange();
+
+        if (!CanSubmit)
+            return;
 
         _submitting = true;
         _error = null;

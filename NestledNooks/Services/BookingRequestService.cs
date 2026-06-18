@@ -104,6 +104,36 @@ public sealed class BookingRequestService : IBookingRequestService
                 "Those dates are no longer available. Please choose different dates.");
         }
 
+        var rentalProperty = await _db.RentalProperties
+            .AsNoTracking()
+            .FirstOrDefaultAsync(p => p.Slug == slug, cancellationToken)
+            .ConfigureAwait(false);
+        var legalDocuments = PropertyLegalSnapshot.FromEntity(rentalProperty);
+        if (legalDocuments.RequireGuestLegalAcceptance)
+        {
+            if (!model.AgreedToRentalAgreement ||
+                !model.AgreedToHouseRules ||
+                !model.AgreedToLiabilityAcknowledgment)
+            {
+                return Fail(
+                    BookingSubmitErrorCodes.LegalAcceptanceRequired,
+                    "Please read and accept the rental agreement, house rules, and liability acknowledgment.");
+            }
+        }
+
+        string? bookingLegalAcceptanceJson = null;
+        if (legalDocuments.RequireGuestLegalAcceptance &&
+            model.AgreedToRentalAgreement &&
+            model.AgreedToHouseRules &&
+            model.AgreedToLiabilityAcknowledgment)
+        {
+            var acceptance = LegalAcceptanceRecord.Create(
+                LegalAcceptanceRecord.PhaseBooking,
+                legalDocuments,
+                ClientIpResolver.GetClientIp(_httpContextAccessor.HttpContext));
+            bookingLegalAcceptanceJson = LegalAcceptanceRecord.Serialize(acceptance);
+        }
+
         var entity = new BookingRequest
         {
             UserId = userId,
@@ -128,6 +158,7 @@ public sealed class BookingRequestService : IBookingRequestService
             PaymentReceivedAtUtc = null,
             CreatedAtUtc = DateTime.UtcNow,
             StatusUpdatedAtUtc = DateTime.UtcNow,
+            BookingLegalAcceptanceJson = bookingLegalAcceptanceJson,
             // Unique index on BookingNumber; final value assigned after Id is generated.
             BookingNumber = Guid.NewGuid().ToString("N")
         };
@@ -503,11 +534,115 @@ public sealed class BookingRequestService : IBookingRequestService
         foreach (var link in links)
         {
             if (!result.ContainsKey(link.BookingRequestId))
-                result[link.BookingRequestId] = $"/pay/{link.Token}";
+                result[link.BookingRequestId] = $"/pay/review/{link.Token}";
         }
 
         return result;
     }
+
+    public async Task<BookingPaymentReviewSnapshot?> GetPaymentReviewAsync(
+        string token,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(token))
+            return null;
+
+        var link = await _db.BookingPaymentLinks
+            .AsNoTracking()
+            .Include(l => l.BookingRequest)
+            .FirstOrDefaultAsync(l => l.Token == token, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (link is null || link.CompletedAtUtc is not null)
+            return null;
+
+        var booking = link.BookingRequest;
+        if (booking.Status is not (BookingStatuses.Approved or BookingStatuses.Active))
+            return null;
+
+        var rentalProperty = await _db.RentalProperties
+            .AsNoTracking()
+            .FirstOrDefaultAsync(p => p.Slug == booking.PropertySlug, cancellationToken)
+            .ConfigureAwait(false);
+
+        var legal = PropertyLegalSnapshot.FromEntity(rentalProperty);
+        var listing = _pricing.GetProperty(booking.PropertySlug);
+
+        return new BookingPaymentReviewSnapshot(
+            link.Token,
+            booking.BookingNumber,
+            booking.PropertySlug,
+            listing?.DisplayName ?? legal.PropertyDisplayName,
+            booking.CheckIn,
+            booking.CheckOut,
+            link.Amount,
+            link.Purpose,
+            DescribePaymentPurpose(link.Purpose),
+            legal);
+    }
+
+    public async Task<BookingPaymentCheckoutResult> ProceedToPaymentCheckoutAsync(
+        string token,
+        string siteBaseUrl,
+        bool agreedToRentalAgreement,
+        bool agreedToHouseRules,
+        bool agreedToLiabilityAcknowledgment,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(token))
+            return new BookingPaymentCheckoutResult(false, null, "Invalid payment link.");
+
+        var link = await _db.BookingPaymentLinks
+            .Include(l => l.BookingRequest)
+            .FirstOrDefaultAsync(l => l.Token == token, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (link is null || link.CompletedAtUtc is not null)
+            return new BookingPaymentCheckoutResult(false, null, "This payment link is invalid or has already been used.");
+
+        var booking = link.BookingRequest;
+        if (booking.Status is not (BookingStatuses.Approved or BookingStatuses.Active))
+            return new BookingPaymentCheckoutResult(false, null, "This booking is not ready for payment.");
+
+        var rentalProperty = await _db.RentalProperties
+            .AsNoTracking()
+            .FirstOrDefaultAsync(p => p.Slug == booking.PropertySlug, cancellationToken)
+            .ConfigureAwait(false);
+        var legal = PropertyLegalSnapshot.FromEntity(rentalProperty);
+
+        if (legal.RequireGuestLegalAcceptance)
+        {
+            if (!agreedToRentalAgreement || !agreedToHouseRules || !agreedToLiabilityAcknowledgment)
+            {
+                return new BookingPaymentCheckoutResult(
+                    false,
+                    null,
+                    "Please read and accept the rental agreement, house rules, and liability acknowledgment.");
+            }
+
+            var acceptance = LegalAcceptanceRecord.Create(
+                LegalAcceptanceRecord.PhasePayment,
+                legal,
+                ClientIpResolver.GetClientIp(_httpContextAccessor.HttpContext));
+            link.PaymentLegalAcceptanceJson = LegalAcceptanceRecord.Serialize(acceptance);
+            await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+        var checkoutUrl = await _stripe.GetCheckoutRedirectUrlAsync(token, siteBaseUrl, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (string.IsNullOrWhiteSpace(checkoutUrl))
+            return new BookingPaymentCheckoutResult(false, null, "Could not start checkout. The link may have expired.");
+
+        return new BookingPaymentCheckoutResult(true, checkoutUrl, null);
+    }
+
+    private static string DescribePaymentPurpose(string purpose) => purpose switch
+    {
+        BookingPaymentPurposes.Deposit => "Deposit payment",
+        BookingPaymentPurposes.Balance => "Balance payment",
+        _ => "Payment",
+    };
 
     public async Task<BookingStatusUpdateResult> SendGuestEmailAsync(
         int bookingId,

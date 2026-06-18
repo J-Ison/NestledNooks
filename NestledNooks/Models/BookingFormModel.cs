@@ -46,6 +46,12 @@ public sealed class BookingFormModel : IValidatableObject
     [StringLength(2000)]
     public string? Notes { get; set; }
 
+    public bool AgreedToRentalAgreement { get; set; }
+
+    public bool AgreedToHouseRules { get; set; }
+
+    public bool AgreedToLiabilityAcknowledgment { get; set; }
+
     public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
     {
         var today = DateOnly.FromDateTime(DateTime.UtcNow);

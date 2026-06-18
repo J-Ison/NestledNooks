@@ -1,0 +1,192 @@
+@page "/pay/review/{Token}"
+@rendermode InteractiveServer
+
+@using NestledNooks.Models
+@using NestledNooks.Services
+
+@inject IBookingRequestService BookingService
+@inject NavigationManager Navigation
+
+<PageTitle>Complete payment · @SiteBranding.Name</PageTitle>
+
+<div class="guide-page">
+    <header class="guide-hero guide-hero--compact">
+        <div class="wrap guide-hero-inner">
+            <p class="guide-hero-eyebrow">@SiteBranding.Name</p>
+            <h1 class="guide-hero-title">Review &amp; pay</h1>
+            @if (_review is not null)
+            {
+                <p class="guide-hero-lead">
+                    Booking @_review.BookingNumber · @_review.PropertyDisplayName · @MoneyFormat.Usd(_review.Amount)
+                </p>
+            }
+        </div>
+    </header>
+
+    <main class="wrap guide-main">
+        @if (_loading)
+        {
+            <p class="nn-loading">Loading payment…</p>
+        }
+        else if (_review is null)
+        {
+            <article class="guide-card">
+                <p class="nn-note nn-note--error">@(_error ?? "This payment link is invalid or has already been used.")</p>
+                <p><a class="guide-link" href="/contact">Contact us</a></p>
+            </article>
+        }
+        else
+        {
+            <article class="guide-card">
+                <p class="nn-booking-section-hint">
+                    @_review.PurposeLabel for your stay @FormatDateRange(_review.CheckIn, _review.CheckOut).
+                </p>
+
+                <GuestLegalAcceptance Documents="_review.LegalDocuments"
+                                      AgreedToRentalAgreement="_agreedRental"
+                                      AgreedToRentalAgreementChanged="OnRentalAgreementChanged"
+                                      AgreedToHouseRules="_agreedHouseRules"
+                                      AgreedToHouseRulesChanged="OnHouseRulesChanged"
+                                      AgreedToLiabilityAcknowledgment="_agreedLiability"
+                                      AgreedToLiabilityAcknowledgmentChanged="OnLiabilityAcknowledgmentChanged"
+                                      Disabled="_submitting"
+                                      HighlightRentalAgreement="@ShouldHighlightRental"
+                                      HighlightHouseRules="@ShouldHighlightHouseRules"
+                                      HighlightLiability="@ShouldHighlightLiability"
+                                      ShowAirbnbNote="false" />
+
+                @if (_showValidationErrors && !CanProceed && _review.LegalDocuments.RequireGuestLegalAcceptance)
+                {
+                    <div class="nn-booking-submit-hints" role="alert">
+                        <p class="nn-booking-submit-hints-title">Before you can continue to payment:</p>
+                        <ul class="nn-booking-submit-hints-list">
+                            @if (!_agreedRental)
+                            {
+                                <li>Check the box to accept the Rental agreement.</li>
+                            }
+                            @if (!_agreedHouseRules)
+                            {
+                                <li>Check the box to accept the House rules.</li>
+                            }
+                            @if (!_agreedLiability)
+                            {
+                                <li>Check the box to accept the Liability & risk acknowledgment.</li>
+                            }
+                        </ul>
+                    </div>
+                }
+
+                @if (!string.IsNullOrWhiteSpace(_error))
+                {
+                    <p class="nn-note nn-note--error" role="alert">@_error</p>
+                }
+
+                <div class="theme-actions">
+                    <button type="button"
+                            class="nn-btn-primary"
+                            disabled="_submitting"
+                            @onclick="ProceedAsync">
+                        @(_submitting ? "Redirecting…" : "Continue to secure payment")
+                    </button>
+                </div>
+
+                <p class="nn-note">You will complete payment on Stripe. No charge is made until you submit card details there.</p>
+            </article>
+        }
+    </main>
+</div>
+
+@code {
+    [Parameter]
+    public string Token { get; set; } = "";
+
+    private BookingPaymentReviewSnapshot? _review;
+    private bool _loading = true;
+    private bool _submitting;
+    private bool _agreedRental;
+    private bool _agreedHouseRules;
+    private bool _agreedLiability;
+    private string? _error;
+    private bool _showValidationErrors;
+
+    private bool CanProceed =>
+        _review is not null &&
+        (!_review.LegalDocuments.RequireGuestLegalAcceptance ||
+         (_agreedRental && _agreedHouseRules && _agreedLiability));
+
+    private bool ShouldHighlightRental =>
+        _showValidationErrors &&
+        _review?.LegalDocuments.RequireGuestLegalAcceptance == true &&
+        !_agreedRental;
+
+    private bool ShouldHighlightHouseRules =>
+        _showValidationErrors &&
+        _review?.LegalDocuments.RequireGuestLegalAcceptance == true &&
+        !_agreedHouseRules;
+
+    private bool ShouldHighlightLiability =>
+        _showValidationErrors &&
+        _review?.LegalDocuments.RequireGuestLegalAcceptance == true &&
+        !_agreedLiability;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _loading = true;
+        _error = null;
+        _review = await BookingService.GetPaymentReviewAsync(Token);
+        _loading = false;
+    }
+
+    private Task OnRentalAgreementChanged(bool value)
+    {
+        _agreedRental = value;
+        return Task.CompletedTask;
+    }
+
+    private Task OnHouseRulesChanged(bool value)
+    {
+        _agreedHouseRules = value;
+        return Task.CompletedTask;
+    }
+
+    private Task OnLiabilityAcknowledgmentChanged(bool value)
+    {
+        _agreedLiability = value;
+        return Task.CompletedTask;
+    }
+
+    private async Task ProceedAsync()
+    {
+        _error = null;
+        _showValidationErrors = true;
+
+        if (!CanProceed)
+            return;
+
+        _submitting = true;
+        try
+        {
+            var siteBaseUrl = Navigation.BaseUri.TrimEnd('/');
+            var result = await BookingService.ProceedToPaymentCheckoutAsync(
+                Token,
+                siteBaseUrl,
+                _agreedRental,
+                _agreedHouseRules,
+                _agreedLiability);
+            if (!result.Succeeded || string.IsNullOrWhiteSpace(result.CheckoutUrl))
+            {
+                _error = result.ErrorMessage ?? "Could not start checkout.";
+                return;
+            }
+
+            Navigation.NavigateTo(result.CheckoutUrl, forceLoad: true);
+        }
+        finally
+        {
+            _submitting = false;
+        }
+    }
+
+    private static string FormatDateRange(DateOnly checkIn, DateOnly checkOut) =>
+        $"{checkIn:MMM d, yyyy} – {checkOut:MMM d, yyyy}";
+}

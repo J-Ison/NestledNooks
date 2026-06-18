@@ -1,0 +1,96 @@
+@page "/legal/{Slug}/{DocumentSegment}"
+@rendermode InteractiveServer
+
+@using NestledNooks.Models
+@using NestledNooks.Services
+
+@inject IPropertyService PropertyService
+@inject NavigationManager Navigation
+
+<PageTitle>@_title · @SiteBranding.Name</PageTitle>
+
+<div class="guide-page nn-legal-page">
+    <header class="guide-hero guide-hero--compact nn-legal-hero">
+        <div class="wrap guide-hero-inner">
+            <p class="guide-hero-eyebrow">@SiteBranding.Name · @(_propertyName ?? "Property")</p>
+            <h1 class="guide-hero-title">@_title</h1>
+            @if (_version > 0)
+            {
+                <p class="guide-hero-lead">Document version @_version</p>
+            }
+        </div>
+    </header>
+
+    <main class="wrap guide-main guide-main--legal">
+        @if (_loading)
+        {
+            <p class="nn-loading">Loading…</p>
+        }
+        else if (_notFound)
+        {
+            <article class="nn-legal-sheet">
+                <div class="nn-legal-sheet-body">
+                    <p class="nn-note nn-note--error">This document could not be found.</p>
+                    <p><a class="guide-link" href="/">Return home</a></p>
+                </div>
+            </article>
+        }
+        else
+        {
+            <article class="nn-legal-sheet">
+                <LegalDocumentBody Text="@_body" />
+                <footer class="nn-legal-sheet-footer">
+                    <p class="nn-legal-sheet-footer-label">Direct booking</p>
+                    <p class="nn-legal-sheet-footer-links">
+                        <a class="guide-link" href="/booking?property=@Uri.EscapeDataString(Slug)">Request a stay</a>
+                        <span class="nn-legal-sheet-footer-sep" aria-hidden="true">·</span>
+                        <a class="guide-link" href="/properties/@Slug">Property page</a>
+                    </p>
+                </footer>
+            </article>
+        }
+    </main>
+</div>
+
+@code {
+    [Parameter]
+    public string Slug { get; set; } = "";
+
+    [Parameter]
+    public string DocumentSegment { get; set; } = "";
+
+    private bool _loading = true;
+    private bool _notFound;
+    private string _title = "Legal document";
+    private string _body = "";
+    private string? _propertyName;
+    private int _version;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _loading = true;
+        _notFound = false;
+
+        if (!PropertyLegalDocumentKindExtensions.TryParseRouteSegment(DocumentSegment, out var kind))
+        {
+            _notFound = true;
+            _loading = false;
+            return;
+        }
+
+        var property = await PropertyService.GetBySlugAsync(Slug);
+        if (property is null)
+        {
+            _notFound = true;
+            _loading = false;
+            return;
+        }
+
+        var snapshot = PropertyLegalSnapshot.FromEntity(property);
+        _propertyName = snapshot.PropertyDisplayName;
+        _title = kind.ToDisplayTitle();
+        _body = snapshot.GetText(kind);
+        _version = snapshot.LegalDocumentsVersion;
+        _loading = false;
+    }
+}

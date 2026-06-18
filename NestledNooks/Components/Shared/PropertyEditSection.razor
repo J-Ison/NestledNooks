@@ -1,0 +1,34 @@
+<section id="@($"prop-section-{SectionId}")"
+         class="theme-panel theme-panel--collapsible @(Expanded ? "is-expanded" : "is-collapsed")">
+    <button type="button"
+            class="theme-panel-toggle"
+            aria-expanded="@Expanded"
+            aria-controls="@($"prop-section-{SectionId}-body")"
+            @onclick="OnToggle">
+        <h2 class="theme-panel-title">@Title</h2>
+        <span class="theme-panel-chevron" aria-hidden="true"></span>
+    </button>
+    @if (Expanded)
+    {
+        <div id="@($"prop-section-{SectionId}-body")" class="theme-panel-body">
+            @ChildContent
+        </div>
+    }
+</section>
+
+@code {
+    [Parameter, EditorRequired]
+    public string SectionId { get; set; } = "";
+
+    [Parameter, EditorRequired]
+    public string Title { get; set; } = "";
+
+    [Parameter]
+    public bool Expanded { get; set; } = true;
+
+    [Parameter]
+    public EventCallback OnToggle { get; set; }
+
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+}

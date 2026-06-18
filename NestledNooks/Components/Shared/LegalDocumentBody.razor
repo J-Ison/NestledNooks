@@ -1,0 +1,63 @@
+@using NestledNooks.Services
+
+@if (_blocks.Count > 0)
+{
+    <div class="nn-legal-document">
+        @{
+            var inList = false;
+        }
+        @foreach (var block in _blocks)
+        {
+            if (block.Kind == LegalBlockKind.Bullet)
+            {
+                if (!inList)
+                {
+                    inList = true;
+                    @:<ul class="nn-legal-list">
+                }
+
+                <li>@block.Text</li>
+                continue;
+            }
+
+            if (inList)
+            {
+                inList = false;
+                @:</ul>
+            }
+
+            switch (block.Kind)
+            {
+                case LegalBlockKind.DraftNotice:
+                    <p class="nn-legal-draft-banner" role="note">@block.Text</p>
+                    break;
+                case LegalBlockKind.Title:
+                    <h2 class="nn-legal-title">@block.Text</h2>
+                    break;
+                case LegalBlockKind.Subheading:
+                    <h3 class="nn-legal-subheading">@block.Text</h3>
+                    break;
+                case LegalBlockKind.SectionHeading:
+                    <h3 class="nn-legal-section">@block.Text</h3>
+                    break;
+                case LegalBlockKind.Paragraph:
+                    <p class="nn-legal-paragraph">@block.Text</p>
+                    break;
+            }
+        }
+        @if (inList)
+        {
+            @:</ul>
+        }
+    </div>
+}
+
+@code {
+    [Parameter]
+    public string? Text { get; set; }
+
+    private IReadOnlyList<LegalDocumentBlock> _blocks = [];
+
+    protected override void OnParametersSet() =>
+        _blocks = LegalDocumentFormatter.Parse(Text);
+}

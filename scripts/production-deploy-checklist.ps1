@@ -34,6 +34,22 @@ $checks = @(
         Hint = "https://YOUR-SITE/api/calendar/deerfield-retreat/holds.ics"
     },
     @{
+        Name = "Guest legal documents reviewed (attorney)"
+        Hint = "Manage Property -> Guest legal documents — replace DRAFT text before public booking"
+    },
+    @{
+        Name = "SD lodging license + Rapid City vacation home registration"
+        Hint = "doh.sd.gov lodging license; rcgov.org vacation home registration (2026+)"
+    },
+    @{
+        Name = "Short-term rental insurance (not homeowners only)"
+        Hint = "Covers guest injury claims — required for Airbnb and direct bookings alike"
+    },
+    @{
+        Name = "Airbnb/Vrbo house rules in listing"
+        Hint = "Platform terms apply to channel guests; mirror house rules on each listing"
+    },
+    @{
         Name = "Owner account can sign in on live"
         Hint = "Admin:OwnerEmails includes your email; Owner role assigned on first login"
     }

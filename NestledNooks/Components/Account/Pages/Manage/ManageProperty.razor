@@ -3,6 +3,7 @@
 @rendermode InteractiveServer
 
 @using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components
 @using NestledNooks.Data
 @using NestledNooks.Models
 @using NestledNooks.Services
@@ -11,6 +12,7 @@
 
 @inject IPropertyService PropertyService
 @inject NavigationManager Navigation
+@inject IJSRuntime Js
 
 <PageTitle>Edit @(_model.DisplayName) · @SiteBranding.Name</PageTitle>
 
@@ -27,7 +29,7 @@
         </div>
     </header>
 
-    <main class="mgmt-wrap mgmt-main">
+    <main class="mgmt-wrap mgmt-main mgmt-main--property-edit">
         @if (_loading)
         {
             <p class="nn-loading">Loading property…</p>
@@ -39,377 +41,508 @@
         }
         else
         {
-            @if (!string.IsNullOrEmpty(_error))
-            {
-                <p class="nn-note nn-note--error">@_error</p>
-            }
-
-            @if (!string.IsNullOrEmpty(_success))
-            {
-                <p class="nn-note nn-note--success">@_success</p>
-            }
-
-            <EditForm Model="_model" OnValidSubmit="SaveAsync">
-                <section class="theme-panel">
-                    <h2 class="theme-panel-title">Basics</h2>
-                    <div class="prop-edit-grid">
-                        <div class="nn-form-group">
-                            <label>Display name</label>
-                            <InputText class="nn-form-control" @bind-Value="_model.DisplayName" />
-                        </div>
-                        <div class="nn-form-group">
-                            <label>URL slug</label>
-                            <input class="nn-form-control" value="@_model.Slug" readonly disabled />
-                            <p class="prop-field-hint">Slug is fixed for now so booking links keep working.</p>
-                        </div>
-                        <div class="nn-form-group prop-edit-full">
-                            <label>SEO description</label>
-                            <InputTextArea class="nn-form-control" rows="2" @bind-Value="_model.MetaDescription" />
-                        </div>
-                        <div class="nn-form-group prop-edit-full">
-                            <label>Subtitle (under title)</label>
-                            <InputTextArea class="nn-form-control" rows="3" @bind-Value="_model.Subtitle" />
-                        </div>
-                        <label class="prop-check">
-                            <InputCheckbox @bind-Value="_model.IsPublished" />
-                            <span>Published (visible on site)</span>
-                        </label>
-                        <label class="prop-check">
-                            <InputCheckbox @bind-Value="_model.IsHomepage" />
-                            <span>Use as homepage (/) listing</span>
-                        </label>
-                    </div>
-                </section>
-
-                <section class="theme-panel">
-                    <h2 class="theme-panel-title">Highlight stats</h2>
-                    <p class="theme-panel-lead">Short pills under the title — e.g. “Sleeps 12”, “4 bedrooms”.</p>
-                    @for (var i = 0; i < _model.Stats.Count; i++)
+            <div class="prop-edit-layout">
+                <div class="prop-edit-main">
+                    @if (_showSaveBanner)
                     {
-                        var index = i;
-                        <div class="prop-list-row">
-                            <InputText class="nn-form-control" @bind-Value="_model.Stats[index]" placeholder="Stat label" />
-                            <button type="button" class="prop-list-remove" @onclick="() => RemoveStat(index)">Remove</button>
+                        <div class="prop-save-banner" role="status" aria-live="polite">
+                            <span class="prop-save-banner-icon" aria-hidden="true">✓</span>
+                            <div class="prop-save-banner-text">
+                                <strong>Changes saved</strong>
+                                <span>Your property settings were updated@(_savedAtText is null ? "." : $" at {_savedAtText}.")</span>
+                            </div>
                         </div>
                     }
-                    <button type="button" class="nn-btn-secondary prop-list-add" @onclick="AddStat">+ Add stat</button>
-                </section>
 
-                <section class="theme-panel">
-                    <h2 class="theme-panel-title">Tags</h2>
-                    <div class="prop-edit-grid">
-                        <div class="nn-form-group prop-edit-full">
-                            <label>Intro line 1</label>
-                            <InputText class="nn-form-control" @bind-Value="_model.TagsLine1" placeholder="Entire home · Black Hills, South Dakota" />
-                        </div>
-                        <div class="nn-form-group prop-edit-full">
-                            <label>Intro line 2</label>
-                            <InputText class="nn-form-control" @bind-Value="_model.TagsLine2" placeholder="Family-friendly · Prairie views · Quiet nights" />
-                        </div>
-                    </div>
-                </section>
-
-                <section class="theme-panel">
-                    <h2 class="theme-panel-title">Badges</h2>
-                    <p class="theme-panel-lead">Highlight cards below the intro tags.</p>
-                    @for (var i = 0; i < _model.Badges.Count; i++)
+                    @if (!string.IsNullOrEmpty(_error))
                     {
-                        var index = i;
-                        <div class="prop-badge-row">
-                            <InputText class="nn-form-control" @bind-Value="_model.Badges[index].Title" placeholder="Title" />
-                            <InputText class="nn-form-control" @bind-Value="_model.Badges[index].Subtitle" placeholder="Subtitle" />
-                            <button type="button" class="prop-list-remove" @onclick="() => RemoveBadge(index)">Remove</button>
-                        </div>
+                        <p class="nn-note nn-note--error">@_error</p>
                     }
-                    <button type="button" class="nn-btn-secondary prop-list-add" @onclick="AddBadge">+ Add badge</button>
-                </section>
 
-                <section class="theme-panel">
-                    <h2 class="theme-panel-title">About &amp; location</h2>
-                    <div class="prop-edit-grid">
-                        <div class="nn-form-group prop-edit-full">
-                            <label>About this property</label>
-                            <InputTextArea class="nn-form-control" rows="4" @bind-Value="_model.AboutText" />
-                        </div>
-                        <div class="nn-form-group prop-edit-full">
-                            <label>Location</label>
-                            <InputTextArea class="nn-form-control" rows="3" @bind-Value="_model.LocationText" />
-                        </div>
-                        <div class="nn-form-group prop-edit-full">
-                            <label>Guest guide teaser</label>
-                            <InputTextArea class="nn-form-control" rows="2" @bind-Value="_model.GuideTeaserText" />
-                        </div>
-                    </div>
-                </section>
+                    <EditForm Model="_model" OnValidSubmit="SaveAsync">
+                        <PropertyEditSection SectionId="@SectionBasics"
+                                             Title="Basics"
+                                             Expanded="@IsSectionExpanded(SectionBasics)"
+                                             OnToggle="@(() => ToggleSection(SectionBasics))">
+                            <div class="prop-edit-grid">
+                                <div class="nn-form-group">
+                                    <label>Display name</label>
+                                    <InputText class="nn-form-control" @bind-Value="_model.DisplayName" />
+                                </div>
+                                <div class="nn-form-group">
+                                    <label>URL slug</label>
+                                    <input class="nn-form-control" value="@_model.Slug" readonly disabled />
+                                    <p class="prop-field-hint">Slug is fixed for now so booking links keep working.</p>
+                                </div>
+                                <div class="nn-form-group prop-edit-full">
+                                    <label>SEO description</label>
+                                    <InputTextArea class="nn-form-control" rows="2" @bind-Value="_model.MetaDescription" />
+                                </div>
+                                <div class="nn-form-group prop-edit-full">
+                                    <label>Subtitle (under title)</label>
+                                    <InputTextArea class="nn-form-control" rows="3" @bind-Value="_model.Subtitle" />
+                                </div>
+                                <label class="prop-check">
+                                    <InputCheckbox @bind-Value="_model.IsPublished" />
+                                    <span>Published (visible on site)</span>
+                                </label>
+                                <label class="prop-check">
+                                    <InputCheckbox @bind-Value="_model.IsHomepage" />
+                                    <span>Use as homepage (/) listing</span>
+                                </label>
+                            </div>
+                        </PropertyEditSection>
 
-                <section class="theme-panel">
-                    <h2 class="theme-panel-title">Amenities</h2>
-                    @for (var i = 0; i < _model.Amenities.Count; i++)
-                    {
-                        var index = i;
-                        <div class="prop-list-row">
-                            <InputText class="nn-form-control" @bind-Value="_model.Amenities[index]" placeholder="Amenity" />
-                            <button type="button" class="prop-list-remove" @onclick="() => RemoveAmenity(index)">Remove</button>
-                        </div>
-                    }
-                    <button type="button" class="nn-btn-secondary prop-list-add" @onclick="AddAmenity">+ Add amenity</button>
-                </section>
+                        <PropertyEditSection SectionId="@SectionStats"
+                                             Title="Highlight stats"
+                                             Expanded="@IsSectionExpanded(SectionStats)"
+                                             OnToggle="@(() => ToggleSection(SectionStats))">
+                            <p class="theme-panel-lead">Short pills under the title — e.g. “Sleeps 12”, “4 bedrooms”.</p>
+                            @for (var i = 0; i < _model.Stats.Count; i++)
+                            {
+                                var index = i;
+                                <div class="prop-list-row">
+                                    <InputText class="nn-form-control" @bind-Value="_model.Stats[index]" placeholder="Stat label" />
+                                    <button type="button" class="prop-list-remove" @onclick="() => RemoveStat(index)">Remove</button>
+                                </div>
+                            }
+                            <button type="button" class="nn-btn-secondary prop-list-add" @onclick="AddStat">+ Add stat</button>
+                        </PropertyEditSection>
 
-                <section class="theme-panel">
-                    <h2 class="theme-panel-title">Direct booking rules</h2>
-                    <p class="theme-panel-lead">
-                        Nightly rates still come from PriceLabs when synced. Minimum stay here applies to direct bookings only (not Airbnb/PriceLabs channel rules).
-                    </p>
-                    <div class="prop-edit-grid">
-                        <div class="nn-form-group">
-                            <label>Minimum nights</label>
-                            <InputNumber class="nn-form-control" @bind-Value="_model.MinimumNights" min="1" max="30" />
-                        </div>
-                        <div class="nn-form-group">
-                            <label>Minimum advance notice (days)</label>
-                            <InputNumber class="nn-form-control" @bind-Value="_model.MinAdvanceBookingDays" min="0" max="90" />
-                            <p class="prop-field-hint">How soon guests may check in — e.g. 10 means the earliest check-in is 10 days from today.</p>
-                        </div>
-                        <div class="nn-form-group">
-                            <label>Book up to (days ahead)</label>
-                            <InputNumber class="nn-form-control" @bind-Value="_model.MaxBookingDaysAhead" min="30" max="730" />
-                            <p class="prop-field-hint">Furthest check-in allowed — e.g. 365 = one year out; 90 ≈ three months (like Airbnb).</p>
-                        </div>
-                        <div class="nn-form-group">
-                            <label>Trust Airbnb/Vrbo calendar (days)</label>
-                            <InputNumber class="nn-form-control" @bind-Value="_model.ExternalCalendarTrustDays" min="0" max="730" />
-                            <p class="prop-field-hint">
-                                Synced Airbnb/Vrbo blocks always gray out dates on the direct booking calendar.
-                                Short-term trust window (default 180 ≈ 6 months) controls far-ahead requests below.
-                                Use 0 to ignore external calendars entirely.
+                        <PropertyEditSection SectionId="@SectionTags"
+                                             Title="Tags"
+                                             Expanded="@IsSectionExpanded(SectionTags)"
+                                             OnToggle="@(() => ToggleSection(SectionTags))">
+                            <div class="prop-edit-grid">
+                                <div class="nn-form-group prop-edit-full">
+                                    <label>Intro line 1</label>
+                                    <InputText class="nn-form-control" @bind-Value="_model.TagsLine1" placeholder="Entire home · Black Hills, South Dakota" />
+                                </div>
+                                <div class="nn-form-group prop-edit-full">
+                                    <label>Intro line 2</label>
+                                    <InputText class="nn-form-control" @bind-Value="_model.TagsLine2" placeholder="Family-friendly · Prairie views · Quiet nights" />
+                                </div>
+                            </div>
+                        </PropertyEditSection>
+
+                        <PropertyEditSection SectionId="@SectionBadges"
+                                             Title="Badges"
+                                             Expanded="@IsSectionExpanded(SectionBadges)"
+                                             OnToggle="@(() => ToggleSection(SectionBadges))">
+                            <p class="theme-panel-lead">Highlight cards below the intro tags.</p>
+                            @for (var i = 0; i < _model.Badges.Count; i++)
+                            {
+                                var index = i;
+                                <div class="prop-badge-row">
+                                    <InputText class="nn-form-control" @bind-Value="_model.Badges[index].Title" placeholder="Title" />
+                                    <InputText class="nn-form-control" @bind-Value="_model.Badges[index].Subtitle" placeholder="Subtitle" />
+                                    <button type="button" class="prop-list-remove" @onclick="() => RemoveBadge(index)">Remove</button>
+                                </div>
+                            }
+                            <button type="button" class="nn-btn-secondary prop-list-add" @onclick="AddBadge">+ Add badge</button>
+                        </PropertyEditSection>
+
+                        <PropertyEditSection SectionId="@SectionAbout"
+                                             Title="About &amp; location"
+                                             Expanded="@IsSectionExpanded(SectionAbout)"
+                                             OnToggle="@(() => ToggleSection(SectionAbout))">
+                            <div class="prop-edit-grid">
+                                <div class="nn-form-group prop-edit-full">
+                                    <label>About this property</label>
+                                    <InputTextArea class="nn-form-control" rows="4" @bind-Value="_model.AboutText" />
+                                </div>
+                                <div class="nn-form-group prop-edit-full">
+                                    <label>Location</label>
+                                    <InputTextArea class="nn-form-control" rows="3" @bind-Value="_model.LocationText" />
+                                </div>
+                                <div class="nn-form-group prop-edit-full">
+                                    <label>Guest guide teaser</label>
+                                    <InputTextArea class="nn-form-control" rows="2" @bind-Value="_model.GuideTeaserText" />
+                                </div>
+                            </div>
+                        </PropertyEditSection>
+
+                        <PropertyEditSection SectionId="@SectionAmenities"
+                                             Title="Amenities"
+                                             Expanded="@IsSectionExpanded(SectionAmenities)"
+                                             OnToggle="@(() => ToggleSection(SectionAmenities))">
+                            @for (var i = 0; i < _model.Amenities.Count; i++)
+                            {
+                                var index = i;
+                                <div class="prop-list-row">
+                                    <InputText class="nn-form-control" @bind-Value="_model.Amenities[index]" placeholder="Amenity" />
+                                    <button type="button" class="prop-list-remove" @onclick="() => RemoveAmenity(index)">Remove</button>
+                                </div>
+                            }
+                            <button type="button" class="nn-btn-secondary prop-list-add" @onclick="AddAmenity">+ Add amenity</button>
+                        </PropertyEditSection>
+
+                        <PropertyEditSection SectionId="@SectionBooking"
+                                             Title="Direct booking rules"
+                                             Expanded="@IsSectionExpanded(SectionBooking)"
+                                             OnToggle="@(() => ToggleSection(SectionBooking))">
+                            <p class="theme-panel-lead">
+                                Nightly rates still come from PriceLabs when synced. Minimum stay here applies to direct bookings only (not Airbnb/PriceLabs channel rules).
                             </p>
-                        </div>
-                        <div class="nn-form-group prop-edit-checkbox">
-                            <label>
-                                <InputCheckbox @bind-Value="_model.AllowFarAdvanceDirectBooking" />
-                                Allow far-ahead direct requests
-                            </label>
-                            <p class="prop-field-hint">
-                                When on, guests can request stays beyond the calendar trust window (e.g. more than ~6 months out).
-                                Airbnb availability is not reliable that far ahead — you confirm dates before approving.
-                                When off, the latest check-in matches the trust window (or book-up-to limit, whichever is sooner).
+                            <div class="prop-edit-grid">
+                                <div class="nn-form-group">
+                                    <label>Minimum nights</label>
+                                    <InputNumber class="nn-form-control" @bind-Value="_model.MinimumNights" min="1" max="30" />
+                                </div>
+                                <div class="nn-form-group">
+                                    <label>Minimum advance notice (days)</label>
+                                    <InputNumber class="nn-form-control" @bind-Value="_model.MinAdvanceBookingDays" min="0" max="90" />
+                                    <p class="prop-field-hint">How soon guests may check in — e.g. 10 means the earliest check-in is 10 days from today.</p>
+                                </div>
+                                <div class="nn-form-group">
+                                    <label>Book up to (days ahead)</label>
+                                    <InputNumber class="nn-form-control" @bind-Value="_model.MaxBookingDaysAhead" min="30" max="730" />
+                                    <p class="prop-field-hint">Furthest check-in allowed — e.g. 365 = one year out; 90 ≈ three months (like Airbnb).</p>
+                                </div>
+                                <div class="nn-form-group">
+                                    <label>Trust Airbnb/Vrbo calendar (days)</label>
+                                    <InputNumber class="nn-form-control" @bind-Value="_model.ExternalCalendarTrustDays" min="0" max="730" />
+                                    <p class="prop-field-hint">
+                                        Synced Airbnb/Vrbo blocks always gray out dates on the direct booking calendar.
+                                        Short-term trust window (default 180 ≈ 6 months) controls far-ahead requests below.
+                                        Use 0 to ignore external calendars entirely.
+                                    </p>
+                                </div>
+                                <div class="nn-form-group prop-edit-checkbox">
+                                    <label>
+                                        <InputCheckbox @bind-Value="_model.AllowFarAdvanceDirectBooking" />
+                                        Allow far-ahead direct requests
+                                    </label>
+                                    <p class="prop-field-hint">
+                                        When on, guests can request stays beyond the calendar trust window (e.g. more than ~6 months out).
+                                        Airbnb availability is not reliable that far ahead — you confirm dates before approving.
+                                        When off, the latest check-in matches the trust window (or book-up-to limit, whichever is sooner).
+                                    </p>
+                                </div>
+                                <div class="nn-form-group">
+                                    <label>Cleaning fee (USD)</label>
+                                    <InputNumber class="nn-form-control"
+                                                 @bind-Value="_model.CleaningFee"
+                                                 min="0"
+                                                 step="0.01" />
+                                    <p class="prop-field-hint">Applied once per direct booking request.</p>
+                                </div>
+                                <div class="nn-form-group">
+                                    <label>Pet deposit per 2 pets (USD)</label>
+                                    <InputNumber class="nn-form-control"
+                                                 @bind-Value="_model.PetDepositPerTwoPets"
+                                                 min="0"
+                                                 step="0.01" />
+                                    <p class="prop-field-hint">
+                                        Example: 3 dogs = @MoneyFormat.Usd(ListingSettingsDefaults.CalculatePetDeposit(3, _model.PetDepositPerTwoPets)).
+                                    </p>
+                                </div>
+                            </div>
+
+                            <h3 class="theme-panel-subtitle">Discounts</h3>
+                            <p class="theme-panel-lead">
+                                Match Airbnb-style savings on direct bookings. The best eligible discount is applied to lodging.
                             </p>
-                        </div>
-                        <div class="nn-form-group">
-                            <label>Cleaning fee (USD)</label>
-                            <InputNumber class="nn-form-control"
-                                         @bind-Value="_model.CleaningFee"
-                                         min="0"
-                                         step="0.01" />
-                            <p class="prop-field-hint">Applied once per direct booking request.</p>
-                        </div>
-                        <div class="nn-form-group">
-                            <label>Pet deposit per 2 pets (USD)</label>
-                            <InputNumber class="nn-form-control"
-                                         @bind-Value="_model.PetDepositPerTwoPets"
-                                         min="0"
-                                         step="0.01" />
-                            <p class="prop-field-hint">
-                                Example: 3 dogs = @MoneyFormat.Usd(ListingSettingsDefaults.CalculatePetDeposit(3, _model.PetDepositPerTwoPets)).
+                            <div class="prop-edit-grid">
+                                <div class="nn-form-group prop-edit-checkbox">
+                                    <label>
+                                        <InputCheckbox @bind-Value="_model.Discounts.WeeklyEnabled" />
+                                        Weekly discount
+                                    </label>
+                                    <p class="prop-field-hint">For longer stays (default: 7+ nights).</p>
+                                </div>
+                                <div class="nn-form-group">
+                                    <label>Weekly %</label>
+                                    <InputNumber class="nn-form-control"
+                                                 @bind-Value="_model.Discounts.WeeklyPercent"
+                                                 min="0"
+                                                 max="100"
+                                                 step="0.1" />
+                                </div>
+                                <div class="nn-form-group">
+                                    <label>Weekly min nights</label>
+                                    <InputNumber class="nn-form-control"
+                                                 @bind-Value="_model.Discounts.WeeklyMinNights"
+                                                 min="1"
+                                                 max="365" />
+                                </div>
+                                <div class="nn-form-group prop-edit-checkbox">
+                                    <label>
+                                        <InputCheckbox @bind-Value="_model.Discounts.MonthlyEnabled" />
+                                        Monthly discount
+                                    </label>
+                                    <p class="prop-field-hint">For extended stays (default: 28+ nights).</p>
+                                </div>
+                                <div class="nn-form-group">
+                                    <label>Monthly %</label>
+                                    <InputNumber class="nn-form-control"
+                                                 @bind-Value="_model.Discounts.MonthlyPercent"
+                                                 min="0"
+                                                 max="100"
+                                                 step="0.1" />
+                                </div>
+                                <div class="nn-form-group">
+                                    <label>Monthly min nights</label>
+                                    <InputNumber class="nn-form-control"
+                                                 @bind-Value="_model.Discounts.MonthlyMinNights"
+                                                 min="1"
+                                                 max="365" />
+                                </div>
+                                <div class="nn-form-group prop-edit-checkbox">
+                                    <label>
+                                        <InputCheckbox @bind-Value="_model.Discounts.LastMinuteEnabled" />
+                                        Last-minute discount
+                                    </label>
+                                    <p class="prop-field-hint">When check-in is soon (default: within 14 days).</p>
+                                </div>
+                                <div class="nn-form-group">
+                                    <label>Last-minute %</label>
+                                    <InputNumber class="nn-form-control"
+                                                 @bind-Value="_model.Discounts.LastMinutePercent"
+                                                 min="0"
+                                                 max="100"
+                                                 step="0.1" />
+                                </div>
+                                <div class="nn-form-group">
+                                    <label>Last-minute within (days)</label>
+                                    <InputNumber class="nn-form-control"
+                                                 @bind-Value="_model.Discounts.LastMinuteMaxDaysBeforeArrival"
+                                                 min="0"
+                                                 max="365" />
+                                </div>
+                                <div class="nn-form-group prop-edit-checkbox">
+                                    <label>
+                                        <InputCheckbox @bind-Value="_model.Discounts.EarlyBirdEnabled" />
+                                        Early-bird discount
+                                    </label>
+                                    <p class="prop-field-hint">When guests book far ahead (default: 90+ days).</p>
+                                </div>
+                                <div class="nn-form-group">
+                                    <label>Early-bird %</label>
+                                    <InputNumber class="nn-form-control"
+                                                 @bind-Value="_model.Discounts.EarlyBirdPercent"
+                                                 min="0"
+                                                 max="100"
+                                                 step="0.1" />
+                                </div>
+                                <div class="nn-form-group">
+                                    <label>Early-bird min days ahead</label>
+                                    <InputNumber class="nn-form-control"
+                                                 @bind-Value="_model.Discounts.EarlyBirdMinDaysBeforeArrival"
+                                                 min="0"
+                                                 max="730" />
+                                </div>
+                            </div>
+
+                            <h4 class="theme-panel-subtitle theme-panel-subtitle--minor">Custom promotions</h4>
+                            <p class="theme-panel-lead">Add your own date-based promotions. Check-in must fall in the date range.</p>
+                            @for (var i = 0; i < _model.Discounts.CustomPromotions.Count; i++)
+                            {
+                                var index = i;
+                                var promo = _model.Discounts.CustomPromotions[index];
+                                <div class="prop-promo-row">
+                                    <InputText class="nn-form-control" @bind-Value="promo.Name" placeholder="Promotion name" />
+                                    <InputNumber class="nn-form-control"
+                                                 @bind-Value="promo.Percent"
+                                                 min="0"
+                                                 max="100"
+                                                 step="0.1"
+                                                 placeholder="%" />
+                                    <InputDate class="nn-form-control" @bind-Value="promo.StayCheckInFromDate" />
+                                    <InputDate class="nn-form-control" @bind-Value="promo.StayCheckInToDate" />
+                                    <label class="prop-check prop-check--compact">
+                                        <InputCheckbox @bind-Value="promo.Enabled" />
+                                        <span>On</span>
+                                    </label>
+                                    <button type="button" class="prop-list-remove" @onclick="() => RemovePromotion(index)">Remove</button>
+                                </div>
+                            }
+                            <button type="button" class="nn-btn-secondary prop-list-add" @onclick="AddPromotion">+ Add promotion</button>
+
+                            <div class="prop-edit-grid prop-edit-grid--spaced">
+                                <div class="nn-form-group prop-edit-full">
+                                    <label>Booking card subtext</label>
+                                    <InputText class="nn-form-control" @bind-Value="_model.BookingSubtext" />
+                                </div>
+                                <div class="nn-form-group prop-edit-full">
+                                    <label>Fine print</label>
+                                    <InputText class="nn-form-control" @bind-Value="_model.BookingFinePrint" />
+                                </div>
+                                <div class="nn-form-group prop-edit-full">
+                                    <label>Airbnb URL</label>
+                                    <InputText class="nn-form-control" @bind-Value="_model.AirbnbUrl" />
+                                    <p class="prop-field-hint">Used for calendar sync and optional guest price links.</p>
+                                </div>
+                                <div class="nn-form-group prop-edit-full">
+                                    <label>Vrbo URL</label>
+                                    <InputText class="nn-form-control" @bind-Value="_model.VrboUrl" />
+                                </div>
+                                <div class="nn-form-group prop-edit-checkbox prop-edit-full">
+                                    <label>
+                                        <InputCheckbox @bind-Value="_model.ShowChannelPriceLinks" />
+                                        Show Airbnb/Vrbo price links to guests
+                                    </label>
+                                    <p class="prop-field-hint">
+                                        When off, guests only see direct booking — no channel links or mentions on the listing or booking pages.
+                                        Update booking subtext/fine print below if they still name other platforms.
+                                    </p>
+                                </div>
+                            </div>
+                        </PropertyEditSection>
+
+                        <PropertyEditSection SectionId="@SectionLegal"
+                                             Title="Guest legal documents"
+                                             Expanded="@IsSectionExpanded(SectionLegal)"
+                                             OnToggle="@(() => ToggleSection(SectionLegal))">
+                            <p class="theme-panel-lead">
+                                Shown to guests on direct booking and before Stripe payment. Replace draft text with language from your attorney.
+                                Version <strong>@_model.LegalDocumentsVersion</strong> — saving changes to any document bumps the version (guests must re-accept).
                             </p>
-                        </div>
-                    </div>
-
-                    <h3 class="theme-panel-subtitle">Discounts</h3>
-                    <p class="theme-panel-lead">
-                        Match Airbnb-style savings on direct bookings. The best eligible discount is applied to lodging.
-                    </p>
-                    <div class="prop-edit-grid">
-                        <div class="nn-form-group prop-edit-checkbox">
-                            <label>
-                                <InputCheckbox @bind-Value="_model.Discounts.WeeklyEnabled" />
-                                Weekly discount
-                            </label>
-                            <p class="prop-field-hint">For longer stays (default: 7+ nights).</p>
-                        </div>
-                        <div class="nn-form-group">
-                            <label>Weekly %</label>
-                            <InputNumber class="nn-form-control"
-                                         @bind-Value="_model.Discounts.WeeklyPercent"
-                                         min="0"
-                                         max="100"
-                                         step="0.1" />
-                        </div>
-                        <div class="nn-form-group">
-                            <label>Weekly min nights</label>
-                            <InputNumber class="nn-form-control"
-                                         @bind-Value="_model.Discounts.WeeklyMinNights"
-                                         min="1"
-                                         max="365" />
-                        </div>
-                        <div class="nn-form-group prop-edit-checkbox">
-                            <label>
-                                <InputCheckbox @bind-Value="_model.Discounts.MonthlyEnabled" />
-                                Monthly discount
-                            </label>
-                            <p class="prop-field-hint">For extended stays (default: 28+ nights).</p>
-                        </div>
-                        <div class="nn-form-group">
-                            <label>Monthly %</label>
-                            <InputNumber class="nn-form-control"
-                                         @bind-Value="_model.Discounts.MonthlyPercent"
-                                         min="0"
-                                         max="100"
-                                         step="0.1" />
-                        </div>
-                        <div class="nn-form-group">
-                            <label>Monthly min nights</label>
-                            <InputNumber class="nn-form-control"
-                                         @bind-Value="_model.Discounts.MonthlyMinNights"
-                                         min="1"
-                                         max="365" />
-                        </div>
-                        <div class="nn-form-group prop-edit-checkbox">
-                            <label>
-                                <InputCheckbox @bind-Value="_model.Discounts.LastMinuteEnabled" />
-                                Last-minute discount
-                            </label>
-                            <p class="prop-field-hint">When check-in is soon (default: within 14 days).</p>
-                        </div>
-                        <div class="nn-form-group">
-                            <label>Last-minute %</label>
-                            <InputNumber class="nn-form-control"
-                                         @bind-Value="_model.Discounts.LastMinutePercent"
-                                         min="0"
-                                         max="100"
-                                         step="0.1" />
-                        </div>
-                        <div class="nn-form-group">
-                            <label>Last-minute within (days)</label>
-                            <InputNumber class="nn-form-control"
-                                         @bind-Value="_model.Discounts.LastMinuteMaxDaysBeforeArrival"
-                                         min="0"
-                                         max="365" />
-                        </div>
-                        <div class="nn-form-group prop-edit-checkbox">
-                            <label>
-                                <InputCheckbox @bind-Value="_model.Discounts.EarlyBirdEnabled" />
-                                Early-bird discount
-                            </label>
-                            <p class="prop-field-hint">When guests book far ahead (default: 90+ days).</p>
-                        </div>
-                        <div class="nn-form-group">
-                            <label>Early-bird %</label>
-                            <InputNumber class="nn-form-control"
-                                         @bind-Value="_model.Discounts.EarlyBirdPercent"
-                                         min="0"
-                                         max="100"
-                                         step="0.1" />
-                        </div>
-                        <div class="nn-form-group">
-                            <label>Early-bird min days ahead</label>
-                            <InputNumber class="nn-form-control"
-                                         @bind-Value="_model.Discounts.EarlyBirdMinDaysBeforeArrival"
-                                         min="0"
-                                         max="730" />
-                        </div>
-                    </div>
-
-                    <h4 class="theme-panel-subtitle theme-panel-subtitle--minor">Custom promotions</h4>
-                    <p class="theme-panel-lead">Add your own date-based promotions. Check-in must fall in the date range.</p>
-                    @for (var i = 0; i < _model.Discounts.CustomPromotions.Count; i++)
-                    {
-                        var index = i;
-                        var promo = _model.Discounts.CustomPromotions[index];
-                        <div class="prop-promo-row">
-                            <InputText class="nn-form-control" @bind-Value="promo.Name" placeholder="Promotion name" />
-                            <InputNumber class="nn-form-control"
-                                         @bind-Value="promo.Percent"
-                                         min="0"
-                                         max="100"
-                                         step="0.1"
-                                         placeholder="%" />
-                            <InputDate class="nn-form-control" @bind-Value="promo.StayCheckInFromDate" />
-                            <InputDate class="nn-form-control" @bind-Value="promo.StayCheckInToDate" />
-                            <label class="prop-check prop-check--compact">
-                                <InputCheckbox @bind-Value="promo.Enabled" />
-                                <span>On</span>
-                            </label>
-                            <button type="button" class="prop-list-remove" @onclick="() => RemovePromotion(index)">Remove</button>
-                        </div>
-                    }
-                    <button type="button" class="nn-btn-secondary prop-list-add" @onclick="AddPromotion">+ Add promotion</button>
-
-                    <div class="prop-edit-grid prop-edit-grid--spaced">
-                        <div class="nn-form-group prop-edit-full">
-                            <label>Booking card subtext</label>
-                            <InputText class="nn-form-control" @bind-Value="_model.BookingSubtext" />
-                        </div>
-                        <div class="nn-form-group prop-edit-full">
-                            <label>Fine print</label>
-                            <InputText class="nn-form-control" @bind-Value="_model.BookingFinePrint" />
-                        </div>
-                        <div class="nn-form-group prop-edit-full">
-                            <label>Airbnb URL</label>
-                            <InputText class="nn-form-control" @bind-Value="_model.AirbnbUrl" />
-                            <p class="prop-field-hint">Used for calendar sync and optional guest price links.</p>
-                        </div>
-                        <div class="nn-form-group prop-edit-full">
-                            <label>Vrbo URL</label>
-                            <InputText class="nn-form-control" @bind-Value="_model.VrboUrl" />
-                        </div>
-                        <div class="nn-form-group prop-edit-checkbox prop-edit-full">
-                            <label>
-                                <InputCheckbox @bind-Value="_model.ShowChannelPriceLinks" />
-                                Show Airbnb/Vrbo price links to guests
-                            </label>
-                            <p class="prop-field-hint">
-                                When off, guests only see direct booking — no channel links or mentions on the listing or booking pages.
-                                Update booking subtext/fine print below if they still name other platforms.
+                            <p class="nn-note nn-note--warn">
+                                @PropertyLegalDefaults.DraftNotice
                             </p>
-                        </div>
-                    </div>
-                </section>
+                            <p class="nn-booking-section-hint">
+                                <strong>Airbnb / Vrbo:</strong> Platform bookings use each platform's terms. Mirror your house rules in the Airbnb/Vrbo listing
+                                and keep short-term rental insurance regardless of booking channel.
+                            </p>
+                            <div class="nn-form-group prop-edit-checkbox prop-edit-full">
+                                <label>
+                                    <InputCheckbox @bind-Value="_model.RequireGuestLegalAcceptance" />
+                                    Require agreement checkboxes for direct bookings
+                                </label>
+                            </div>
+                            <div class="prop-edit-grid prop-edit-grid--spaced">
+                                <div class="nn-form-group prop-edit-full">
+                                    <label>Rental agreement</label>
+                                    <InputTextArea class="nn-form-control nn-legal-editor" rows="14" @bind-Value="_model.RentalAgreementText" />
+                                    <p class="prop-field-hint">
+                                        <a class="mgmt-link" href="/legal/@_model.Slug/rental-agreement" target="_blank" rel="noopener">Preview ↗</a>
+                                    </p>
+                                </div>
+                                <div class="nn-form-group prop-edit-full">
+                                    <label>House rules</label>
+                                    <InputTextArea class="nn-form-control nn-legal-editor" rows="14" @bind-Value="_model.HouseRulesText" />
+                                    <p class="prop-field-hint">
+                                        <a class="mgmt-link" href="/legal/@_model.Slug/house-rules" target="_blank" rel="noopener">Preview ↗</a>
+                                    </p>
+                                </div>
+                                <div class="nn-form-group prop-edit-full">
+                                    <label>Liability &amp; risk acknowledgment</label>
+                                    <InputTextArea class="nn-form-control nn-legal-editor" rows="14" @bind-Value="_model.LiabilityAcknowledgmentText" />
+                                    <p class="prop-field-hint">
+                                        <a class="mgmt-link" href="/legal/@_model.Slug/liability" target="_blank" rel="noopener">Preview ↗</a>
+                                    </p>
+                                </div>
+                            </div>
+                        </PropertyEditSection>
 
-                <section class="theme-panel">
-                    <h2 class="theme-panel-title">Photos</h2>
-                    <p class="theme-panel-lead">First photo is the hero. Order matches the listing grid and gallery.</p>
-                    @for (var i = 0; i < _model.Photos.Count; i++)
-                    {
-                        var index = i;
-                        <div class="prop-photo-row">
-                            <span class="prop-photo-index">@(index + 1)</span>
-                            <InputText class="nn-form-control" @bind-Value="_model.Photos[index].Url" placeholder="/images/photo.webp" />
-                            <InputText class="nn-form-control" @bind-Value="_model.Photos[index].Alt" placeholder="Alt text" />
-                            <button type="button" class="prop-list-remove" @onclick="() => RemovePhoto(index)">Remove</button>
-                        </div>
-                    }
-                    <button type="button" class="nn-btn-secondary prop-list-add" @onclick="AddPhoto">+ Add photo</button>
-                </section>
+                        <PropertyEditSection SectionId="@SectionPhotos"
+                                             Title="Photos"
+                                             Expanded="@IsSectionExpanded(SectionPhotos)"
+                                             OnToggle="@(() => ToggleSection(SectionPhotos))">
+                            <p class="theme-panel-lead">First photo is the hero. Order matches the listing grid and gallery.</p>
+                            @for (var i = 0; i < _model.Photos.Count; i++)
+                            {
+                                var index = i;
+                                <div class="prop-photo-row">
+                                    <span class="prop-photo-index">@(index + 1)</span>
+                                    <InputText class="nn-form-control" @bind-Value="_model.Photos[index].Url" placeholder="/images/photo.webp" />
+                                    <InputText class="nn-form-control" @bind-Value="_model.Photos[index].Alt" placeholder="Alt text" />
+                                    <button type="button" class="prop-list-remove" @onclick="() => RemovePhoto(index)">Remove</button>
+                                </div>
+                            }
+                            <button type="button" class="nn-btn-secondary prop-list-add" @onclick="AddPhoto">+ Add photo</button>
+                        </PropertyEditSection>
 
-                <div class="theme-actions">
-                    <button type="submit" class="nn-btn-primary theme-save-btn" disabled="@_saving">
-                        @(_saving ? "Saving…" : "Save changes")
-                    </button>
-                    <a class="guide-link" href="/properties/@_model.Slug" target="_blank" rel="noopener">Preview live page ↗</a>
+                        <div class="theme-actions">
+                            <button type="submit" class="nn-btn-primary theme-save-btn" disabled="@_saving">
+                                @(_saving ? "Saving…" : "Save changes")
+                            </button>
+                            <a class="guide-link" href="/properties/@_model.Slug" target="_blank" rel="noopener">Preview live page ↗</a>
+                        </div>
+                    </EditForm>
                 </div>
-            </EditForm>
+
+                <button type="button"
+                        class="prop-edit-nav-fab"
+                        aria-expanded="@_navOpen"
+                        aria-controls="prop-edit-nav"
+                        @onclick="ToggleNav">
+                    @(_navOpen ? "Close" : "Sections")
+                </button>
+
+                <nav id="prop-edit-nav"
+                     class="prop-edit-nav @(_navOpen ? "is-open" : null)"
+                     aria-label="Property sections">
+                    <p class="prop-edit-nav-label">Jump to section</p>
+                    <ul class="prop-edit-nav-list">
+                        @foreach (var navSection in Sections)
+                        {
+                            <li>
+                                <button type="button"
+                                        class="prop-edit-nav-link @(!IsSectionExpanded(navSection.Id) ? "is-collapsed" : null)"
+                                        @onclick="() => NavigateToSectionAsync(navSection.Id)">
+                                    @navSection.Label
+                                </button>
+                            </li>
+                        }
+                    </ul>
+                    <div class="prop-edit-nav-actions">
+                        <button type="button" class="prop-edit-nav-action" @onclick="ExpandAllSections">Expand all</button>
+                        <button type="button" class="prop-edit-nav-action" @onclick="CollapseAllSections">Collapse all</button>
+                    </div>
+                </nav>
+            </div>
         }
     </main>
 </div>
 
 @code {
+    private const string SectionBasics = "basics";
+    private const string SectionStats = "stats";
+    private const string SectionTags = "tags";
+    private const string SectionBadges = "badges";
+    private const string SectionAbout = "about";
+    private const string SectionAmenities = "amenities";
+    private const string SectionBooking = "booking";
+    private const string SectionLegal = "legal";
+    private const string SectionPhotos = "photos";
+
+    private static readonly IReadOnlyList<(string Id, string Label)> Sections =
+    [
+        (SectionBasics, "Basics"),
+        (SectionStats, "Highlight stats"),
+        (SectionTags, "Tags"),
+        (SectionBadges, "Badges"),
+        (SectionAbout, "About & location"),
+        (SectionAmenities, "Amenities"),
+        (SectionBooking, "Direct booking"),
+        (SectionLegal, "Legal documents"),
+        (SectionPhotos, "Photos"),
+    ];
+
     [Parameter]
     public string Slug { get; set; } = "";
 
+    [SupplyParameterFromQuery(Name = "saved")]
+    public string? Saved { get; set; }
+
     private PropertyEditModel _model = new();
+    private readonly Dictionary<string, bool> _sectionExpanded = new(StringComparer.Ordinal);
     private bool _loading = true;
     private bool _notFound;
     private bool _saving;
+    private bool _navOpen;
+    private bool _showSaveBanner;
+    private bool _scrollToTopPending;
     private string? _error;
-    private string? _success;
+    private string? _savedAtText;
 
     protected override async Task OnParametersSetAsync()
     {
         _loading = true;
         _notFound = false;
         _error = null;
-        _success = null;
 
         var property = await PropertyService.GetBySlugAsync(Slug);
         if (property is null)
@@ -420,14 +553,67 @@
         }
 
         _model = PropertyEditModel.FromEntity(property);
+        var legalPreview = PropertyLegalSnapshot.FromEntity(property);
+        if (string.IsNullOrWhiteSpace(_model.RentalAgreementText))
+            _model.RentalAgreementText = legalPreview.RentalAgreementText;
+        if (string.IsNullOrWhiteSpace(_model.HouseRulesText))
+            _model.HouseRulesText = legalPreview.HouseRulesText;
+        if (string.IsNullOrWhiteSpace(_model.LiabilityAcknowledgmentText))
+            _model.LiabilityAcknowledgmentText = legalPreview.LiabilityAcknowledgmentText;
+
+        if (string.Equals(Saved, "1", StringComparison.Ordinal))
+        {
+            _showSaveBanner = true;
+            _savedAtText = DateTime.Now.ToString("h:mm tt");
+            _scrollToTopPending = true;
+            Navigation.NavigateTo($"/account/manage/properties/{Slug}", replace: true);
+        }
+
         _loading = false;
     }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!_scrollToTopPending)
+            return;
+
+        _scrollToTopPending = false;
+        await Js.InvokeVoidAsync("NestledNooks.scrollToTop");
+    }
+
+    private bool IsSectionExpanded(string sectionId) =>
+        !_sectionExpanded.TryGetValue(sectionId, out var expanded) || expanded;
+
+    private void ToggleSection(string sectionId) =>
+        _sectionExpanded[sectionId] = !IsSectionExpanded(sectionId);
+
+    private void ExpandAllSections()
+    {
+        foreach (var section in Sections)
+            _sectionExpanded[section.Id] = true;
+    }
+
+    private void CollapseAllSections()
+    {
+        foreach (var section in Sections)
+            _sectionExpanded[section.Id] = false;
+    }
+
+    private async Task NavigateToSectionAsync(string sectionId)
+    {
+        _sectionExpanded[sectionId] = true;
+        _navOpen = false;
+        await InvokeAsync(StateHasChanged);
+        await Js.InvokeVoidAsync("NestledNooks.scrollToElement", $"prop-section-{sectionId}");
+    }
+
+    private void ToggleNav() => _navOpen = !_navOpen;
 
     private async Task SaveAsync()
     {
         _saving = true;
         _error = null;
-        _success = null;
+        _showSaveBanner = false;
 
         try
         {
@@ -450,7 +636,7 @@
             }
 
             await PropertyService.SaveAsync(_model.ToEntity());
-            _success = "Property saved.";
+            Navigation.NavigateTo($"/account/manage/properties/{Slug}?saved=1", forceLoad: true);
         }
         catch (Exception ex)
         {

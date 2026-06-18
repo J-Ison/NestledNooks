@@ -10,8 +10,13 @@ public class PayController : ControllerBase
 
     public PayController(IStripePaymentService stripe) => _stripe = stripe;
 
+    /// <summary>Legacy email links — send guests through the review/acceptance page first.</summary>
     [HttpGet("/pay/{token}")]
-    public async Task<IActionResult> Pay(string token, CancellationToken cancellationToken)
+    public IActionResult Pay(string token) =>
+        Redirect($"/pay/review/{token}");
+
+    [HttpGet("/pay/{token}/checkout")]
+    public async Task<IActionResult> Checkout(string token, CancellationToken cancellationToken)
     {
         var siteBaseUrl = $"{Request.Scheme}://{Request.Host}";
         var checkoutUrl = await _stripe.GetCheckoutRedirectUrlAsync(token, siteBaseUrl, cancellationToken)

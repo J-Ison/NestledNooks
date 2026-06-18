@@ -48,6 +48,16 @@ public sealed class PropertyEditModel
 
     public bool ShowChannelPriceLinks { get; set; } = true;
 
+    public string RentalAgreementText { get; set; } = "";
+
+    public string HouseRulesText { get; set; } = "";
+
+    public string LiabilityAcknowledgmentText { get; set; } = "";
+
+    public int LegalDocumentsVersion { get; set; } = 1;
+
+    public bool RequireGuestLegalAcceptance { get; set; } = true;
+
     public decimal CleaningFee { get; set; } = ListingSettingsDefaults.CleaningFee;
 
     public PropertyBookingDiscounts Discounts { get; set; } = PropertyBookingDiscounts.Defaults();
@@ -89,6 +99,11 @@ public sealed class PropertyEditModel
         AirbnbUrl = entity.AirbnbUrl,
         VrboUrl = entity.VrboUrl,
         ShowChannelPriceLinks = entity.ShowChannelPriceLinks,
+        RentalAgreementText = entity.RentalAgreementText,
+        HouseRulesText = entity.HouseRulesText,
+        LiabilityAcknowledgmentText = entity.LiabilityAcknowledgmentText,
+        LegalDocumentsVersion = entity.LegalDocumentsVersion,
+        RequireGuestLegalAcceptance = entity.RequireGuestLegalAcceptance,
         CleaningFee = entity.CleaningFee,
         Discounts = PropertyDiscountsJson.Parse(entity.DiscountsJson),
         MinimumNights = entity.MinimumNights,
@@ -123,6 +138,11 @@ public sealed class PropertyEditModel
         AirbnbUrl = string.IsNullOrWhiteSpace(AirbnbUrl) ? null : AirbnbUrl.Trim(),
         VrboUrl = string.IsNullOrWhiteSpace(VrboUrl) ? null : VrboUrl.Trim(),
         ShowChannelPriceLinks = ShowChannelPriceLinks,
+        RentalAgreementText = RentalAgreementText.Trim(),
+        HouseRulesText = HouseRulesText.Trim(),
+        LiabilityAcknowledgmentText = LiabilityAcknowledgmentText.Trim(),
+        LegalDocumentsVersion = LegalDocumentsVersion,
+        RequireGuestLegalAcceptance = RequireGuestLegalAcceptance,
         CleaningFee = CleaningFee,
         DiscountsJson = PropertyDiscountsJson.Serialize(Discounts),
         MinimumNights = MinimumNights,

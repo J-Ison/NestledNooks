@@ -43,6 +43,9 @@ public sealed class BookingRequestServiceSubmitTests
             CheckOut = checkOut,
             GuestCount = 2,
             PetCount = 0,
+            AgreedToRentalAgreement = true,
+            AgreedToHouseRules = true,
+            AgreedToLiabilityAcknowledgment = true,
         }, userId: null);
 
         Assert.True(result.Succeeded, result.ErrorMessage);
@@ -52,6 +55,28 @@ public sealed class BookingRequestServiceSubmitTests
         Assert.NotNull(saved);
         Assert.Equal(BookingStatuses.Pending, saved!.Status);
         Assert.StartsWith("NN-", saved.BookingNumber, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task SubmitAsync_RejectsWhenLegalAgreementsNotAccepted()
+    {
+        await using var scope = await CreateScopeAsync();
+        var checkIn = DateOnly.FromDateTime(DateTime.UtcNow).AddDays(30);
+        var checkOut = checkIn.AddDays(3);
+
+        var result = await scope.Service.SubmitAsync(new BookingFormModel
+        {
+            PropertySlug = PropertySeedData.DeerfieldSlug,
+            GuestFullName = "Jordan Guest",
+            GuestEmail = "guest@example.com",
+            CheckIn = checkIn,
+            CheckOut = checkOut,
+            GuestCount = 2,
+            PetCount = 0,
+        }, userId: null);
+
+        Assert.False(result.Succeeded);
+        Assert.Equal(BookingSubmitErrorCodes.LegalAcceptanceRequired, result.ErrorCode);
     }
 
     private sealed class SubmitTestScope(ApplicationDbContext db, BookingRequestService service) : IAsyncDisposable

@@ -49,4 +49,7 @@ public sealed class BookingRequest
 
     public DateTime CreatedAtUtc { get; set; }
     public DateTime? StatusUpdatedAtUtc { get; set; }
+
+    /// <summary>JSON audit of legal document acceptance at booking request (see LegalAcceptanceRecord).</summary>
+    public string? BookingLegalAcceptanceJson { get; set; }
 }
