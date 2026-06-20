@@ -18,44 +18,28 @@
             <p class="guide-hero-lead">
                 House details, local favorites, Wi‑Fi, and stay resources — all in one place.
             </p>
-            <ul class="guide-hero-chips" aria-label="What's in this guide">
-                <li>🏠 House info</li>
-                <li>⛰️ Local picks</li>
-                <li>📶 Wi‑Fi</li>
-                <li>📋 Resources</li>
-            </ul>
         </div>
     </header>
 
-    <main class="wrap guide-main">
-        <nav class="guide-nav" aria-label="Guide sections">
-            <button type="button"
-                    class="@NavPillClass("house")"
-                    aria-pressed="@(_section == "house")"
-                    @onclick='() => SelectSection("house")'>
-                House info
-            </button>
-            <button type="button"
-                    class="@NavPillClass("local")"
-                    aria-pressed="@(_section == "local")"
-                    @onclick='() => SelectSection("local")'>
-                Local picks
-            </button>
-            <button type="button"
-                    class="@NavPillClass("wifi")"
-                    aria-pressed="@(_section == "wifi")"
-                    @onclick='() => SelectSection("wifi")'>
-                Wi‑Fi
-            </button>
-            <button type="button"
-                    class="@NavPillClass("resources")"
-                    aria-pressed="@(_section == "resources")"
-                    @onclick='() => SelectSection("resources")'>
-                Resources
-            </button>
-            <a class="guide-nav-pill guide-nav-pill--neutral" href="/contact">Contact</a>
-        </nav>
+    <div class="guide-nav-bar">
+        <div class="wrap guide-nav-bar-inner">
+            <nav class="guide-hero-nav" aria-label="Guide sections">
+                @foreach (var nav in Sections)
+                {
+                    <button type="button"
+                            class="@ChipClass(nav.Id)"
+                            aria-pressed="@(_section == nav.Id)"
+                            @onclick="() => SelectSection(nav.Id)">
+                        <span class="guide-hero-chip-icon" aria-hidden="true">@nav.Icon</span>
+                        @nav.Label
+                    </button>
+                }
+                <a class="guide-hero-chip guide-hero-chip--contact" href="/contact">Contact</a>
+            </nav>
+        </div>
+    </div>
 
+    <main class="wrap guide-main">
         @if (_section == "house")
         {
         <article id="house" class="guide-card guide-card--house">
@@ -252,6 +236,16 @@
 </div>
 
 @code {
+    private sealed record GuideSection(string Id, string Label, string Icon);
+
+    private static readonly GuideSection[] Sections =
+    [
+        new("house", "House info", "🏠"),
+        new("local", "Local picks", "⛰️"),
+        new("wifi", "Wi‑Fi", "📶"),
+        new("resources", "Resources", "📋"),
+    ];
+
     private string _section = "house";
     private bool _wifiConfigured;
     private string _wifiSsid = "";
@@ -264,7 +258,15 @@
         _wifiConfigured = settings.IsConfigured;
         _wifiSsid = settings.Ssid;
         _wifiPassword = settings.Password;
+    }
 
+    protected override void OnParametersSet()
+    {
+        ApplySectionFromQuery();
+    }
+
+    private void ApplySectionFromQuery()
+    {
         var uri = Navigation.ToAbsoluteUri(Navigation.Uri);
         if (QueryHelpers.ParseQuery(uri.Query)
             .TryGetValue("section", out var sectionValues))
@@ -278,8 +280,9 @@
     private void SelectSection(string section)
     {
         _section = section;
+        Navigation.NavigateTo(Navigation.GetUriWithQueryParameter("section", section), replace: true);
     }
 
-    private string NavPillClass(string section) =>
-        $"guide-nav-pill guide-nav-pill--{section}{(_section == section ? " is-active" : "")}";
+    private string ChipClass(string section) =>
+        $"guide-hero-chip guide-hero-chip--{section}{(_section == section ? " is-active" : "")}";
 }

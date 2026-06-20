@@ -847,31 +847,106 @@ footer {
     color: var(--nn-hero-lead);
 }
 
-.guide-hero-chips {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    margin: 16px 0 0;
-    padding: 0;
-    list-style: none;
+.guide-nav-bar {
+    position: sticky;
+    top: 48px;
+    z-index: 90;
+    background: linear-gradient(
+        180deg,
+        color-mix(in srgb, var(--nn-hero-mid) 55%, var(--nn-surface)) 0%,
+        color-mix(in srgb, var(--nn-primary-soft) 45%, var(--nn-surface)) 100%);
+    border-bottom: 1px solid color-mix(in srgb, var(--nn-primary-border) 70%, var(--nn-line));
+    box-shadow: 0 4px 16px color-mix(in srgb, var(--nn-primary) 8%, transparent);
 }
 
-    .guide-hero-chips li {
-        padding: 7px 13px;
-        border-radius: 999px;
-        background: color-mix(in srgb, var(--nn-surface) 58%, transparent);
-        border: 1px solid color-mix(in srgb, var(--nn-hero-border) 28%, transparent);
-        backdrop-filter: blur(6px);
-        font-size: 12px;
+.guide-nav-bar-inner {
+    max-width: 1120px;
+    margin: 0 auto;
+    padding: 10px 18px 12px;
+}
+
+.guide-hero-nav {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+    padding: 0;
+}
+
+.guide-hero-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--nn-surface) 72%, transparent);
+    border: 1px solid color-mix(in srgb, var(--nn-primary-border) 55%, transparent);
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--nn-primary-text);
+    cursor: pointer;
+    font-family: inherit;
+    text-decoration: none;
+    white-space: nowrap;
+    transition: background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, transform 0.12s ease;
+    box-shadow: 0 2px 8px color-mix(in srgb, var(--nn-primary) 8%, transparent);
+}
+
+    .guide-hero-chip:hover {
+        background: color-mix(in srgb, var(--nn-surface) 88%, var(--nn-primary-soft));
+        border-color: var(--nn-primary-border);
+        box-shadow: 0 3px 12px color-mix(in srgb, var(--nn-primary) 12%, transparent);
+    }
+
+    .guide-hero-chip.is-active {
+        background: var(--nn-surface);
+        border-color: var(--nn-primary);
         font-weight: 800;
-        color: var(--nn-hero-text);
-        box-shadow: 0 2px 8px color-mix(in srgb, var(--nn-hero-border) 10%, transparent);
+        box-shadow: 0 3px 14px color-mix(in srgb, var(--nn-primary) 18%, transparent);
+        transform: translateY(-1px);
+    }
+
+.guide-hero-chip-icon {
+    font-size: 14px;
+    line-height: 1;
+}
+
+.guide-hero-chip--house.is-active {
+    border-color: var(--nn-primary);
+    color: var(--nn-primary-text);
+}
+
+.guide-hero-chip--local.is-active {
+    border-color: color-mix(in srgb, var(--nn-hero-end) 65%, var(--nn-primary));
+}
+
+.guide-hero-chip--wifi.is-active {
+    border-color: var(--nn-accent-border);
+}
+
+.guide-hero-chip--resources.is-active {
+    border-color: color-mix(in srgb, var(--nn-booking) 45%, var(--nn-line));
+    color: var(--nn-booking-dark);
+}
+
+.guide-hero-chip--contact {
+    margin-left: auto;
+    background: color-mix(in srgb, var(--nn-booking) 14%, var(--nn-surface));
+    border-color: color-mix(in srgb, var(--nn-booking) 30%, var(--nn-line));
+    color: var(--nn-booking-dark);
+    font-weight: 700;
+}
+
+    .guide-hero-chip--contact:hover {
+        background: color-mix(in srgb, var(--nn-booking) 22%, var(--nn-surface));
+        color: var(--nn-booking-dark);
     }
 
 .guide-main {
     max-width: 1120px;
     margin: 0 auto;
-    padding: 16px 18px 48px;
+    padding: 20px 18px 48px;
 }
 
 .guide-nav {
@@ -967,12 +1042,12 @@ footer {
     }
 
 .guide-card {
-    scroll-margin-top: 88px;
+    scroll-margin-top: 120px;
     margin-bottom: 20px;
-    background: color-mix(in srgb, var(--nn-primary-soft) 22%, var(--nn-surface));
-    border-radius: 20px;
+    background: var(--nn-surface);
+    border-radius: 16px;
     border: 1px solid var(--nn-primary-border);
-    box-shadow: 0 10px 28px color-mix(in srgb, var(--nn-primary) 10%, transparent);
+    box-shadow: 0 8px 24px color-mix(in srgb, var(--nn-primary) 8%, transparent);
     overflow: hidden;
     animation: guide-card-in 0.22s ease-out;
 }
@@ -1009,12 +1084,9 @@ footer {
     display: flex;
     align-items: flex-start;
     gap: 14px;
-    padding: 20px 22px;
-    border-bottom: 1px solid color-mix(in srgb, var(--nn-primary-border) 70%, var(--nn-line));
-    background: linear-gradient(
-        90deg,
-        color-mix(in srgb, var(--nn-primary-soft) 80%, var(--nn-surface)),
-        color-mix(in srgb, var(--nn-primary-soft) 25%, var(--nn-surface)));
+    padding: 18px 22px;
+    border-bottom: 1px solid color-mix(in srgb, var(--nn-primary-border) 55%, var(--nn-line));
+    background: color-mix(in srgb, var(--nn-primary-soft) 35%, var(--nn-surface));
 }
 
 .guide-card--house .guide-card-header {
@@ -1096,10 +1168,7 @@ footer {
 
 .guide-card-body {
     padding: 20px 22px 24px;
-    background: linear-gradient(
-        180deg,
-        color-mix(in srgb, var(--nn-primary-soft) 48%, var(--nn-surface)) 0%,
-        color-mix(in srgb, var(--nn-surface-muted) 62%, var(--nn-surface)) 100%);
+    background: color-mix(in srgb, var(--nn-surface-muted) 28%, var(--nn-surface));
 }
 
 .guide-card--house .guide-card-body {
@@ -1166,16 +1235,15 @@ footer {
     .guide-list li {
         position: relative;
         margin: 0;
-        padding: 12px 12px 12px 20px;
-        border-bottom: 1px solid color-mix(in srgb, var(--nn-primary-border) 45%, transparent);
+        padding: 11px 12px 11px 20px;
+        border-bottom: 1px solid color-mix(in srgb, var(--nn-line) 80%, transparent);
         color: var(--nn-ink-secondary);
         line-height: 1.55;
         font-size: 15px;
-        border-radius: 10px;
     }
 
         .guide-list li:nth-child(odd) {
-            background: color-mix(in srgb, var(--nn-primary-soft) 38%, var(--nn-surface));
+            background: color-mix(in srgb, var(--nn-primary-soft) 22%, var(--nn-surface));
         }
 
         .guide-list li:last-child {
@@ -1467,14 +1535,42 @@ footer {
         padding: 14px 16px 16px;
     }
 
+    .guide-nav-bar-inner {
+        padding: 8px 12px 10px;
+    }
+
+    .guide-hero-nav {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        overscroll-behavior-x: contain;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        gap: 6px;
+        padding-bottom: 2px;
+    }
+
+        .guide-hero-nav::-webkit-scrollbar {
+            display: none;
+        }
+
+    .guide-hero-chip {
+        flex-shrink: 0;
+        padding: 8px 12px;
+        font-size: 12px;
+    }
+
+    .guide-hero-chip--contact {
+        margin-left: 0;
+    }
+
     .guide-card-header,
     .guide-card-body {
         padding-left: 16px;
         padding-right: 16px;
     }
 
-    .guide-nav {
-        padding: 12px;
+    .guide-main {
+        padding-top: 16px;
     }
 
     .guide-wifi-row {
@@ -1491,6 +1587,16 @@ footer {
 
     .guide-wifi-details {
         padding: 12px 14px;
+    }
+
+    .guide-footer {
+        flex-direction: column;
+    }
+
+    .guide-footer-btn {
+        width: 100%;
+        justify-content: center;
+        text-align: center;
     }
 }
 
