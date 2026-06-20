@@ -53,17 +53,26 @@
                     <p class="nn-booking-range-summary">Check-in @checkInOnly.ToString("MMM d") — choose check-out</p>
                 }
 
-                <MudDateRangePicker @bind-DateRange="_dateRange"
-                                    @bind-DateRange:after="OnDateRangeUpdatedAsync"
-                                    PickerVariant="PickerVariant.Static"
-                                    DisplayMonths="1"
-                                    MaxMonthColumns="1"
-                                    MinDate="_minSelectable"
-                                    MaxDate="_maxCheckOut"
-                                    IsDateDisabledFunc="@IsDateUnavailable"
-                                    AdditionalDateClassesFunc="@GetUnavailableDateClass"
-                                    ShowToolbar="false"
-                                    Class="nn-booking-range-picker nn-listing-booking-range-picker" />
+                @if (_minSelectable <= _maxCheckOut)
+                {
+                    <MudDateRangePicker @bind-DateRange="_dateRange"
+                                        @bind-DateRange:after="OnDateRangeUpdatedAsync"
+                                        PickerVariant="PickerVariant.Static"
+                                        DisplayMonths="1"
+                                        MaxMonthColumns="1"
+                                        MinDate="_minSelectable"
+                                        MaxDate="_maxCheckOut"
+                                        IsDateDisabledFunc="@IsDateUnavailable"
+                                        AdditionalDateClassesFunc="@GetUnavailableDateClass"
+                                        ShowToolbar="false"
+                                        Class="nn-booking-range-picker nn-listing-booking-range-picker" />
+                }
+                else
+                {
+                    <p class="nn-note nn-note--warn">
+                        Booking dates are not configured correctly for this listing. Please <a class="mgmt-link" href="/contact">contact us</a>.
+                    </p>
+                }
             </div>
 
             @if (_quoteLoading)
@@ -182,24 +191,25 @@
         _airbnbUrl = null;
         _vrboUrl = null;
 
-        var siteSettings = await SiteSettingsService.GetAsync();
-        _directBookingsEnabled = siteSettings.DirectBookingsEnabled;
-
-        _property = await PropertyService.GetBySlugAsync(PropertySlug);
-        _showChannelPriceLinks = _property?.ShowChannelPriceLinks ?? true;
-        await ApplyListingSettingsAsync();
-
         try
         {
-            await AvailabilityService.SyncExternalCalendarsAsync();
-        }
-        catch
-        {
-            // Use cached calendar blocks
-        }
+            var siteSettings = await SiteSettingsService.GetAsync();
+            _directBookingsEnabled = siteSettings.DirectBookingsEnabled;
 
-        await RefreshUnavailableDatesAsync();
-        _loading = false;
+            _property = await PropertyService.GetBySlugAsync(PropertySlug);
+            _showChannelPriceLinks = _property?.ShowChannelPriceLinks ?? true;
+            await ApplyListingSettingsAsync();
+            await RefreshUnavailableDatesAsync();
+        }
+        catch (Exception)
+        {
+            _listingSettings ??= PropertyListingSettings.Defaults();
+            _unavailableDates = [];
+        }
+        finally
+        {
+            _loading = false;
+        }
     }
 
     private async Task ApplyListingSettingsAsync()
@@ -209,6 +219,9 @@
         _minSelectable = today.AddDays(_listingSettings.MinAdvanceBookingDays);
         _maxCheckIn = today.AddDays(_listingSettings.EffectiveMaxBookingDaysAhead);
         _maxCheckOut = today.AddDays(_listingSettings.EffectiveMaxBookingDaysAhead + 30);
+
+        if (_minSelectable > _maxCheckOut)
+            _maxCheckOut = _minSelectable.AddDays(30);
     }
 
     private async Task RefreshUnavailableDatesAsync()
