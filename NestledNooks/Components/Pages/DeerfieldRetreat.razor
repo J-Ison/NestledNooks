@@ -4,12 +4,22 @@
 @using NestledNooks.Data
 @using NestledNooks.Services
 @inject IPropertyService PropertyService
+@inject ILogger<DeerfieldRetreat> Logger
 
 @if (_loading)
 {
     <div class="listing-page">
         <main class="wrap">
             <p class="nn-loading">Loading…</p>
+        </main>
+    </div>
+}
+else if (_loadError is not null)
+{
+    <div class="listing-page">
+        <main class="wrap">
+            <p class="nn-note nn-note--error">We could not load this listing right now. Please try again in a moment.</p>
+            <a class="guide-link" href="/contact">Contact us</a>
         </main>
     </div>
 }
@@ -215,6 +225,7 @@ else
     private IReadOnlyList<PropertyBadge> _badges = [];
     private IReadOnlyList<string> _amenities = [];
     private bool _loading = true;
+    private string? _loadError;
 
     private bool IsGalleryOpen { get; set; }
     private int SelectedIndex { get; set; }
@@ -222,20 +233,32 @@ else
     protected override async Task OnParametersSetAsync()
     {
         _loading = true;
+        _loadError = null;
+        _property = null;
 
-        _property = string.IsNullOrWhiteSpace(Slug)
-            ? await PropertyService.GetHomepageAsync()
-            : await PropertyService.GetBySlugAsync(Slug);
-
-        if (_property is not null)
+        try
         {
-            _photos = PropertyContentJson.ParsePhotos(_property.PhotosJson);
-            _stats = PropertyContentJson.ParseStringList(_property.StatsJson);
-            _badges = PropertyContentJson.ParseBadges(_property.BadgesJson);
-            _amenities = PropertyContentJson.ParseStringList(_property.AmenitiesJson);
-        }
+            _property = string.IsNullOrWhiteSpace(Slug)
+                ? await PropertyService.GetHomepageAsync()
+                : await PropertyService.GetBySlugAsync(Slug);
 
-        _loading = false;
+            if (_property is not null)
+            {
+                _photos = PropertyContentJson.ParsePhotos(_property.PhotosJson);
+                _stats = PropertyContentJson.ParseStringList(_property.StatsJson);
+                _badges = PropertyContentJson.ParseBadges(_property.BadgesJson);
+                _amenities = PropertyContentJson.ParseStringList(_property.AmenitiesJson);
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to load property listing (slug={Slug}).", Slug ?? "(homepage)");
+            _loadError = ex.Message;
+        }
+        finally
+        {
+            _loading = false;
+        }
     }
 
     private bool CanPrev => SelectedIndex > 0;

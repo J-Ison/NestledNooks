@@ -18,6 +18,7 @@ public static class DatabaseSchemaRepair
         await EnsureSiteSettingsTableAsync(db, logger, cancellationToken).ConfigureAwait(false);
         await EnsureRentalPropertyCleaningFeeColumnAsync(db, logger, cancellationToken).ConfigureAwait(false);
         await EnsureRentalPropertyListingSettingsColumnsAsync(db, logger, cancellationToken).ConfigureAwait(false);
+        await EnsureRentalPropertyChannelAndDiscountColumnsAsync(db, logger, cancellationToken).ConfigureAwait(false);
         await EnsurePropertyNightlyRatesTableAsync(db, logger, cancellationToken).ConfigureAwait(false);
         await EnsureStripeBookingPaymentSchemaAsync(db, logger, cancellationToken).ConfigureAwait(false);
         await EnsureGuestEmailTemplatesTableAsync(db, logger, cancellationToken).ConfigureAwait(false);
@@ -300,6 +301,41 @@ public static class DatabaseSchemaRepair
             cancellationToken).ConfigureAwait(false);
 
         logger.LogInformation("Verified RentalProperties listing booking columns.");
+    }
+
+    public static async Task EnsureRentalPropertyChannelAndDiscountColumnsAsync(
+        ApplicationDbContext db,
+        ILogger logger,
+        CancellationToken cancellationToken = default)
+    {
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            IF COL_LENGTH('RentalProperties', 'DiscountsJson') IS NULL
+                ALTER TABLE [RentalProperties] ADD [DiscountsJson] nvarchar(max) NOT NULL
+                    CONSTRAINT [DF_RentalProperties_DiscountsJson] DEFAULT ('');
+
+            IF COL_LENGTH('RentalProperties', 'ShowChannelPriceLinks') IS NULL
+                ALTER TABLE [RentalProperties] ADD [ShowChannelPriceLinks] bit NOT NULL
+                    CONSTRAINT [DF_RentalProperties_ShowChannelPriceLinks] DEFAULT (1);
+
+            IF COL_LENGTH('RentalProperties', 'AirbnbCleaningFee') IS NULL
+                ALTER TABLE [RentalProperties] ADD [AirbnbCleaningFee] decimal(18,2) NULL;
+
+            IF COL_LENGTH('RentalProperties', 'AirbnbGuestServiceFeePercent') IS NULL
+                ALTER TABLE [RentalProperties] ADD [AirbnbGuestServiceFeePercent] decimal(18,2) NULL;
+
+            IF COL_LENGTH('RentalProperties', 'VrboCleaningFee') IS NULL
+                ALTER TABLE [RentalProperties] ADD [VrboCleaningFee] decimal(18,2) NULL;
+
+            IF COL_LENGTH('RentalProperties', 'VrboGuestServiceFeePercent') IS NULL
+                ALTER TABLE [RentalProperties] ADD [VrboGuestServiceFeePercent] decimal(18,2) NULL;
+
+            IF COL_LENGTH('RentalProperties', 'VrboOccupancyTaxPercent') IS NULL
+                ALTER TABLE [RentalProperties] ADD [VrboOccupancyTaxPercent] decimal(18,2) NULL;
+            """,
+            cancellationToken).ConfigureAwait(false);
+
+        logger.LogInformation("Verified RentalProperties channel pricing and discount columns.");
     }
 
     public static async Task EnsurePropertyNightlyRatesTableAsync(

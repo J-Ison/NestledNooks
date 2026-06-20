@@ -20,6 +20,9 @@ public static class DatabaseSchemaVerification
             ("SiteSettings.DirectBookingsEnabled", "SELECT CASE WHEN COL_LENGTH('SiteSettings', 'DirectBookingsEnabled') IS NOT NULL THEN 1 ELSE 0 END"),
             ("BookingRequests.PaymentStatus", "SELECT CASE WHEN COL_LENGTH('BookingRequests', 'PaymentStatus') IS NOT NULL THEN 1 ELSE 0 END"),
             ("AspNetUsers.RegisteredAtUtc", "SELECT CASE WHEN COL_LENGTH('AspNetUsers', 'RegisteredAtUtc') IS NOT NULL THEN 1 ELSE 0 END"),
+            ("RentalProperties.DiscountsJson", "SELECT CASE WHEN COL_LENGTH('RentalProperties', 'DiscountsJson') IS NOT NULL THEN 1 ELSE 0 END"),
+            ("RentalProperties.ShowChannelPriceLinks", "SELECT CASE WHEN COL_LENGTH('RentalProperties', 'ShowChannelPriceLinks') IS NOT NULL THEN 1 ELSE 0 END"),
+            ("RentalProperties.RentalAgreementText", "SELECT CASE WHEN COL_LENGTH('RentalProperties', 'RentalAgreementText') IS NOT NULL THEN 1 ELSE 0 END"),
         };
 
         var failures = new List<string>();
