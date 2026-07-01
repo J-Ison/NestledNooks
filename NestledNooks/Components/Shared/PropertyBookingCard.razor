@@ -168,6 +168,7 @@
     private string? _vrboUrl;
 
     private bool _showChannelPriceLinks = true;
+    private string? _loadedSlug;
 
     private string? EffectiveBookingSubtext =>
         GuestFacingText(BookingSubtext);
@@ -185,6 +186,10 @@
         if (string.IsNullOrWhiteSpace(PropertySlug))
             return;
 
+        if (string.Equals(_loadedSlug, PropertySlug, StringComparison.OrdinalIgnoreCase) && !_loading)
+            return;
+
+        _loadedSlug = PropertySlug;
         _loading = true;
         _quote = null;
         _quoteError = null;

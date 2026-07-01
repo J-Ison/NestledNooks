@@ -60,6 +60,7 @@ builder.Services.AddSingleton<IEmailSender<ApplicationUser>, IdentityNoOpEmailSe
 builder.Services.Configure<SmtpOptions>(builder.Configuration.GetSection("Smtp"));
 builder.Services.AddSingleton<IEmailService, SmtpEmailService>();
 builder.Services.Configure<BookingOptions>(builder.Configuration.GetSection(BookingOptions.SectionName));
+builder.Services.Configure<GuestFacingCacheOptions>(builder.Configuration.GetSection(GuestFacingCacheOptions.SectionName));
 builder.Services.Configure<PriceLabsOptions>(builder.Configuration.GetSection(PriceLabsOptions.SectionName));
 builder.Services.Configure<GuestWifiOptions>(builder.Configuration.GetSection(GuestWifiOptions.SectionName));
 builder.Services.Configure<AdminOptions>(builder.Configuration.GetSection(AdminOptions.SectionName));
@@ -240,28 +241,6 @@ _ = Task.Run(async () =>
         catch (Exception ex)
         {
             logger.LogWarning(ex, "Site QR settings seed skipped.");
-        }
-
-        try
-        {
-            await scope.ServiceProvider.GetRequiredService<IBookingAvailabilityService>()
-                .SyncExternalCalendarsAsync()
-                .ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
-            logger.LogWarning(ex, "Initial calendar sync skipped.");
-        }
-
-        try
-        {
-            await scope.ServiceProvider.GetRequiredService<IPriceLabsPricingSyncService>()
-                .SyncAllConfiguredPropertiesAsync()
-                .ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
-            logger.LogWarning(ex, "Initial PriceLabs sync skipped.");
         }
     }
     catch (Exception ex)

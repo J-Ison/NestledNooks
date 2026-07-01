@@ -253,6 +253,8 @@
     private bool _drawerOpen;
     private string? _userId;
     private AdminNotificationSummary? _summary;
+    private DateTime _lastNotificationRefreshUtc = DateTime.MinValue;
+    private static readonly TimeSpan NotificationRefreshInterval = TimeSpan.FromMinutes(2);
 
     private void ToggleDrawer() => _drawerOpen = !_drawerOpen;
 
@@ -260,7 +262,7 @@
     {
         _drawerOpen = open;
         if (open)
-            _ = RefreshNotificationsAsync();
+            _ = RefreshNotificationsAsync(force: true);
     }
 
     private void CloseDrawerLocal() => _drawerOpen = false;
@@ -289,8 +291,11 @@
             StateHasChanged();
         });
 
-    private async Task RefreshNotificationsAsync()
+    private async Task RefreshNotificationsAsync(bool force = false)
     {
+        if (!force && DateTime.UtcNow - _lastNotificationRefreshUtc < NotificationRefreshInterval)
+            return;
+
         var auth = await AuthState.GetAuthenticationStateAsync();
         if (auth.User.Identity?.IsAuthenticated != true)
         {
@@ -309,6 +314,7 @@
         await using var scope = ScopeFactory.CreateAsyncScope();
         var adminNotifications = scope.ServiceProvider.GetRequiredService<IAdminNotificationService>();
         _summary = await adminNotifications.GetSummaryAsync(_userId);
+        _lastNotificationRefreshUtc = DateTime.UtcNow;
     }
 
     private static string FormatBadgeCount(int count) => count > 9 ? "9+" : count.ToString();

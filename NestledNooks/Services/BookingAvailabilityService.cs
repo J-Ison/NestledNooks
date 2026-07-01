@@ -1,5 +1,6 @@
 using Ical.Net;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Options;
 using NestledNooks.Data;
 
@@ -10,20 +11,26 @@ public sealed class BookingAvailabilityService : IBookingAvailabilityService
     private readonly ApplicationDbContext _db;
     private readonly IDbContextFactory<ApplicationDbContext> _dbFactory;
     private readonly IHttpClientFactory _httpClientFactory;
+    private readonly IMemoryCache _cache;
     private readonly BookingOptions _options;
+    private readonly GuestFacingCacheOptions _cacheOptions;
     private readonly ILogger<BookingAvailabilityService> _logger;
 
     public BookingAvailabilityService(
         ApplicationDbContext db,
         IDbContextFactory<ApplicationDbContext> dbFactory,
         IHttpClientFactory httpClientFactory,
+        IMemoryCache cache,
         IOptions<BookingOptions> options,
+        IOptions<GuestFacingCacheOptions> cacheOptions,
         ILogger<BookingAvailabilityService> logger)
     {
         _db = db;
         _dbFactory = dbFactory;
         _httpClientFactory = httpClientFactory;
+        _cache = cache;
         _options = options.Value;
+        _cacheOptions = cacheOptions.Value;
         _logger = logger;
     }
 
@@ -37,6 +44,11 @@ public sealed class BookingAvailabilityService : IBookingAvailabilityService
         var slug = NormalizeSlug(propertySlug);
         if (slug is null)
             return [];
+
+        var cacheKey =
+            $"{GuestDataCacheKeys.UnavailableDates(slug, from, to, excludeBookingId)}:v{GetAvailabilityCacheVersion(slug)}";
+        if (_cache.TryGetValue(cacheKey, out IReadOnlyList<DateOnly>? cached) && cached is not null)
+            return cached;
 
         var ranges = await GetBlockedRangesAsync(slug, excludeBookingId, cancellationToken).ConfigureAwait(false);
         var calendarSettings = await GetListingCalendarSettingsAsync(slug, cancellationToken).ConfigureAwait(false);
@@ -71,7 +83,13 @@ public sealed class BookingAvailabilityService : IBookingAvailabilityService
             from,
             to);
 
-        return dates.OrderBy(d => d).ToList();
+        var result = dates.OrderBy(d => d).ToList();
+        _cache.Set(
+            cacheKey,
+            result,
+            TimeSpan.FromMinutes(Math.Max(1, _cacheOptions.UnavailableDatesMinutes)));
+
+        return result;
     }
 
     public async Task<bool> IsRangeAvailableAsync(
@@ -134,8 +152,16 @@ public sealed class BookingAvailabilityService : IBookingAvailabilityService
         return true;
     }
 
-    public async Task SyncExternalCalendarsAsync(CancellationToken cancellationToken = default)
+    public async Task SyncExternalCalendarsAsync(bool force = false, CancellationToken cancellationToken = default)
     {
+        if (!force && !await NeedsExternalCalendarSyncAsync(cancellationToken).ConfigureAwait(false))
+        {
+            _logger.LogDebug(
+                "External calendar sync skipped — imported blocks are newer than {Minutes} minutes.",
+                _options.CalendarSyncIntervalMinutes);
+            return;
+        }
+
         var client = _httpClientFactory.CreateClient("CalendarSync");
         var syncedAt = DateTime.UtcNow;
 
@@ -185,8 +211,55 @@ public sealed class BookingAvailabilityService : IBookingAvailabilityService
         }
 
         await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        foreach (var property in _options.Properties)
+        {
+            if (string.IsNullOrWhiteSpace(property.Slug))
+                continue;
+
+            BumpAvailabilityCacheVersion(NormalizeSlug(property.Slug)!);
+        }
+
         _logger.LogInformation("External calendar sync completed.");
     }
+
+    private async Task<bool> NeedsExternalCalendarSyncAsync(CancellationToken cancellationToken)
+    {
+        var configuredSlugs = _options.Properties
+            .Where(p =>
+                !string.IsNullOrWhiteSpace(p.Slug) &&
+                (!string.IsNullOrWhiteSpace(p.AirbnbIcalUrl) || !string.IsNullOrWhiteSpace(p.VrboIcalUrl)))
+            .Select(p => NormalizeSlug(p.Slug)!)
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+
+        if (configuredSlugs.Count == 0)
+            return false;
+
+        var threshold = DateTime.UtcNow.AddMinutes(-Math.Max(30, _options.CalendarSyncIntervalMinutes));
+
+        foreach (var slug in configuredSlugs)
+        {
+            var latest = await _db.ExternalCalendarEvents
+                .AsNoTracking()
+                .Where(e => e.PropertySlug == slug)
+                .MaxAsync(e => (DateTime?)e.SyncedAtUtc, cancellationToken)
+                .ConfigureAwait(false);
+
+            if (latest is null || latest < threshold)
+                return true;
+        }
+
+        return false;
+    }
+
+    private long GetAvailabilityCacheVersion(string slug)
+    {
+        var key = $"guest:availability-version:{slug}";
+        return _cache.TryGetValue(key, out long version) ? version : 0;
+    }
+
+    private void BumpAvailabilityCacheVersion(string slug) =>
+        _cache.Set($"guest:availability-version:{slug}", DateTime.UtcNow.Ticks, TimeSpan.FromHours(24));
 
     private async Task<List<(DateOnly Start, DateOnly End, bool IsExternal)>> GetBlockedRangesAsync(
         string propertySlug,

@@ -28,13 +28,22 @@ public sealed class PriceLabsPricingSyncHostedService : BackgroundService
 
         var interval = TimeSpan.FromMinutes(Math.Max(30, _options.SyncIntervalMinutes));
 
+        try
+        {
+            await Task.Delay(TimeSpan.FromMinutes(5), stoppingToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+
         while (!stoppingToken.IsCancellationRequested)
         {
             try
             {
                 await using var scope = _scopeFactory.CreateAsyncScope();
                 var sync = scope.ServiceProvider.GetRequiredService<IPriceLabsPricingSyncService>();
-                await sync.SyncAllConfiguredPropertiesAsync(stoppingToken).ConfigureAwait(false);
+                await sync.SyncAllConfiguredPropertiesAsync(cancellationToken: stoppingToken).ConfigureAwait(false);
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {

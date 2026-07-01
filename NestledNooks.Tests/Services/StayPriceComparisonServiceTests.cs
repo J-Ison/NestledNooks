@@ -1,5 +1,6 @@
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
@@ -31,10 +32,13 @@ public sealed class StayPriceComparisonServiceTests
             }),
             NullLogger<StayPriceComparisonService>.Instance);
 
+        var checkIn = DateOnly.FromDateTime(DateTime.UtcNow).AddDays(30);
+        var checkOut = checkIn.AddDays(2);
+
         var comparison = await service.GetComparisonAsync(
             PropertySeedData.DeerfieldSlug,
-            new DateOnly(2026, 6, 24),
-            new DateOnly(2026, 6, 26));
+            checkIn,
+            checkOut);
 
         Assert.NotNull(comparison.Airbnb.TotalAmount);
         Assert.NotNull(comparison.Vrbo.TotalAmount);
@@ -60,10 +64,13 @@ public sealed class StayPriceComparisonServiceTests
             Options.Create(new PriceLabsOptions { Enabled = true, ApiKey = "test" }),
             NullLogger<StayPriceComparisonService>.Instance);
 
+        var checkIn = DateOnly.FromDateTime(DateTime.UtcNow).AddDays(30);
+        var checkOut = checkIn.AddDays(2);
+
         var comparison = await service.GetComparisonAsync(
             PropertySeedData.DeerfieldSlug,
-            new DateOnly(2026, 6, 24),
-            new DateOnly(2026, 6, 26));
+            checkIn,
+            checkOut);
 
         Assert.Null(comparison.Airbnb.TotalAmount);
         Assert.Contains("Airbnb", comparison.Airbnb.Note ?? "", StringComparison.Ordinal);
@@ -91,6 +98,9 @@ public sealed class StayPriceComparisonServiceTests
                 },
             ];
         });
+        services.Configure<GuestFacingCacheOptions>(_ => { });
+        services.AddMemoryCache();
+        services.AddScoped<IPropertyService, PropertyService>();
         services.AddScoped<BookingPricingService>();
 
         var provider = services.BuildServiceProvider();

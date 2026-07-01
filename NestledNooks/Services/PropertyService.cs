@@ -1,4 +1,6 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Options;
 using NestledNooks.Data;
 
 namespace NestledNooks.Services;
@@ -14,8 +16,13 @@ public interface IPropertyService
     Task EnsureSeededAsync(CancellationToken cancellationToken = default);
 }
 
-public sealed class PropertyService(ApplicationDbContext db) : IPropertyService
+public sealed class PropertyService(
+    ApplicationDbContext db,
+    IMemoryCache cache,
+    IOptions<GuestFacingCacheOptions> cacheOptions) : IPropertyService
 {
+    private TimeSpan PropertyCacheDuration =>
+        TimeSpan.FromMinutes(Math.Max(1, cacheOptions.Value.PropertyMinutes));
     public async Task<IReadOnlyList<RentalProperty>> GetAllAsync(CancellationToken cancellationToken = default) =>
         await db.RentalProperties
             .AsNoTracking()
@@ -38,10 +45,17 @@ public sealed class PropertyService(ApplicationDbContext db) : IPropertyService
         if (string.IsNullOrWhiteSpace(slug))
             return null;
 
-        return await db.RentalProperties
-            .AsNoTracking()
-            .FirstOrDefaultAsync(p => p.Slug == slug, cancellationToken)
-            .ConfigureAwait(false);
+        var normalized = slug.Trim().ToLowerInvariant();
+        return await cache.GetOrCreateAsync(
+            GuestDataCacheKeys.PropertyBySlug(normalized),
+            async entry =>
+            {
+                entry.AbsoluteExpirationRelativeToNow = PropertyCacheDuration;
+                return await db.RentalProperties
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(p => p.Slug == normalized, cancellationToken)
+                    .ConfigureAwait(false);
+            }).ConfigureAwait(false);
     }
 
     public async Task<PropertyListingSettings> GetListingSettingsAsync(
@@ -53,18 +67,24 @@ public sealed class PropertyService(ApplicationDbContext db) : IPropertyService
     }
 
     public async Task<RentalProperty?> GetHomepageAsync(CancellationToken cancellationToken = default) =>
-        await db.RentalProperties
-            .AsNoTracking()
-            .Where(p => p.IsPublished && p.IsHomepage)
-            .OrderBy(p => p.SortOrder)
-            .FirstOrDefaultAsync(cancellationToken)
-            .ConfigureAwait(false)
-        ?? await db.RentalProperties
-            .AsNoTracking()
-            .Where(p => p.IsPublished)
-            .OrderBy(p => p.SortOrder)
-            .FirstOrDefaultAsync(cancellationToken)
-            .ConfigureAwait(false);
+        await cache.GetOrCreateAsync(
+            GuestDataCacheKeys.HomepageProperty,
+            async entry =>
+            {
+                entry.AbsoluteExpirationRelativeToNow = PropertyCacheDuration;
+                return await db.RentalProperties
+                    .AsNoTracking()
+                    .Where(p => p.IsPublished && p.IsHomepage)
+                    .OrderBy(p => p.SortOrder)
+                    .FirstOrDefaultAsync(cancellationToken)
+                    .ConfigureAwait(false)
+                    ?? await db.RentalProperties
+                        .AsNoTracking()
+                        .Where(p => p.IsPublished)
+                        .OrderBy(p => p.SortOrder)
+                        .FirstOrDefaultAsync(cancellationToken)
+                        .ConfigureAwait(false);
+            }).ConfigureAwait(false);
 
     public async Task<RentalProperty> SaveAsync(RentalProperty property, CancellationToken cancellationToken = default)
     {
@@ -133,6 +153,7 @@ public sealed class PropertyService(ApplicationDbContext db) : IPropertyService
         }
 
         await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        GuestDataCacheKeys.InvalidateProperty(cache, property.Slug);
         return property;
     }
 

@@ -121,6 +121,9 @@ public sealed class BookingPricingServiceTests
                 },
             ];
         });
+        services.Configure<GuestFacingCacheOptions>(_ => { });
+        services.AddMemoryCache();
+        services.AddScoped<IPropertyService, PropertyService>();
         services.AddScoped<BookingPricingService>();
 
         var provider = services.BuildServiceProvider();

@@ -20,7 +20,17 @@ public sealed class CalendarSyncHostedService : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        var interval = TimeSpan.FromMinutes(Math.Max(5, _options.CalendarSyncIntervalMinutes));
+        var interval = TimeSpan.FromMinutes(Math.Max(30, _options.CalendarSyncIntervalMinutes));
+
+        // Avoid competing with app startup; hosted service owns the schedule.
+        try
+        {
+            await Task.Delay(TimeSpan.FromMinutes(2), stoppingToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
 
         while (!stoppingToken.IsCancellationRequested)
         {
@@ -28,7 +38,7 @@ public sealed class CalendarSyncHostedService : BackgroundService
             {
                 await using var scope = _scopeFactory.CreateAsyncScope();
                 var availability = scope.ServiceProvider.GetRequiredService<IBookingAvailabilityService>();
-                await availability.SyncExternalCalendarsAsync(stoppingToken).ConfigureAwait(false);
+                await availability.SyncExternalCalendarsAsync(cancellationToken: stoppingToken).ConfigureAwait(false);
             }
             catch (Exception ex)
             {

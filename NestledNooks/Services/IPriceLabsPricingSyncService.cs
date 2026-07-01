@@ -2,5 +2,5 @@ namespace NestledNooks.Services;
 
 public interface IPriceLabsPricingSyncService
 {
-    Task SyncAllConfiguredPropertiesAsync(CancellationToken cancellationToken = default);
+    Task SyncAllConfiguredPropertiesAsync(bool force = false, CancellationToken cancellationToken = default);
 }

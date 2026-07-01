@@ -16,5 +16,5 @@ public interface IBookingAvailabilityService
         int? excludeBookingId = null,
         CancellationToken cancellationToken = default);
 
-    Task SyncExternalCalendarsAsync(CancellationToken cancellationToken = default);
+    Task SyncExternalCalendarsAsync(bool force = false, CancellationToken cancellationToken = default);
 }

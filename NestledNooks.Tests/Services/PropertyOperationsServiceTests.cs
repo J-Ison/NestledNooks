@@ -2,7 +2,9 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using NestledNooks.Data;
 using NestledNooks.Services;
 
@@ -94,6 +96,8 @@ public sealed class PropertyOperationsServiceTests
         };
         services.AddSingleton<IHttpContextAccessor>(new TestHttpContextAccessor(httpContext));
         services.AddDbContext<ApplicationDbContext>(options => options.UseSqlite(connection));
+        services.Configure<GuestFacingCacheOptions>(_ => { });
+        services.AddMemoryCache();
         services.AddScoped<IPropertyService, PropertyService>();
         services.AddScoped<IPropertyOperationsService, PropertyOperationsService>();
 

@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using NestledNooks.Data;
@@ -135,7 +136,10 @@ public sealed class BookingRequestServiceSubmitTests
             dbFactory,
             new FakeEmailService(),
             new AlwaysAvailableService(),
-            new BookingPricingService(db, bookingOptions),
+            new BookingPricingService(
+                db,
+                new PropertyService(db, new MemoryCache(new MemoryCacheOptions()), Options.Create(new GuestFacingCacheOptions())),
+                bookingOptions),
             new NoOpStripePaymentService(),
             new NoOpGuestEmailWrapperService(),
             new EnabledSiteSettingsService(),
@@ -165,7 +169,7 @@ public sealed class BookingRequestServiceSubmitTests
             CancellationToken cancellationToken = default) =>
             Task.FromResult(true);
 
-        public Task SyncExternalCalendarsAsync(CancellationToken cancellationToken = default) =>
+        public Task SyncExternalCalendarsAsync(bool force = false, CancellationToken cancellationToken = default) =>
             Task.CompletedTask;
 
         public Task<IReadOnlyList<DateOnly>> GetUnavailableDatesAsync(

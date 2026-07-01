@@ -229,9 +229,15 @@ else
 
     private bool IsGalleryOpen { get; set; }
     private int SelectedIndex { get; set; }
+    private string? _loadedKey;
 
     protected override async Task OnParametersSetAsync()
     {
+        var loadKey = string.IsNullOrWhiteSpace(Slug) ? "(homepage)" : Slug.Trim().ToLowerInvariant();
+        if (string.Equals(_loadedKey, loadKey, StringComparison.Ordinal) && !_loading && _loadError is null)
+            return;
+
+        _loadedKey = loadKey;
         _loading = true;
         _loadError = null;
         _property = null;

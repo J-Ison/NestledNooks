@@ -485,15 +485,6 @@
 
         await ApplyListingSettingsAsync();
 
-        try
-        {
-            await AvailabilityService.SyncExternalCalendarsAsync();
-        }
-        catch
-        {
-            // Continue with local holds only
-        }
-
         await RefreshUnavailableDatesAsync();
 
         if (_isHostStaff)

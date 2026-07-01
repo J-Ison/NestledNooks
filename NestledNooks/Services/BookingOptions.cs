@@ -5,7 +5,7 @@ public sealed class BookingOptions
     public const string SectionName = "Booking";
 
     /// <summary>Minutes between automatic iCal sync from Airbnb/Vrbo export URLs.</summary>
-    public int CalendarSyncIntervalMinutes { get; set; } = 30;
+    public int CalendarSyncIntervalMinutes { get; set; } = 180;
 
     public List<PropertyBookingOptions> Properties { get; set; } = [];
 }

@@ -11,7 +11,7 @@ public sealed class PriceLabsPricingSyncService(
     IOptions<PriceLabsOptions> priceLabsOptions,
     ILogger<PriceLabsPricingSyncService> logger) : IPriceLabsPricingSyncService
 {
-    public async Task SyncAllConfiguredPropertiesAsync(CancellationToken cancellationToken = default)
+    public async Task SyncAllConfiguredPropertiesAsync(bool force = false, CancellationToken cancellationToken = default)
     {
         var opts = priceLabsOptions.Value;
         if (!opts.Enabled)
@@ -36,6 +36,7 @@ public sealed class PriceLabsPricingSyncService(
             return;
         }
 
+        var syncStaleBefore = DateTime.UtcNow.AddMinutes(-Math.Max(30, opts.SyncIntervalMinutes));
         var listingPmsById = await BuildListingPmsMapAsync(cancellationToken).ConfigureAwait(false);
         var startDate = DateOnly.FromDateTime(DateTime.UtcNow.Date);
         var daysAhead = Math.Clamp(opts.SyncDaysAhead, 30, 720);
@@ -63,9 +64,29 @@ public sealed class PriceLabsPricingSyncService(
             try
             {
                 await using var db = await dbFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+                var slug = property.Slug.Trim().ToLowerInvariant();
+
+                if (!force)
+                {
+                    var latest = await db.PropertyNightlyRates
+                        .AsNoTracking()
+                        .Where(r => r.PropertySlug == slug)
+                        .MaxAsync(r => (DateTime?)r.UpdatedAtUtc, cancellationToken)
+                        .ConfigureAwait(false);
+
+                    if (latest is not null && latest >= syncStaleBefore)
+                    {
+                        logger.LogDebug(
+                            "PriceLabs sync skipped for {Slug} — rates updated within the last {Minutes} minutes.",
+                            slug,
+                            opts.SyncIntervalMinutes);
+                        continue;
+                    }
+                }
+
                 await SyncPropertyAsync(
                     db,
-                    property.Slug.Trim().ToLowerInvariant(),
+                    slug,
                     listingId,
                     pms,
                     startDate,

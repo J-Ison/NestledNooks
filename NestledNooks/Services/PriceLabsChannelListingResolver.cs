@@ -18,7 +18,7 @@ public sealed class PriceLabsChannelListingResolver(
     IMemoryCache cache,
     ILogger<PriceLabsChannelListingResolver> logger) : IPriceLabsChannelListingResolver
 {
-    private static readonly TimeSpan ListingsCacheDuration = TimeSpan.FromMinutes(5);
+    private static readonly TimeSpan ListingsCacheDuration = TimeSpan.FromHours(6);
 
     public async Task<PriceLabsChannelReference?> ResolveAsync(
         PropertyBookingOptions property,

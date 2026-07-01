@@ -49,8 +49,14 @@ public sealed class BookingAvailabilityServiceTests
     [Fact]
     public async Task SyncExternalCalendarsAsync_imports_ical_blocks()
     {
+        var block1Start = DateOnly.FromDateTime(DateTime.UtcNow).AddDays(20);
+        var block1End = block1Start.AddDays(7);
+        var block2Start = block1End.AddDays(5);
+        var block2End = block2Start.AddDays(6);
+        var ical = BuildSampleIcal(block1Start, block1End, block2Start, block2End);
+
         var connection = await OpenConnectionAsync();
-        var handler = new FakeCalendarHandler(SampleIcal);
+        var handler = new FakeCalendarHandler(ical);
         var services = new ServiceCollection();
         services.AddLogging();
         services.AddSingleton(connection);
@@ -68,6 +74,8 @@ public sealed class BookingAvailabilityServiceTests
             ]
         }));
         services.AddSingleton<IHttpClientFactory>(new FakeHttpClientFactory(handler));
+        services.Configure<GuestFacingCacheOptions>(_ => { });
+        services.AddMemoryCache();
         services.AddScoped<IBookingAvailabilityService, BookingAvailabilityService>();
 
         var provider = services.BuildServiceProvider();
@@ -84,16 +92,43 @@ public sealed class BookingAvailabilityServiceTests
 
         var unavailable = await service.GetUnavailableDatesAsync(
             "deerfield-retreat",
-            new DateOnly(2026, 6, 1),
-            new DateOnly(2026, 7, 31));
+            block1Start.AddDays(-5),
+            block2End.AddDays(5));
 
-        Assert.Contains(new DateOnly(2026, 6, 24), unavailable);
-        Assert.Contains(new DateOnly(2026, 6, 30), unavailable);
-        Assert.DoesNotContain(new DateOnly(2026, 7, 1), unavailable);
-        Assert.Contains(new DateOnly(2026, 7, 6), unavailable);
-        Assert.Contains(new DateOnly(2026, 7, 11), unavailable);
-        Assert.DoesNotContain(new DateOnly(2026, 7, 12), unavailable);
+        Assert.Contains(block1Start, unavailable);
+        Assert.Contains(block1End.AddDays(-1), unavailable);
+        Assert.DoesNotContain(block1End, unavailable);
+        Assert.Contains(block2Start, unavailable);
+        Assert.Contains(block2End.AddDays(-1), unavailable);
+        Assert.DoesNotContain(block2End, unavailable);
     }
+
+    private static string BuildSampleIcal(
+        DateOnly block1Start,
+        DateOnly block1End,
+        DateOnly block2Start,
+        DateOnly block2End) =>
+        $"""
+        BEGIN:VCALENDAR
+        PRODID:-//Airbnb Inc//Hosting Calendar 1.0//EN
+        CALSCALE:GREGORIAN
+        VERSION:2.0
+        BEGIN:VEVENT
+        DTSTAMP:20260613T051203Z
+        DTSTART;VALUE=DATE:{block1Start:yyyyMMdd}
+        DTEND;VALUE=DATE:{block1End:yyyyMMdd}
+        SUMMARY:Reserved
+        UID:test@airbnb.com
+        END:VEVENT
+        BEGIN:VEVENT
+        DTSTAMP:20260613T051203Z
+        DTSTART;VALUE=DATE:{block2Start:yyyyMMdd}
+        DTEND;VALUE=DATE:{block2End:yyyyMMdd}
+        SUMMARY:Reserved
+        UID:test2@airbnb.com
+        END:VEVENT
+        END:VCALENDAR
+        """;
 
     [Fact]
     public async Task SyncExternalCalendarsAsync_keeps_existing_when_fetch_fails()
@@ -325,6 +360,8 @@ public sealed class BookingAvailabilityServiceTests
             ]
         }));
         services.AddSingleton<IHttpClientFactory>(new FakeHttpClientFactory(handler));
+        services.Configure<GuestFacingCacheOptions>(_ => { });
+        services.AddMemoryCache();
         services.AddScoped<BookingAvailabilityService>();
         var scope = services.BuildServiceProvider().CreateScope();
         return scope.ServiceProvider.GetRequiredService<BookingAvailabilityService>();

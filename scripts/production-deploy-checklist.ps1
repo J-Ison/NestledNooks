@@ -6,8 +6,12 @@ Write-Host ""
 
 $checks = @(
     @{
-        Name = "Azure SQL connection string (not LocalDB)"
-        Hint = "Portal -> NestledNooks -> Configuration -> ConnectionStrings__DefaultConnection"
+        Name = "Calendar + PriceLabs sync intervals (Azure app settings)"
+        Hint = "Booking__CalendarSyncIntervalMinutes=180 (3h iCal). PriceLabs__SyncIntervalMinutes=360 (6h). Avoid values under 60 unless debugging."
+    },
+    @{
+        Name = "Guest-facing SQL cache (optional tuning)"
+        Hint = "GuestFacingCache__PropertyMinutes=15, UnavailableDatesMinutes=15 — reduces repeat homepage/booking DB reads"
     },
     @{
         Name = "Stripe live/test keys + WebhookSecret"

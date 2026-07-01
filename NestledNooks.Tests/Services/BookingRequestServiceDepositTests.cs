@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using NestledNooks.Data;
@@ -156,7 +157,10 @@ public sealed class BookingRequestServiceDepositTests
             ],
         });
 
-        return new BookingPricingService(db, bookingOptions);
+        return new BookingPricingService(
+            db,
+            new PropertyService(db, new MemoryCache(new MemoryCacheOptions()), Options.Create(new GuestFacingCacheOptions())),
+            bookingOptions);
     }
 
     private static async Task<BookingRequest> SeedPendingBookingAsync(ApplicationDbContext db, decimal totalAmount)
@@ -240,7 +244,7 @@ public sealed class BookingRequestServiceDepositTests
             CancellationToken cancellationToken = default) =>
             Task.FromResult(true);
 
-        public Task SyncExternalCalendarsAsync(CancellationToken cancellationToken = default) =>
+        public Task SyncExternalCalendarsAsync(bool force = false, CancellationToken cancellationToken = default) =>
             Task.CompletedTask;
 
         public Task<IReadOnlyList<DateOnly>> GetUnavailableDatesAsync(

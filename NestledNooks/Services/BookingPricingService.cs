@@ -8,13 +8,16 @@ namespace NestledNooks.Services;
 public sealed class BookingPricingService
 {
     private readonly ApplicationDbContext _db;
+    private readonly IPropertyService _propertyService;
     private readonly BookingOptions _options;
 
     public BookingPricingService(
         ApplicationDbContext db,
+        IPropertyService propertyService,
         IOptions<BookingOptions> options)
     {
         _db = db;
+        _propertyService = propertyService;
         _options = options.Value;
     }
 
@@ -119,10 +122,6 @@ public sealed class BookingPricingService
         if (string.IsNullOrWhiteSpace(propertySlug))
             return null;
 
-        var slug = propertySlug.Trim().ToLowerInvariant();
-        return await _db.RentalProperties
-            .AsNoTracking()
-            .FirstOrDefaultAsync(p => p.Slug == slug, cancellationToken)
-            .ConfigureAwait(false);
+        return await _propertyService.GetBySlugAsync(propertySlug, cancellationToken).ConfigureAwait(false);
     }
 }
